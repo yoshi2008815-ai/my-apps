@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オプション - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <button class="back-btn" onclick="history.back()">‹</button>
+  <h1>オプション</h1>
+  <div class="header-spacer"></div>
+</header>
+<main class="app-main" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+function render() {
+  const opts = Store.get('options') ?? [];
+  document.getElementById('mainContent').innerHTML = `
+    <div style="background:var(--primary-light);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:var(--primary-dark);border-left:3px solid var(--primary);">
+      ✨ オプションを活用して、より多くの方との出会いのチャンスを広げましょう。
+    </div>
+    ${opts.map(o => `
+    <div class="option-card">
+      <div class="option-icon">${o.icon}</div>
+      <div class="option-info">
+        <div class="option-name">${o.name}</div>
+        <div class="option-desc">${o.description}</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
+          <div class="option-price">${App.fmtMoney(o.price)}</div>
+          <div class="option-price-unit">/ ${o.unit}${o.type==='monthly'?'（毎月自動更新）':''}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="purchaseOption('${o.id}','${o.name}',${o.price})">申し込む</button>
+      </div>
+    </div>`).join('')}
+    <div class="card" style="margin-top:4px;">
+      <div class="card-body" style="font-size:12px;color:var(--text-muted);line-height:1.7;">
+        ※ オプションの申込後はご登録のカードに自動請求されます。<br>
+        ※ 月額オプションはいつでもキャンセル可能です。<br>
+        ※ 詳細はアドバイザーにお問い合わせください。
+      </div>
+    </div>`;
+}
+
+function purchaseOption(id, name, price) {
+  App.modal(`
+    <div class="modal-header"><h3>オプション申込確認</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:32px;margin-bottom:8px;">${Store.getById('options',id)?.icon}</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">${name}</div>
+        <div style="font-size:28px;font-weight:700;color:var(--primary);">${App.fmtMoney(price)}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;font-size:13px;color:var(--text-sub);">
+        登録済みのお支払い方法（口座振替）で請求されます。
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="confirmPurchase('${id}','${name}')">申込を確定する</button>
+    </div>`);
+}
+
+function confirmPurchase(id, name) {
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast(`✅ 「${name}」のお申込みを受け付けました！`, 'success');
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メッセージ - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header" id="appHeader">
+  <div class="header-spacer"></div>
+  <h1>💬 メッセージ</h1>
+  <div class="header-spacer"></div>
+</header>
+<main class="app-main no-pad" id="mainContent"></main>
+<nav class="bottom-nav" id="bottomNav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item active"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+// Check URL param for board ID
+const params = new URLSearchParams(location.search);
+const openBoardId = params.get('id');
+
+if (openBoardId) {
+  openBoard(openBoardId);
+} else {
+  renderBoardList();
+}
+
+function renderBoardList() {
+  document.getElementById('appHeader').innerHTML = `
+    <div class="header-spacer"></div>
+    <h1>💬 メッセージ</h1>
+    <div class="header-spacer"></div>`;
+  document.getElementById('bottomNav').style.display = 'flex';
+
+  const boards = Store.query('bulletinBoards', b => b.member1Id === me.id || b.member2Id === me.id);
+  if (!boards.length) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty-state" style="padding-top:60px;"><div class="empty-state-icon">💬</div><div class="empty-state-title">メッセージはまだありません</div><p class="empty-state-text">マッチングが成立すると掲示板が開設されます</p></div>`;
+    return;
+  }
+
+  const items = boards.map(b => {
+    const partnerId = b.member1Id === me.id ? b.member2Id : b.member1Id;
+    const partner = Store.getById('members', partnerId);
+    const msgs = Store.query('boardMessages', m => m.boardId === b.id);
+    const last = msgs[msgs.length - 1];
+    const unreadCount = msgs.filter(m => m.senderId !== me.id && !m.read).length;
+    return { b, partner, last, unreadCount };
+  }).sort((a,b) => (b.last?.sentAt ?? b.b.openedAt).localeCompare(a.last?.sentAt ?? a.b.openedAt));
+
+  document.getElementById('mainContent').innerHTML = `
+    <div style="background:#fff;">
+      ${items.map(({ b, partner, last, unreadCount }) => `
+        <div class="member-list-item" onclick="openBoard('${b.id}')">
+          ${App.avatarImg(partner?.name, partner?.gender, 50, '')}
+          <div class="member-list-info">
+            <div class="member-list-name">${partner?.name ?? '—'}</div>
+            <div class="member-list-meta">${last?.text ? last.text.slice(0,30) + (last.text.length>30?'…':'') : 'まだメッセージはありません'}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${last ? App.fmtDatetime(last.sentAt) : App.fmtDate(b.openedAt,{yearMonthDay:true})}</div>
+          </div>
+          ${unreadCount > 0 ? `<div style="background:var(--primary);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px;">${unreadCount}</div>` : '<div style="color:var(--text-muted);font-size:18px;">›</div>'}
+        </div>`).join('')}
+    </div>`;
+}
+
+function openBoard(boardId) {
+  const board = Store.getById('bulletinBoards', boardId);
+  if (!board) { renderBoardList(); return; }
+  const partnerId = board.member1Id === me.id ? board.member2Id : board.member1Id;
+  const partner = Store.getById('members', partnerId);
+
+  // Mark messages as read
+  const msgs = Store.query('boardMessages', m => m.boardId === boardId && m.senderId !== me.id && !m.read);
+  msgs.forEach(m => Store.update('boardMessages', m.id, { read: true }));
+
+  // Update header
+  document.getElementById('appHeader').innerHTML = `
+    <button class="back-btn" onclick="history.back()">‹</button>
+    <div style="flex:1;display:flex;align-items:center;gap:8px;">
+      ${App.avatarImg(partner?.name, partner?.gender, 34, '')}
+      <div>
+        <div style="font-size:15px;font-weight:700;line-height:1.2;">${partner?.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${App.age(partner?.birthdate)}歳 / ${partner?.prefecture}</div>
+      </div>
+    </div>
+    <button class="header-btn" onclick="showPartnerInfo('${partnerId}')">👤</button>`;
+
+  document.getElementById('bottomNav').style.display = 'none';
+
+  const allMsgs = Store.query('boardMessages', m => m.boardId === boardId)
+    .sort((a,b) => a.sentAt.localeCompare(b.sentAt));
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="chat-wrap" style="height:calc(100vh - 56px);">
+      <div class="chat-messages" id="chatMsgs">
+        ${allMsgs.length ? allMsgs.map(m => renderMsg(m, partner)).join('') : '<div style="text-align:center;padding:30px 20px;font-size:13px;color:var(--text-muted);">まだメッセージはありません。最初のメッセージを送りましょう！</div>'}
+      </div>
+      <div class="chat-input-bar">
+        <textarea class="chat-textarea" id="chatInput" placeholder="メッセージを入力..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg('${boardId}');}"></textarea>
+        <button class="chat-send" onclick="sendMsg('${boardId}')">➤</button>
+      </div>
+    </div>`;
+
+  // Scroll to bottom
+  setTimeout(() => { const c = document.getElementById('chatMsgs'); if (c) c.scrollTop = c.scrollHeight; }, 50);
+}
+
+function renderMsg(msg, partner) {
+  const isMine = msg.senderId === me.id;
+  const time = App.fmtDatetime(msg.sentAt);
+  return `
+  <div class="msg-row ${isMine ? 'mine' : 'theirs'}">
+    ${!isMine ? App.avatarImg(partner?.name, partner?.gender, 32, '') : ''}
+    <div>
+      <div class="msg-bubble">${escHtml(msg.text)}</div>
+      <div class="msg-time" style="text-align:${isMine?'right':'left'}">${time}</div>
+    </div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function sendMsg(boardId) {
+  const input = document.getElementById('chatInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  const newId = Store.nextId('boardMessages', 'BM');
+  Store.create('boardMessages', { id: newId, boardId, senderId: me.id, text, sentAt: new Date().toISOString(), read: false });
+  input.value = '';
+  openBoard(boardId);
+}
+
+function showPartnerInfo(id) {
+  const m = Store.getById('members', id);
+  if (!m) return;
+  App.modal(`
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;">${App.avatarImg(m.name,m.gender,44,'')}
+        <div><div style="font-size:17px;font-weight:700;">${m.name}</div><div style="font-size:12px;color:var(--text-muted);">${App.age(m.birthdate)}歳 / ${m.prefecture}</div></div></div>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg);border-radius:10px;padding:12px;font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:12px;">${m.selfIntroduction}</div>
+      <div style="background:#fff;border-radius:10px;border:1px solid var(--border);">
+        ${[['職業',m.occupation],['居住地',m.prefecture+m.city],['趣味',(m.hobbies||[]).join('・')]].map(([l,v])=>`<div class="profile-row"><div class="profile-label">${l}</div><div class="profile-value">${v||'—'}</div></div>`).join('')}
+      </div>
+    </div>`);
+}
+</script>
+</body>
+</html>

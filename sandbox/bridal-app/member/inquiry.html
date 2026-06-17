@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アドバイザーに相談 - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header" id="appHeader">
+  <div class="header-spacer"></div>
+  <h1>💬 アドバイザーに相談</h1>
+  <button class="header-btn" onclick="showNewInquiry()">✏️</button>
+</header>
+<main class="app-main no-pad" id="mainContent"></main>
+<nav class="bottom-nav" id="bottomNav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+const advisor = Store.getById('advisors', me.advisorId);
+let openInquiryId = null;
+
+const params = new URLSearchParams(location.search);
+if (params.get('id')) openInquiryId = params.get('id');
+
+if (openInquiryId) openInquiry(openInquiryId);
+else renderList();
+
+function renderList() {
+  openInquiryId = null;
+  document.getElementById('appHeader').innerHTML = `
+    <div class="header-spacer"></div>
+    <h1>💬 アドバイザーに相談</h1>
+    <button class="header-btn" onclick="showNewInquiry()">✏️</button>`;
+  document.getElementById('bottomNav').style.display = 'flex';
+
+  const inquiries = Store.query('inquiries', i => i.memberId === me.id);
+  if (!inquiries.length) {
+    document.getElementById('mainContent').innerHTML = `
+      <div style="background:#fff;padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
+        <div style="width:46px;height:46px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:22px;">👩</div>
+        <div><div style="font-size:15px;font-weight:700;">${advisor?.name ?? 'アドバイザー'}</div><div style="font-size:12px;color:var(--text-muted);">${advisor?.branch ?? me.branch}</div></div>
+      </div>
+      <div class="empty-state" style="padding-top:50px;"><div class="empty-state-icon">💬</div><div class="empty-state-title">相談履歴はありません</div><p class="empty-state-text">右上の ✏️ から新しいご相談を始めましょう</p></div>`;
+    return;
+  }
+
+  const sorted = [...inquiries].sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+  document.getElementById('mainContent').innerHTML = `
+    <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
+      <div style="width:44px;height:44px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:20px;">👩</div>
+      <div><div style="font-size:15px;font-weight:700;">${advisor?.name ?? 'アドバイザー'}</div><div style="font-size:12px;color:var(--text-muted);">${advisor?.branch}</div></div>
+    </div>
+    ${sorted.map(inq => {
+      const msgs = Store.query('inquiryMessages', m => m.inquiryId === inq.id);
+      const last = msgs[msgs.length-1];
+      return `
+      <div class="inq-list-item" onclick="openInquiry('${inq.id}')">
+        <div>
+          <div class="inq-subject">${inq.subject}</div>
+          <div class="inq-meta">${last ? last.text.slice(0,40)+'…' : 'メッセージなし'}</div>
+          <div class="inq-meta">${App.fmtDatetime(inq.createdAt)}</div>
+        </div>
+        <span class="chip ${inq.status==='answered'?'chip-ok':'chip-pending'}" style="font-size:11px;flex-shrink:0;">${inq.status==='answered'?'回答済み':'返信待ち'}</span>
+      </div>`;
+    }).join('')}`;
+}
+
+function openInquiry(id) {
+  openInquiryId = id;
+  const inq = Store.getById('inquiries', id);
+  if (!inq) { renderList(); return; }
+
+  document.getElementById('appHeader').innerHTML = `
+    <button class="back-btn" onclick="renderList()">‹</button>
+    <div style="flex:1;text-align:center;"><div style="font-size:15px;font-weight:700;">${inq.subject}</div></div>
+    <div class="header-spacer"></div>`;
+  document.getElementById('bottomNav').style.display = 'none';
+
+  const msgs = Store.query('inquiryMessages', m => m.inquiryId === id)
+    .sort((a,b) => a.sentAt.localeCompare(b.sentAt));
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="chat-wrap" style="height:calc(100vh - 56px);">
+      <div class="chat-messages" id="inquiryMsgs">
+        ${msgs.map(m => renderInqMsg(m)).join('')}
+      </div>
+      <div class="chat-input-bar">
+        <textarea class="chat-textarea" id="inqInput" placeholder="メッセージを入力..." rows="1"></textarea>
+        <button class="chat-send" onclick="sendInqMsg('${id}')">➤</button>
+      </div>
+    </div>`;
+  setTimeout(() => { const c = document.getElementById('inquiryMsgs'); if(c) c.scrollTop = c.scrollHeight; }, 50);
+}
+
+function renderInqMsg(msg) {
+  const isMine = msg.senderType === 'member';
+  const name = isMine ? me.name : (advisor?.name ?? 'アドバイザー');
+  return `
+  <div class="msg-row ${isMine ? 'mine' : 'theirs'}">
+    ${!isMine ? `<div style="width:32px;height:32px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">👩</div>` : ''}
+    <div>
+      ${!isMine ? `<div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">${name}</div>` : ''}
+      <div class="msg-bubble">${msg.text.replace(/\n/g,'<br>')}</div>
+      <div class="msg-time" style="text-align:${isMine?'right':'left'}">${App.fmtDatetime(msg.sentAt)}</div>
+    </div>
+  </div>`;
+}
+
+function sendInqMsg(inqId) {
+  const input = document.getElementById('inqInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  const newId = Store.nextId('inquiryMessages','IQ');
+  Store.create('inquiryMessages', { id: newId, inquiryId: inqId, senderId: me.id, senderType: 'member', text, sentAt: new Date().toISOString() });
+  Store.update('inquiries', inqId, { status: 'open' });
+  input.value = '';
+  openInquiry(inqId);
+}
+
+function showNewInquiry() {
+  App.modal(`
+    <div class="modal-header"><h3>✏️ 新規相談</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">件名</label><input type="text" class="form-control" id="inqSubject" placeholder="例：紹介書について"></div>
+      <div class="form-group"><label class="form-label">内容</label><textarea class="form-control" id="inqBody" rows="5" placeholder="ご相談内容を入力してください..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitNewInquiry()">送信する</button>
+    </div>`);
+}
+
+function submitNewInquiry() {
+  const subject = document.getElementById('inqSubject')?.value?.trim();
+  const body    = document.getElementById('inqBody')?.value?.trim();
+  if (!subject || !body) { App.toast('件名と内容を入力してください','warning'); return; }
+  const inqId = Store.nextId('inquiries','INQ');
+  const msgId = Store.nextId('inquiryMessages','IQ');
+  Store.create('inquiries', { id: inqId, memberId: me.id, advisorId: me.advisorId, subject, status: 'open', createdAt: new Date().toISOString() });
+  Store.create('inquiryMessages', { id: msgId, inquiryId: inqId, senderId: me.id, senderType: 'member', text: body, sentAt: new Date().toISOString() });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('✅ 相談を送信しました', 'success');
+  openInquiry(inqId);
+}
+</script>
+</body>
+</html>

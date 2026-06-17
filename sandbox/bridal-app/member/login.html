@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会員ログイン - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#C45C82">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="login-logo-icon">💍</span>
+      <div class="login-logo-name">ハーモニーブライダル</div>
+      <div class="login-logo-tagline">会員専用マイページ</div>
+    </div>
+
+    <div class="login-error" id="loginError"></div>
+
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label class="form-label">メールアドレス</label>
+        <input type="email" id="email" class="form-control" placeholder="example@email.com" autocomplete="email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">パスワード</label>
+        <input type="password" id="password" class="form-control" placeholder="パスワードを入力" autocomplete="current-password" required>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#666;cursor:pointer;">
+          <input type="checkbox" id="rememberMe"> ログイン状態を保持する
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg" id="submitBtn">ログイン</button>
+    </form>
+
+    <div class="divider" style="margin:20px 0;"></div>
+
+    <div style="text-align:center;">
+      <a href="#" style="font-size:13px;color:#C45C82;">パスワードをお忘れの方</a>
+    </div>
+
+    <div style="background:#F8EDF3;border-radius:10px;padding:12px;margin-top:20px;font-size:12px;color:#9C3A62;line-height:1.6;">
+      <strong>デモ用アカウント</strong><br>
+      メール: demo@example.com<br>
+      パスワード: demo1234
+    </div>
+
+    <div style="text-align:center;margin-top:20px;">
+      <a href="../index.html" style="font-size:12px;color:#999;">← トップページに戻る</a>
+    </div>
+  </div>
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+// Redirect if already logged in
+if (Auth.getMemberSession()) window.location.href = 'dashboard.html';
+
+function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  App.setLoading(btn, true);
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const err      = document.getElementById('loginError');
+
+  setTimeout(() => {
+    const result = Auth.loginMember(email, password);
+    if (result.ok) {
+      window.location.href = 'dashboard.html';
+    } else {
+      err.textContent = result.error;
+      err.classList.add('show');
+      App.setLoading(btn, false);
+    }
+  }, 500);
+}
+</script>
+</body>
+</html>

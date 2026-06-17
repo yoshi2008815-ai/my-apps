@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お知らせ配信 - 管理画面</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/admin.css">
+</head>
+<body class="admin-body">
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">💍</div>
+    <div class="sidebar-logo-text">ハーモニー<br><span style="font-size:10px;opacity:.6;">管理システム</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="sidebar-item"><span class="sidebar-icon">📊</span>ダッシュボード</a>
+    <a href="members.html"   class="sidebar-item"><span class="sidebar-icon">👥</span>会員管理</a>
+    <a href="events.html"    class="sidebar-item"><span class="sidebar-icon">📅</span>イベント管理</a>
+    <a href="notifications.html" class="sidebar-item active"><span class="sidebar-icon">🔔</span>お知らせ配信</a>
+    <a href="inquiries.html" class="sidebar-item"><span class="sidebar-icon">💬</span>問い合わせ管理</a>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="sidebar-item" onclick="App.confirm('ログアウトしますか？',()=>{Auth.logoutAdmin();location.href='login.html';})" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);">
+      <span class="sidebar-icon">🚪</span>ログアウト
+    </button>
+  </div>
+</aside>
+
+<div class="admin-main">
+  <header class="admin-topbar">
+    <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')">☰</button>
+    <h1 class="topbar-title">お知らせ配信</h1>
+    <div class="topbar-right">
+      <button class="btn btn-primary btn-sm" onclick="showCompose()">＋ 新規配信</button>
+    </div>
+  </header>
+
+  <div class="admin-content">
+    <!-- KPI -->
+    <div class="kpi-grid" id="kpiRow"></div>
+
+    <!-- Tabs -->
+    <div class="page-tabs" style="background:#fff;border-radius:10px 10px 0 0;border:1px solid var(--border);border-bottom:none;">
+      <button class="page-tab active" data-tab="global" onclick="setTab('global',this)">📢 全体配信</button>
+      <button class="page-tab" data-tab="personal" onclick="setTab('personal',this)">✉️ 個別配信</button>
+    </div>
+
+    <div class="admin-card" style="border-radius:0 0 10px 10px;border-top:none;">
+      <div class="admin-card-body" style="padding:0;">
+        <table class="admin-table" id="notifTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div id="emptyState" class="empty-state" style="display:none;padding:50px;">
+          <div class="empty-state-icon">🔔</div>
+          <div class="empty-state-title">配信履歴はありません</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('show');"></div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+Auth.requireAdmin();
+let activeTab = 'global';
+
+function setTab(tab, el) {
+  activeTab = tab;
+  document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function render() {
+  const global   = Store.get('globalNotifications') ?? [];
+  const personal = Store.get('notifications') ?? [];
+  const members  = Store.get('members') ?? [];
+
+  // KPI
+  document.getElementById('kpiRow').innerHTML = [
+    { label:'全体配信数', value: global.length, icon:'📢', color:'#C45C82' },
+    { label:'個別配信数', value: personal.length, icon:'✉️', color:'#8B5CF6' },
+    { label:'未読数', value: personal.filter(n=>!n.read).length, icon:'🔴', color:'#EF4444' },
+    { label:'対象会員数', value: members.filter(m=>m.status==='active').length, icon:'👥', color:'#059669' },
+  ].map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:${k.color}20;color:${k.color};">${k.icon}</div>
+      <div class="kpi-body"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.color};">${k.value}</div></div>
+    </div>`).join('');
+
+  const head = document.getElementById('tableHead');
+  const body = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+
+  if (activeTab === 'global') {
+    head.innerHTML = `<tr><th>件名</th><th>本文</th><th>対象</th><th>重要</th><th>配信日</th><th>操作</th></tr>`;
+    if (!global.length) { body.innerHTML=''; empty.style.display='flex'; return; }
+    empty.style.display='none';
+    const sorted = [...global].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+    body.innerHTML = sorted.map(n=>`<tr>
+      <td><div style="font-size:13px;font-weight:600;">${n.icon??'📢'} ${n.title}</div></td>
+      <td style="font-size:12px;color:var(--text-muted);max-width:340px;">${n.body.length>60?n.body.slice(0,60)+'…':n.body}</td>
+      <td style="font-size:12px;">${n.target ?? '全会員'}</td>
+      <td>${n.important?'<span class="chip chip-ng" style="font-size:11px;">⚠️ 重要</span>':'<span style="color:var(--text-muted);font-size:12px;">通常</span>'}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${App.fmtDate(n.createdAt,{yearMonthDay:true})}</td>
+      <td><button class="btn btn-sm" style="background:#FEF2F2;color:#EF4444;border:1px solid #FECACA;" onclick="deleteGlobal('${n.id}')">削除</button></td>
+    </tr>`).join('');
+  } else {
+    head.innerHTML = `<tr><th>件名</th><th>宛先</th><th>本文</th><th>状態</th><th>配信日</th><th>操作</th></tr>`;
+    if (!personal.length) { body.innerHTML=''; empty.style.display='flex'; return; }
+    empty.style.display='none';
+    const sorted = [...personal].sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+    body.innerHTML = sorted.map(n=>{
+      const m = Store.getById('members', n.memberId);
+      return `<tr>
+        <td><div style="font-size:13px;font-weight:600;">${n.icon??'📢'} ${n.title}</div></td>
+        <td style="font-size:12px;">${m?.name??'—'}</td>
+        <td style="font-size:12px;color:var(--text-muted);max-width:280px;">${n.body.length>50?n.body.slice(0,50)+'…':n.body}</td>
+        <td>${n.read?'<span class="chip chip-ok" style="font-size:11px;">既読</span>':'<span class="chip chip-pending" style="font-size:11px;">未読</span>'}</td>
+        <td style="font-size:12px;color:var(--text-muted);">${App.fmtDatetime(n.createdAt)}</td>
+        <td><button class="btn btn-sm" style="background:#FEF2F2;color:#EF4444;border:1px solid #FECACA;" onclick="deletePersonal('${n.id}')">削除</button></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function deleteGlobal(id) {
+  App.confirm('この配信を削除しますか？', () => {
+    const arr = (Store.get('globalNotifications') ?? []).filter(n => n.id !== id);
+    Store.set('globalNotifications', arr);
+    App.toast('削除しました', 'default');
+    render();
+  });
+}
+
+function deletePersonal(id) {
+  App.confirm('この配信を削除しますか？', () => {
+    Store.remove('notifications', id);
+    App.toast('削除しました', 'default');
+    render();
+  });
+}
+
+function showCompose() {
+  App.modal(`
+    <div class="modal-header"><h3>📢 新規配信</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">配信タイプ</label>
+        <div style="display:flex;gap:8px;">
+          <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--primary);border-radius:8px;background:var(--primary-light);cursor:pointer;font-size:13px;">
+            <input type="radio" name="compType" value="global" checked> 全体配信
+          </label>
+          <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="compType" value="personal" onchange="this.parentElement.style.borderColor='var(--primary)';this.parentElement.style.background='var(--primary-light)';document.getElementById('targetSelector').style.display='block';this.parentElement.previousElementSibling.style.borderColor='var(--border)';this.parentElement.previousElementSibling.style.background='transparent';">
+            個別配信
+          </label>
+        </div>
+      </div>
+      <div class="form-group" id="targetSelector" style="display:none;">
+        <label class="form-label">宛先（会員）</label>
+        <select class="form-control" id="compTarget">
+          ${(Store.get('members')??[]).map(m=>`<option value="${m.id}">${m.name} (${m.id})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" id="globalTarget">
+        <label class="form-label">配信対象（全体）</label>
+        <select class="form-control" id="compGlobalTarget">
+          <option value="全会員">全会員</option>
+          <option value="女性会員">女性会員のみ</option>
+          <option value="男性会員">男性会員のみ</option>
+          <option value="プレミアム会員">プレミアム会員のみ</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">アイコン</label>
+        <select class="form-control" id="compIcon">
+          ${['📢','🎉','🎁','⚠️','💌','📅','🔧'].map(i=>`<option>${i}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">件名 <span style="color:#E53E3E;">*</span></label><input type="text" class="form-control" id="compTitle" placeholder="例：システムメンテナンスのお知らせ"></div>
+      <div class="form-group"><label class="form-label">本文 <span style="color:#E53E3E;">*</span></label><textarea class="form-control" id="compBody" rows="5" placeholder="本文を入力してください..."></textarea></div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;"><input type="checkbox" id="compImportant"> ⚠️ 重要なお知らせとしてマーク</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="sendCompose()">📤 配信する</button>
+    </div>`, { maxWidth:'520px' });
+}
+
+function sendCompose() {
+  const type      = document.querySelector('input[name="compType"]:checked')?.value;
+  const title     = document.getElementById('compTitle')?.value?.trim();
+  const body      = document.getElementById('compBody')?.value?.trim();
+  const icon      = document.getElementById('compIcon')?.value;
+  const important = document.getElementById('compImportant')?.checked;
+
+  if (!title || !body) { App.toast('件名と本文を入力してください','warning'); return; }
+
+  const now = new Date().toISOString();
+  if (type === 'global') {
+    const target = document.getElementById('compGlobalTarget')?.value;
+    const arr = Store.get('globalNotifications') ?? [];
+    arr.unshift({ id: Store.nextId('globalNotifications','GN'), title, body, icon, important, target, createdAt: now });
+    Store.set('globalNotifications', arr);
+  } else {
+    const memberId = document.getElementById('compTarget')?.value;
+    Store.create('notifications', {
+      id: Store.nextId('notifications','N'), memberId, title, body, icon, important, read: false, createdAt: now
+    });
+  }
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('✅ 配信しました', 'success');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

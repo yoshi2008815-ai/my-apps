@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申し込み状況 - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <button class="back-btn" onclick="history.back()">‹</button>
+  <h1>申し込み状況</h1>
+  <div class="header-spacer"></div>
+</header>
+
+<div class="page-tabs">
+  <button class="page-tab active" onclick="setTab('received',this)">受けた申込</button>
+  <button class="page-tab" onclick="setTab('sent',this)">送った申込</button>
+  <button class="page-tab" onclick="setTab('omiai',this)">お見合い</button>
+  <button class="page-tab" onclick="setTab('stars',this)">スター</button>
+</div>
+
+<main class="app-main no-pad" id="mainContent"></main>
+
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+let currentTab = 'received';
+
+const STATUS_LABEL = { pending:'返事待ち', accepted:'OK', rejected:'NG', expired:'期限切れ' };
+const STATUS_CLASS  = { pending:'chip-pending', accepted:'chip-ok', rejected:'chip-ng', expired:'chip-none' };
+
+function setTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function render() {
+  const content = document.getElementById('mainContent');
+  if (currentTab === 'received') renderTalk(content, false);
+  else if (currentTab === 'sent')  renderTalk(content, true);
+  else if (currentTab === 'omiai') renderOmiai(content);
+  else if (currentTab === 'stars') renderStars(content);
+}
+
+function memberRow(m, statusLabel, statusClass, extra='', actions='') {
+  if (!m) return '';
+  return `
+  <div class="app-row">
+    ${App.avatarImg(m.name, m.gender, 50, '')}
+    <div class="app-row-info">
+      <div class="app-row-name">${m.name} <span class="chip ${statusClass}" style="font-size:11px;">${statusLabel}</span></div>
+      <div class="app-row-meta">${App.age(m.birthdate)}歳 / ${m.prefecture} / ${m.occupation}</div>
+      ${extra}
+      ${actions ? `<div class="app-row-actions">${actions}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderTalk(content, isSent) {
+  const apps = Store.query('talkApplications', a => isSent ? a.fromMemberId === me.id : a.toMemberId === me.id);
+  if (!apps.length) { content.innerHTML = emptyHtml('💬', isSent ? 'まだ申し込みを送っていません' : '申し込みは届いていません'); return; }
+
+  content.innerHTML = apps.map(a => {
+    const partnerId = isSent ? a.toMemberId : a.fromMemberId;
+    const partner = Store.getById('members', partnerId);
+    const msgPreview = a.message ? `<div class="app-row-msg">${a.message}</div>` : '';
+    const dateTxt = `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${App.fmtDatetime(a.sentAt)}</div>`;
+    let actions = '';
+    if (!isSent && a.status === 'pending') {
+      actions = `<button class="btn btn-primary btn-sm" onclick="replyTalk('${a.id}','accepted')">OK</button>
+                 <button class="btn btn-ghost btn-sm" onclick="replyTalk('${a.id}','rejected')">見送る</button>`;
+    }
+    return memberRow(partner, STATUS_LABEL[a.status], STATUS_CLASS[a.status], msgPreview + dateTxt, actions);
+  }).join('');
+}
+
+function replyTalk(id, status) {
+  const label = status === 'accepted' ? 'OKする' : '見送る';
+  App.confirm(`このお話し申込を${label}しますか？`, () => {
+    Store.update('talkApplications', id, { status });
+    if (status === 'accepted') {
+      const app = Store.getById('talkApplications', id);
+      const newBoard = { id: Store.nextId('bulletinBoards','B'), member1Id: me.id, member2Id: app.fromMemberId, openedAt: new Date().toISOString(), status: 'active', openReason: 'talk_application', member1Disclosure: false, member2Disclosure: false };
+      Store.create('bulletinBoards', newBoard);
+      App.toast('✅ OKしました！掲示板が開設されました', 'success');
+    } else {
+      App.toast('見送りました', 'default');
+    }
+    render();
+  });
+}
+
+function renderOmiai(content) {
+  const apps = Store.query('omiaApplications', a => a.fromMemberId === me.id || a.toMemberId === me.id);
+  if (!apps.length) { content.innerHTML = emptyHtml('🤝', 'お見合い申込はありません'); return; }
+
+  content.innerHTML = apps.map(a => {
+    const isSent = a.fromMemberId === me.id;
+    const partnerId = isSent ? a.toMemberId : a.fromMemberId;
+    const partner = Store.getById('members', partnerId);
+    const extra = `<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${isSent?'送信':'受信'} / 希望日: ${a.preferredDates?.[0] ? App.fmtDate(a.preferredDates[0],{monthDay:true}) : '—'}</div>`;
+    return memberRow(partner, STATUS_LABEL[a.status], STATUS_CLASS[a.status], extra);
+  }).join('');
+}
+
+function renderStars(content) {
+  const received = Store.query('stars', s => s.toMemberId === me.id);
+  const sent = Store.query('stars', s => s.fromMemberId === me.id);
+
+  if (!received.length && !sent.length) { content.innerHTML = emptyHtml('⭐', 'スターの送受信履歴はありません'); return; }
+
+  const recHtml = received.length ? `
+    <div style="padding:10px 16px;font-size:12px;font-weight:700;color:var(--text-muted);background:var(--bg);border-bottom:1px solid var(--border);">もらったスター (${received.length})</div>
+    ${received.map(s => {
+      const partner = Store.getById('members', s.fromMemberId);
+      const actions = s.status === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="replyStarOk('${s.id}','${s.fromMemberId}')">⭐ スターを返す</button>` : '';
+      return memberRow(partner, s.status === 'matched' ? 'マッチング済み' : '未回答', s.status === 'matched' ? 'chip-ok' : 'chip-pending', `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${App.fmtDatetime(s.sentAt)}</div>`, actions);
+    }).join('')}` : '';
+
+  const sentHtml = sent.length ? `
+    <div style="padding:10px 16px;font-size:12px;font-weight:700;color:var(--text-muted);background:var(--bg);border-bottom:1px solid var(--border);">送ったスター (${sent.length})</div>
+    ${sent.map(s => {
+      const partner = Store.getById('members', s.toMemberId);
+      return memberRow(partner, s.status === 'matched' ? 'マッチング済み' : '返事待ち', s.status === 'matched' ? 'chip-ok' : 'chip-pending', `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${App.fmtDatetime(s.sentAt)}</div>`);
+    }).join('')}` : '';
+
+  content.innerHTML = recHtml + sentHtml;
+}
+
+function replyStarOk(starId, partnerId) {
+  Store.update('stars', starId, { status: 'matched' });
+  const myStar = Store.query('stars', s => s.fromMemberId === me.id && s.toMemberId === partnerId)[0];
+  if (myStar) Store.update('stars', myStar.id, { status: 'matched' });
+  else Store.create('stars', { id: Store.nextId('stars','S'), fromMemberId: me.id, toMemberId: partnerId, sentAt: new Date().toISOString(), status: 'matched' });
+  const newBoard = { id: Store.nextId('bulletinBoards','B'), member1Id: me.id, member2Id: partnerId, openedAt: new Date().toISOString(), status: 'active', openReason: 'star_match', member1Disclosure: false, member2Disclosure: false };
+  Store.create('bulletinBoards', newBoard);
+  App.toast('🎉 マッチングしました！掲示板が開設されました', 'success');
+  render();
+}
+
+function emptyHtml(icon, msg) {
+  return `<div class="empty-state" style="padding-top:60px;"><div class="empty-state-icon">${icon}</div><div class="empty-state-title">${msg}</div></div>`;
+}
+
+render();
+</script>
+</body>
+</html>

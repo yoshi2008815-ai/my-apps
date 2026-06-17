@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>紹介書 - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <div class="header-spacer"></div>
+  <h1>💌 紹介書</h1>
+  <div class="header-spacer"></div>
+</header>
+<main class="app-main" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item active" data-nav="intro"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item" data-nav="search"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item" data-nav="events"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item" data-nav="msg"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item" data-nav="mypage"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+const STATUS_MAP = { delivered:'未回答', applied:'申込済み', matched:'マッチング成立', expired:'期限切れ' };
+const STATUS_CLASS = { delivered:'chip-pending', applied:'chip-matching', matched:'chip-ok', expired:'chip-none' };
+
+function render() {
+  const intros = Store.query('introductions', i => i.fromMemberId === me.id);
+  if (!intros.length) {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="empty-state"><div class="empty-state-icon">💌</div>
+      <div class="empty-state-title">今月の紹介書は届いていません</div>
+      <p class="empty-state-text">毎月配信日に届きます。今しばらくお待ちください。</p></div>`;
+    return;
+  }
+  const html = `
+    <div style="background:var(--primary-light);border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--primary-dark);border-left:3px solid var(--primary);">
+      💌 今月の紹介書が <strong>${intros.length}件</strong> 届いています。期限内にご確認ください。
+    </div>
+    ${intros.map(intro => renderIntroCard(intro)).join('')}`;
+  document.getElementById('mainContent').innerHTML = html;
+}
+
+function renderIntroCard(intro) {
+  const partner = Store.getById('members', intro.toMemberId);
+  if (!partner) return '';
+  const a = App.age(partner.birthdate);
+  return `
+  <div class="intro-card">
+    <div class="intro-card-band">
+      <strong>💌 ${App.fmtDate(intro.deliveredAt,{monthDay:true})} 配信</strong>
+      <span class="chip ${STATUS_CLASS[intro.status]}">${STATUS_MAP[intro.status]}</span>
+    </div>
+    <div class="intro-card-body">
+      <div class="intro-profile">
+        <div class="intro-avatar">${App.avatarImg(partner.name, partner.gender, 88, '')}</div>
+        <div class="intro-details">
+          <div class="intro-name">${partner.name}</div>
+          <div class="intro-age">${a}歳 / ${partner.height}cm</div>
+          <div class="intro-grid">
+            <div class="intro-item"><div class="intro-item-label">居住地</div><div class="intro-item-val">${partner.prefecture}</div></div>
+            <div class="intro-item"><div class="intro-item-label">職業</div><div class="intro-item-val">${partner.occupation}</div></div>
+            <div class="intro-item"><div class="intro-item-label">年収</div><div class="intro-item-val">${partner.income}</div></div>
+            <div class="intro-item"><div class="intro-item-label">学歴</div><div class="intro-item-val">${partner.education}</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="intro-note">${intro.advisorNote}</div>
+      <div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:10px;font-size:13px;color:var(--text-sub);line-height:1.6;">
+        <strong style="display:block;margin-bottom:4px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-muted);">自己紹介</strong>
+        ${partner.selfIntroduction}
+      </div>
+      <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+        ${(partner.hobbies||[]).map(h=>`<span class="chip chip-matching">${h}</span>`).join('')}
+      </div>
+    </div>
+    <div class="intro-actions">
+      <button class="btn btn-ghost btn-sm" onclick="sendStar('${partner.id}')">⭐ スター送信</button>
+      <button class="btn btn-secondary btn-sm" onclick="showTalkForm('${partner.id}','${partner.name}')">💬 お話し申込</button>
+      <button class="btn btn-primary btn-sm" onclick="showOmiai('${partner.id}','${partner.name}')">🤝 お見合い申込</button>
+    </div>
+    <div style="padding:8px 16px;font-size:11px;color:var(--text-muted);background:var(--bg);text-align:right;">有効期限: ${App.fmtDate(intro.expiresAt,{yearMonthDay:true})}</div>
+  </div>`;
+}
+
+function sendStar(partnerId) {
+  const exists = Store.query('stars', s => s.fromMemberId === me.id && s.toMemberId === partnerId);
+  if (exists.length) { App.toast('すでにスターを送信済みです', 'warning'); return; }
+  const newId = Store.nextId('stars', 'S');
+  Store.create('stars', { id: newId, fromMemberId: me.id, toMemberId: partnerId, sentAt: new Date().toISOString(), status: 'pending' });
+  App.toast('⭐ スターを送信しました！', 'success');
+}
+
+function showTalkForm(partnerId, partnerName) {
+  const m = App.modal(`
+    <div class="modal-header"><h3>💬 お話し申込</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-sub);margin-bottom:14px;">${partnerName}さんへのお話し申込</p>
+      <div class="form-group">
+        <label class="form-label">メッセージ</label>
+        <textarea class="form-control" id="talkMsg" rows="4" placeholder="プロフィールを拝見して..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">自己PR（婚活への想い）</label>
+        <textarea class="form-control" id="talkPr" rows="3" placeholder="真剣に..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitTalk('${partnerId}')">申込む</button>
+    </div>`);
+}
+
+function submitTalk(partnerId) {
+  const msg = document.getElementById('talkMsg')?.value?.trim();
+  if (!msg) { App.toast('メッセージを入力してください', 'warning'); return; }
+  const newId = Store.nextId('talkApplications', 'TA');
+  Store.create('talkApplications', { id: newId, fromMemberId: me.id, toMemberId: partnerId, sentAt: new Date().toISOString(), status: 'pending', message: msg });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('💬 お話し申込を送信しました！', 'success');
+  Store.update('introductions', Store.query('introductions', i => i.fromMemberId === me.id && i.toMemberId === partnerId)[0]?.id, { status: 'applied' });
+  render();
+}
+
+function showOmiai(partnerId, partnerName) {
+  App.modal(`
+    <div class="modal-header"><h3>🤝 お見合い申込</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-sub);margin-bottom:14px;">${partnerName}さんへのお見合い申込</p>
+      <div class="form-group"><label class="form-label">希望日程（第1希望）</label><input type="date" class="form-control" id="d1"></div>
+      <div class="form-group"><label class="form-label">希望日程（第2希望）</label><input type="date" class="form-control" id="d2"></div>
+      <div class="form-group"><label class="form-label">希望エリア</label><input type="text" class="form-control" placeholder="例：東京（渋谷・恵比寿）" id="loc"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitOmiai('${partnerId}')">申込む</button>
+    </div>`);
+}
+
+function submitOmiai(partnerId) {
+  const d1 = document.getElementById('d1')?.value;
+  if (!d1) { App.toast('希望日程を入力してください', 'warning'); return; }
+  const newId = Store.nextId('omiaApplications', 'OA');
+  Store.create('omiaApplications', { id: newId, fromMemberId: me.id, toMemberId: partnerId, sentAt: new Date().toISOString(), status: 'pending', preferredDates: [d1, document.getElementById('d2')?.value].filter(Boolean), preferredLocations: [document.getElementById('loc')?.value].filter(Boolean) });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('🤝 お見合い申込を送信しました！', 'success');
+}
+
+render();
+</script>
+</body>
+</html>

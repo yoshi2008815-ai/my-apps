@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ホーム - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#C45C82">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-spacer"></div>
+  <div class="header-logo">💍 ハーモニーブライダル</div>
+  <button class="header-btn" onclick="location.href='settings.html'" title="設定">⚙️</button>
+</header>
+
+<!-- Main -->
+<main class="app-main" id="mainContent"></main>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item active" data-nav="home">
+    <span class="nav-icon">🏠</span>
+    <span class="nav-label">ホーム</span>
+    <span class="nav-badge" id="nav-badge-home"></span>
+  </a>
+  <a href="introductions.html" class="nav-item" data-nav="intro">
+    <span class="nav-icon">💌</span><span class="nav-label">紹介書</span>
+  </a>
+  <a href="search.html" class="nav-item" data-nav="search">
+    <span class="nav-icon">🔍</span><span class="nav-label">検索</span>
+  </a>
+  <a href="events.html" class="nav-item" data-nav="events">
+    <span class="nav-icon">📅</span><span class="nav-label">イベント</span>
+  </a>
+  <a href="board.html" class="nav-item" data-nav="msg">
+    <span class="nav-icon">💬</span><span class="nav-label">メッセージ</span>
+  </a>
+  <a href="mypage.html" class="nav-item" data-nav="mypage">
+    <span class="nav-icon">👤</span><span class="nav-label">マイページ</span>
+  </a>
+</nav>
+
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const member = Auth.getCurrentMember();
+
+function render() {
+  const notifications = Store.query('notifications', n => n.memberId === member.id);
+  const unread = notifications.filter(n => !n.read);
+  const introductions = Store.query('introductions', i => i.fromMemberId === member.id);
+  const boards = Store.query('bulletinBoards', b => b.member1Id === member.id || b.member2Id === member.id);
+  const events = Store.query('eventRegistrations', r => r.memberId === member.id && r.status === 'confirmed');
+  const upcomingEvents = events.map(r => Store.getById('events', r.eventId)).filter(e => e && e.status === 'open');
+
+  // Unread board messages
+  const unreadMsgs = boards.reduce((sum, b) => {
+    const partner = b.member1Id === member.id ? b.member2Id : b.member1Id;
+    const msgs = Store.query('boardMessages', m => m.boardId === b.id && m.senderId === partner && !m.read);
+    return sum + msgs.length;
+  }, 0);
+
+  const html = `
+    <!-- Profile summary -->
+    <div style="background:linear-gradient(135deg,#C45C82,#9C3A62);border-radius:16px;padding:18px 16px;margin-bottom:16px;color:#fff;display:flex;align-items:center;gap:14px;">
+      ${App.avatarImg(member.name, member.gender, 60, '')}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:18px;font-weight:700;">${member.name}<span style="font-size:13px;font-weight:400;opacity:.85;margin-left:6px;">さん</span></div>
+        <div style="font-size:12px;opacity:.8;margin-top:2px;">${member.branch} / ${member.planType === 'premium' ? 'プレミアム' : 'スタンダード'}プラン</div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:99px;font-size:11px;">活動中</span>
+          <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:99px;font-size:11px;">次回引落: ${App.fmtDate(member.nextDeductionDate,{monthDay:true})}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" style="margin-bottom:16px;">
+      <div class="stat-card">
+        <div class="stat-val">${introductions.length}</div>
+        <div class="stat-label">今月の紹介書</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">${boards.length}</div>
+        <div class="stat-label">進行中のお話し</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">${upcomingEvents.length}</div>
+        <div class="stat-label">参加予定イベント</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">${unread.length}</div>
+        <div class="stat-label">未読のお知らせ</div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="app-section">
+      <div class="app-section-header">
+        <div class="app-section-title">クイックアクション</div>
+      </div>
+      <div class="quick-actions">
+        <a href="introductions.html" class="qa-btn"><span class="qa-icon">💌</span><span class="qa-label">紹介書</span></a>
+        <a href="search.html" class="qa-btn"><span class="qa-icon">🔍</span><span class="qa-label">写真検索</span></a>
+        <a href="events.html" class="qa-btn"><span class="qa-icon">📅</span><span class="qa-label">イベント</span></a>
+        <a href="board.html" class="qa-btn">
+          <span class="qa-icon" style="position:relative;">💬${unreadMsgs > 0 ? `<span style="position:absolute;top:-6px;right:-8px;background:#F44336;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;">${unreadMsgs}</span>` : ''}</span>
+          <span class="qa-label">メッセージ</span>
+        </a>
+        <a href="applications.html" class="qa-btn"><span class="qa-icon">📋</span><span class="qa-label">申込状況</span></a>
+        <a href="documents.html" class="qa-btn"><span class="qa-icon">📄</span><span class="qa-label">書類提出</span></a>
+        <a href="videos.html" class="qa-btn"><span class="qa-icon">🎥</span><span class="qa-label">動画視聴</span></a>
+        <a href="inquiry.html" class="qa-btn"><span class="qa-icon">💬</span><span class="qa-label">相談する</span></a>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="app-section">
+      <div class="app-section-header">
+        <div class="app-section-title">📢 お知らせ</div>
+        <a href="notifications.html" class="app-section-link">すべて見る</a>
+      </div>
+      <div class="card" style="overflow:hidden;">
+        ${notifications.slice(0,3).map(n => `
+          <div class="notif-item${n.read ? '' : ' unread'}" onclick="markRead('${n.id}')">
+            <div class="notif-icon">${n.icon}</div>
+            <div class="notif-content">
+              <div class="notif-title">${n.title}</div>
+              <div class="notif-body">${n.body}</div>
+              <div class="notif-time">${App.fmtDatetime(n.createdAt)}</div>
+            </div>
+            ${!n.read ? '<div class="unread-dot"></div>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <!-- Upcoming Events -->
+    ${upcomingEvents.length ? `
+    <div class="app-section">
+      <div class="app-section-header">
+        <div class="app-section-title">📅 参加予定のイベント</div>
+        <a href="events.html" class="app-section-link">すべて見る</a>
+      </div>
+      ${upcomingEvents.map(e => `
+        <div class="event-card" onclick="location.href='events.html'">
+          <div class="event-card-hero">${e.emoji}<span class="event-registered-badge">✓ 申込済</span></div>
+          <div class="event-card-body">
+            <div class="event-date-tag">📅 ${App.fmtDate(e.date,{monthDay:true})} ${e.time}</div>
+            <div class="event-name">${e.name}</div>
+            <div class="event-meta"><span>📍 ${e.location}</span><span>¥${e.fee.toLocaleString()}</span></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    <!-- Advisor info -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-body" style="display:flex;align-items:center;gap:14px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👩</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;color:var(--text-muted);">担当アドバイザー</div>
+          <div style="font-size:16px;font-weight:700;">${Store.getById('advisors', member.advisorId)?.name ?? '—'}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${member.branch}</div>
+        </div>
+        <a href="inquiry.html" class="btn btn-secondary btn-sm">相談する</a>
+      </div>
+    </div>
+  `;
+  document.getElementById('mainContent').innerHTML = html;
+
+  // Update nav badge
+  const badge = document.getElementById('nav-badge-home');
+  if (badge && unread.length) { badge.textContent = unread.length > 9 ? '9+' : unread.length; badge.style.display = 'flex'; }
+}
+
+function markRead(id) {
+  Store.update('notifications', id, { read: true });
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

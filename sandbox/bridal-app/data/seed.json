@@ -1,0 +1,59 @@
+{
+  "_note": "このファイルは将来 fetch() でデータ取得する場合に備えた予約スロットです。file:// プロトコルでは CORS の制約により fetch() が失敗するため、現状の本番データは ../js/seed.js の SEED_DATA 定数を参照しています。本番デプロイ時（HTTPS下）にこちらのJSONを使う構成へ切り替え可能です。",
+  "_usage": "本番化時は js/store.js の init() を以下に書き換える:  const res = await fetch('./data/seed.json'); const data = await res.json();",
+  "settings": {
+    "serviceName": "ハーモニーブライダル",
+    "serviceNameEn": "Harmony Bridal",
+    "tagline": "あなたの「運命の人」との出会いをサポート",
+    "supportPhone": "0120-123-456",
+    "contactEmail": "info@harmony-bridal.jp",
+    "monthlyFee": 32000,
+    "admissionFee": 330000,
+    "basicIntroCount": 2
+  },
+  "admins": [
+    { "id": "A001", "email": "admin@harmony.jp",   "password": "admin1234",   "name": "システム管理者", "role": "superadmin" },
+    { "id": "A002", "email": "manager@harmony.jp", "password": "manager1234", "name": "佐々木 健一",   "role": "manager" }
+  ],
+  "advisors": [
+    { "id": "ADV001", "name": "山田 花子", "branch": "東京本店",   "tel": "03-1234-5678", "email": "yamada@harmony-bridal.jp" },
+    { "id": "ADV002", "name": "鈴木 太郎", "branch": "渋谷支店",   "tel": "03-2345-6789", "email": "suzuki@harmony-bridal.jp" },
+    { "id": "ADV003", "name": "佐藤 和子", "branch": "新宿支店",   "tel": "03-3456-7890", "email": "sato@harmony-bridal.jp" }
+  ],
+  "members": [
+    {
+      "id": "M001", "email": "demo@example.com", "password": "demo1234",
+      "name": "田中 美咲", "nameKana": "タナカ ミサキ", "gender": "female",
+      "birthdate": "1995-04-12", "height": 162,
+      "prefecture": "東京都", "city": "渋谷区",
+      "education": "私立大学卒", "maritalStatus": "未婚", "children": "なし",
+      "occupation": "看護師", "income": "400〜500万円",
+      "selfIntroduction": "看護師として働いています。趣味は旅行とカフェ巡りです。誠実で家族を大切にする方と出会えたら嬉しいです。",
+      "hobbies": ["旅行", "カフェ巡り", "ヨガ"],
+      "smoking": "吸わない", "drinking": "たまに飲む",
+      "planType": "premium", "status": "active", "verified": true,
+      "advisorId": "ADV001", "branch": "東京本店",
+      "joinDate": "2025-12-01",
+      "membershipEndDate": "2026-12-01",
+      "nextDeductionDate": "2026-07-01",
+      "nextDeductionAmount": 32000,
+      "desiredAge": "30〜40歳", "desiredPrefecture": "東京都", "desiredOccupation": "公務員・会社員", "desiredIncome": "500〜700万円",
+      "introductionCount": 2, "photoCount": 3
+    }
+  ],
+  "events": [],
+  "introductions": [],
+  "stars": [],
+  "talkApplications": [],
+  "omiaApplications": [],
+  "bulletinBoards": [],
+  "boardMessages": [],
+  "eventRegistrations": [],
+  "inquiries": [],
+  "inquiryMessages": [],
+  "notifications": [],
+  "globalNotifications": [],
+  "documents": [],
+  "options": [],
+  "videos": []
+}

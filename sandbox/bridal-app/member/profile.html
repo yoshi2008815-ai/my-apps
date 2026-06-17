@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プロフィール - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <button class="back-btn" onclick="history.back()">‹</button>
+  <h1>プロフィール</h1>
+  <button class="header-btn" id="editToggle" onclick="toggleEdit()">✏️</button>
+</header>
+<main class="app-main" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+let isEditing = false;
+let me = Auth.getCurrentMember();
+
+function toggleEdit() {
+  isEditing = !isEditing;
+  document.getElementById('editToggle').textContent = isEditing ? '💾' : '✏️';
+  if (!isEditing) saveProfile();
+  render();
+}
+
+function saveProfile() {
+  const fields = ['occupation','income','selfIntroduction','desiredAge','desiredPrefecture','desiredOccupation','desiredIncome'];
+  const updates = {};
+  fields.forEach(f => {
+    const el = document.getElementById('field_'+f);
+    if (el) updates[f] = el.value;
+  });
+  const hobbiesEl = document.getElementById('field_hobbies');
+  if (hobbiesEl) updates.hobbies = hobbiesEl.value.split('、').map(s=>s.trim()).filter(Boolean);
+  Store.update('members', me.id, updates);
+  me = Auth.getCurrentMember();
+  App.toast('✅ プロフィールを保存しました', 'success');
+}
+
+function renderField(label, value, fieldKey, type='text', opts=null) {
+  if (!isEditing) return `<div class="profile-row"><div class="profile-label">${label}</div><div class="profile-value">${Array.isArray(value)?value.join('・'):(value||'—')}</div></div>`;
+  if (type === 'select') {
+    return `<div class="profile-row"><div class="profile-label">${label}</div><div class="profile-value"><select class="form-control" id="field_${fieldKey}" style="font-size:13px;padding:7px 10px;">${opts.map(o=>`<option ${o===value?'selected':''}>${o}</option>`).join('')}</select></div></div>`;
+  }
+  if (type === 'textarea') {
+    return `<div class="profile-row" style="flex-direction:column;"><div class="profile-label" style="margin-bottom:6px;">${label}</div><textarea class="form-control" id="field_${fieldKey}" rows="4" style="font-size:13px;">${value||''}</textarea></div>`;
+  }
+  return `<div class="profile-row"><div class="profile-label">${label}</div><div class="profile-value"><input type="text" class="form-control" id="field_${fieldKey}" value="${value||''}" style="font-size:13px;padding:7px 10px;"></div></div>`;
+}
+
+function render() {
+  me = Auth.getCurrentMember();
+  const a = App.age(me.birthdate);
+  document.getElementById('mainContent').innerHTML = `
+
+    <!-- Hero -->
+    <div class="profile-hero" style="margin:-14px -14px 14px;">
+      <div style="width:88px;height:88px;border-radius:50%;margin:0 auto 10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;overflow:hidden;border:3px solid rgba(255,255,255,.4);">
+        ${App.avatarImg(me.name, me.gender, 82, '')}
+      </div>
+      <div class="profile-hero-name">${me.name}</div>
+      <div class="profile-hero-meta">${a}歳 / ${me.height}cm / ${me.prefecture}</div>
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;">
+        ${me.verified ? '<span class="profile-hero-badge">✅ 書類確認済み</span>' : ''}
+        <span class="profile-hero-badge">${me.planType==='premium'?'⭐ プレミアム':'スタンダード'}</span>
+      </div>
+    </div>
+
+    <!-- Photos -->
+    <div class="app-section">
+      <div class="app-section-header"><div class="app-section-title">📷 プロフィール写真</div>${isEditing?'<button class="btn btn-secondary btn-sm" onclick="addPhoto()">追加</button>':''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${Array.from({length:me.photoCount||1}).map((_,i)=>`
+          <div style="width:90px;height:110px;border-radius:10px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;position:relative;">
+            ${App.avatarImg(me.name,me.gender,80,'')}
+            ${i===0?'<div style="position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:9px;background:var(--primary);color:#fff;padding:2px 0;border-radius:0 0 10px 10px;">メイン</div>':''}
+          </div>`).join('')}
+        ${isEditing?`<div style="width:90px;height:110px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:28px;color:var(--text-muted);" onclick="addPhoto()">+</div>`:''}
+      </div>
+    </div>
+
+    <!-- Basic Info (read-only) -->
+    <div style="background:#fff;margin-bottom:10px;">
+      <div style="padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.8px;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);">基本情報</div>
+      <div class="profile-row"><div class="profile-label">氏名</div><div class="profile-value">${me.name}（${me.nameKana}）</div></div>
+      <div class="profile-row"><div class="profile-label">生年月日</div><div class="profile-value">${App.fmtDate(me.birthdate,{yearMonthDay:true})}（${a}歳）</div></div>
+      <div class="profile-row"><div class="profile-label">身長</div><div class="profile-value">${me.height}cm</div></div>
+      <div class="profile-row"><div class="profile-label">居住地</div><div class="profile-value">${me.prefecture} ${me.city}</div></div>
+      <div class="profile-row"><div class="profile-label">最終学歴</div><div class="profile-value">${me.education}</div></div>
+      <div class="profile-row"><div class="profile-label">婚姻歴</div><div class="profile-value">${me.maritalStatus}</div></div>
+      <div class="profile-row"><div class="profile-label">子供</div><div class="profile-value">${me.children}</div></div>
+    </div>
+
+    <!-- Editable Info -->
+    <div style="background:#fff;margin-bottom:10px;">
+      <div style="padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.8px;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);">変更可能な情報</div>
+      ${renderField('職業', me.occupation, 'occupation')}
+      ${renderField('年収', me.income, 'income', 'select', ['300万円未満','300〜350万円','350〜400万円','400〜500万円','500〜600万円','600〜700万円','700〜1000万円','1000万円以上'])}
+      ${renderField('趣味', me.hobbies, 'hobbies')}
+      ${renderField('喫煙', me.smoking, 'smoking', 'select', ['吸わない','たまに吸う','吸う'])}
+      ${renderField('飲酒', me.drinking, 'drinking', 'select', ['飲まない','たまに飲む','よく飲む'])}
+      ${renderField('自己紹介', me.selfIntroduction, 'selfIntroduction', 'textarea')}
+    </div>
+
+    <!-- Desired Conditions -->
+    <div style="background:#fff;margin-bottom:10px;">
+      <div style="padding:10px 16px;font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:.8px;text-transform:uppercase;background:var(--bg);border-bottom:1px solid var(--border);">希望条件</div>
+      ${renderField('希望年齢', me.desiredAge, 'desiredAge')}
+      ${renderField('希望居住地', me.desiredPrefecture, 'desiredPrefecture')}
+      ${renderField('希望職業', me.desiredOccupation || '特にこだわらない', 'desiredOccupation')}
+      ${renderField('希望年収', me.desiredIncome, 'desiredIncome')}
+    </div>
+
+    ${isEditing ? `<button class="btn btn-primary btn-full" onclick="toggleEdit()">💾 プロフィールを保存</button><br><br>` : ''}
+  `;
+}
+
+function addPhoto() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = () => {
+    if (!input.files.length) return;
+    App.toast('⏳ 写真をアップロード中...', 'info', 1500);
+    setTimeout(() => {
+      Store.update('members', me.id, { photoCount: (me.photoCount || 1) + 1 });
+      me = Auth.getCurrentMember();
+      App.toast('✅ 写真を追加しました', 'success');
+      render();
+    }, 1200);
+  };
+  input.click();
+}
+
+render();
+</script>
+</body>
+</html>

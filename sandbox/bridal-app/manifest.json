@@ -1,0 +1,35 @@
+{
+  "name": "ハーモニーブライダル",
+  "short_name": "ハーモニー",
+  "description": "結婚相談所ハーモニーブライダルの会員向けPWAアプリ。紹介・スター・お見合いから日常の活動管理まで一つに。",
+  "lang": "ja",
+  "dir": "ltr",
+  "scope": "./",
+  "start_url": "./member/dashboard.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFFFF",
+  "theme_color": "#C45C82",
+  "categories": ["lifestyle", "social"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%23C45C82'/><text x='96' y='128' font-size='110' text-anchor='middle' fill='%23fff' font-family='sans-serif'>💍</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23C45C82'/><text x='256' y='344' font-size='280' text-anchor='middle' fill='%23fff' font-family='sans-serif'>💍</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "今月の紹介書", "url": "./member/introductions.html", "icons": [{ "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='20' fill='%23C45C82'/><text x='48' y='66' font-size='48' text-anchor='middle' fill='%23fff'>💌</text></svg>", "sizes": "96x96" }] },
+    { "name": "お相手検索",    "url": "./member/search.html",        "icons": [{ "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='20' fill='%23C45C82'/><text x='48' y='66' font-size='48' text-anchor='middle' fill='%23fff'>🔍</text></svg>", "sizes": "96x96" }] },
+    { "name": "メッセージ",    "url": "./member/board.html",         "icons": [{ "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='20' fill='%23C45C82'/><text x='48' y='66' font-size='48' text-anchor='middle' fill='%23fff'>💬</text></svg>", "sizes": "96x96" }] },
+    { "name": "イベント",      "url": "./member/events.html",        "icons": [{ "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' rx='20' fill='%23C45C82'/><text x='48' y='66' font-size='48' text-anchor='middle' fill='%23fff'>📅</text></svg>", "sizes": "96x96" }] }
+  ],
+  "prefer_related_applications": false
+}

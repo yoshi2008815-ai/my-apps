@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マイページ - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <div class="header-spacer"></div>
+  <h1>👤 マイページ</h1>
+  <div class="header-spacer"></div>
+</header>
+<main class="app-main" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item active"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+function render() {
+  const a = App.age(me.birthdate);
+  const advisor = Store.getById('advisors', me.advisorId);
+  const boards = Store.query('bulletinBoards', b => b.member1Id === me.id || b.member2Id === me.id);
+  const intros  = Store.query('introductions', i => i.fromMemberId === me.id);
+  const evRegs  = Store.query('eventRegistrations', r => r.memberId === me.id);
+  const docs    = Store.query('documents', d => d.memberId === me.id);
+  const approvedDocs = docs.filter(d => d.status === 'approved').length;
+
+  document.getElementById('mainContent').innerHTML = `
+
+    <!-- Profile card -->
+    <div style="background:var(--primary-grad);border-radius:16px;padding:20px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;color:#fff;">
+      <div style="flex-shrink:0;">
+        ${App.avatarImg(me.name, me.gender, 68, '')}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:20px;font-weight:700;">${me.name}</div>
+        <div style="font-size:13px;opacity:.85;margin-top:2px;">${a}歳 / ${me.prefecture} / ${me.occupation}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+          <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:99px;font-size:11px;">${me.planType==='premium'?'⭐ プレミアム':'スタンダード'}</span>
+          ${me.verified?'<span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:99px;font-size:11px;">✅ 審査済み</span>':''}
+        </div>
+      </div>
+      <a href="profile.html" style="background:rgba(255,255,255,.2);border-radius:99px;padding:7px 14px;font-size:13px;color:#fff;font-weight:600;border:1.5px solid rgba(255,255,255,.5);">編集</a>
+    </div>
+
+    <!-- Activity summary -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><h3>📊 活動状況</h3></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--border);">
+        ${[['今月紹介書',intros.length,'件'],['進行中',boards.length,'組'],['イベント',evRegs.length,'件']].map(([l,v,u])=>`
+        <div style="text-align:center;padding:14px 8px;border-right:1px solid var(--border);">
+          <div style="font-size:24px;font-weight:700;color:var(--primary);">${v}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${l}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Advisor -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-body" style="display:flex;align-items:center;gap:12px;">
+        <div style="width:46px;height:46px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">👩</div>
+        <div style="flex:1;">
+          <div style="font-size:12px;color:var(--text-muted);">担当アドバイザー</div>
+          <div style="font-size:16px;font-weight:700;">${advisor?.name ?? '—'}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${advisor?.branch}</div>
+        </div>
+        <a href="inquiry.html" class="btn btn-secondary btn-sm">相談</a>
+      </div>
+    </div>
+
+    <!-- Menu -->
+    <div class="settings-section">
+      <div class="settings-section-title">活動管理</div>
+      <a class="settings-row" href="profile.html">
+        <div class="settings-row-icon">👤</div><div class="settings-row-info"><div class="settings-row-label">プロフィール確認・修正</div></div><div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" href="applications.html">
+        <div class="settings-row-icon">📋</div><div class="settings-row-info"><div class="settings-row-label">申し込み状況確認</div></div><div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" href="documents.html">
+        <div class="settings-row-icon">📄</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">証明書類提出</div>
+          <div class="settings-row-meta">${approvedDocs}/${docs.length} 件 審査済み</div>
+        </div>
+        <div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" href="events.html?tab=registered">
+        <div class="settings-row-icon">📅</div><div class="settings-row-info"><div class="settings-row-label">申込済みイベント</div><div class="settings-row-meta">${evRegs.length}件</div></div><div class="settings-row-right">›</div>
+      </a>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">コンテンツ</div>
+      <a class="settings-row" href="videos.html">
+        <div class="settings-row-icon">🎥</div><div class="settings-row-info"><div class="settings-row-label">自分磨き動画</div></div><div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" href="options.html">
+        <div class="settings-row-icon">⭐</div><div class="settings-row-info"><div class="settings-row-label">オプション申込</div></div><div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" href="notifications.html">
+        <div class="settings-row-icon">🔔</div><div class="settings-row-info"><div class="settings-row-label">お知らせ</div></div><div class="settings-row-right">›</div>
+      </a>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">アカウント</div>
+      <a class="settings-row" href="settings.html">
+        <div class="settings-row-icon">⚙️</div><div class="settings-row-info"><div class="settings-row-label">設定</div></div><div class="settings-row-right">›</div>
+      </a>
+    </div>
+
+    <!-- Plan & billing -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><h3>💴 ご利用プラン</h3></div>
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div>
+            <div style="font-size:15px;font-weight:700;">${me.planType==='premium'?'プレミアムプラン':'スタンダードプラン'}</div>
+            <div style="font-size:12px;color:var(--text-muted);">有効期限: ${App.fmtDate(me.membershipEndDate,{yearMonthDay:true})}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:18px;font-weight:700;color:var(--primary);">${App.fmtMoney(me.nextDeductionAmount)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">/月</div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;font-size:12px;color:var(--text-sub);">
+          次回引落予定: <strong>${App.fmtDate(me.nextDeductionDate,{yearMonthDay:true})}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:8px 0 16px;">
+      <button class="btn btn-ghost btn-full" onclick="App.confirm('ログアウトしますか？',()=>Auth.logoutMember())">ログアウト</button>
+    </div>
+  `;
+}
+
+render();
+</script>
+</body>
+</html>

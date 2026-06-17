@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設定 - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <button class="back-btn" onclick="history.back()">‹</button>
+  <h1>設定</h1>
+  <div class="header-spacer"></div>
+</header>
+<main class="app-main" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+function render() {
+  const es = me.emailSettings || {};
+  document.getElementById('mainContent').innerHTML = `
+
+    <!-- Account -->
+    <div class="settings-section">
+      <div class="settings-section-title">アカウント</div>
+      <a class="settings-row" onclick="showChangeEmail()">
+        <div class="settings-row-icon">✉️</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">メールアドレス変更</div>
+          <div class="settings-row-meta">${me.email}</div>
+        </div>
+        <div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" onclick="showChangePassword()">
+        <div class="settings-row-icon">🔑</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">パスワード変更</div>
+          <div class="settings-row-meta">定期的な変更を推奨しています</div>
+        </div>
+        <div class="settings-row-right">›</div>
+      </a>
+    </div>
+
+    <!-- 紹介書配信設定 -->
+    <div class="settings-section">
+      <div class="settings-section-title">紹介書配信設定</div>
+      <div class="settings-row">
+        <div class="settings-row-icon">💌</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">月間配信回数</div>
+          <div class="settings-row-meta">毎月基準日に反映されます</div>
+        </div>
+        <select id="introFreq" class="form-control" style="width:80px;" onchange="saveIntroFreq(this.value)">
+          <option value="1" ${me.introductionFrequency===1?'selected':''}>1回</option>
+          <option value="2" ${me.introductionFrequency===2?'selected':''}>2回</option>
+          <option value="3" ${me.introductionFrequency===3?'selected':''}>3回</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- お知らせメール設定 -->
+    <div class="settings-section">
+      <div class="settings-section-title">メール配信設定</div>
+      <div class="settings-row">
+        <div class="settings-row-icon">📧</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">お知らせ用メールアドレス</div>
+          <div class="settings-row-meta">${me.notificationEmail}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="showChangeNotifEmail()">変更</button>
+      </div>
+      ${[
+        ['news','サービスお知らせ','新機能・キャンペーン情報'],
+        ['matching','マッチング通知','紹介書・申込の通知'],
+        ['event','イベント通知','イベント情報・リマインダー'],
+        ['system','システム通知','メンテナンス等の重要なお知らせ']
+      ].map(([key,label,desc])=>`
+        <div class="settings-row">
+          <div class="settings-row-icon">🔔</div>
+          <div class="settings-row-info">
+            <div class="settings-row-label">${label}</div>
+            <div class="settings-row-meta">${desc}</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" ${es[key]?'checked':''} onchange="saveEmailSetting('${key}',this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>`).join('')}
+    </div>
+
+    <!-- 休止 -->
+    <div class="settings-section">
+      <div class="settings-section-title">活動設定</div>
+      <a class="settings-row" onclick="showSuspend()">
+        <div class="settings-row-icon">⏸️</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">活動休止の申請</div>
+          <div class="settings-row-meta">${me.suspended ? `休止中（${App.fmtDate(me.suspendEndDate,{yearMonthDay:true})}まで）` : '最大6ヶ月間の休止が可能です'}</div>
+        </div>
+        <div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" onclick="showDeductionInfo()">
+        <div class="settings-row-icon">💴</div>
+        <div class="settings-row-info">
+          <div class="settings-row-label">次回引き落とし金額</div>
+          <div class="settings-row-meta">${App.fmtDate(me.nextDeductionDate,{yearMonthDay:true})} 予定</div>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:var(--primary);">${App.fmtMoney(me.nextDeductionAmount)}</div>
+      </a>
+    </div>
+
+    <!-- Support -->
+    <div class="settings-section">
+      <div class="settings-section-title">サポート</div>
+      <a class="settings-row" href="inquiry.html">
+        <div class="settings-row-icon">💬</div>
+        <div class="settings-row-info"><div class="settings-row-label">アドバイザーに相談</div></div>
+        <div class="settings-row-right">›</div>
+      </a>
+      <a class="settings-row" href="../index.html#faq">
+        <div class="settings-row-icon">❓</div>
+        <div class="settings-row-info"><div class="settings-row-label">よくある質問</div></div>
+        <div class="settings-row-right">›</div>
+      </a>
+    </div>
+
+    <!-- Logout -->
+    <div style="padding:16px 0 8px;">
+      <button class="btn btn-ghost btn-full" onclick="doLogout()">ログアウト</button>
+    </div>
+    <div style="padding:0 0 8px;">
+      <button class="btn btn-full" style="background:transparent;color:var(--error);border:1.5px solid var(--error);border-radius:99px;" onclick="showWithdraw()">退会申請</button>
+    </div>
+  `;
+}
+
+function saveIntroFreq(val) {
+  Store.update('members', me.id, { introductionFrequency: parseInt(val) });
+  App.toast('✅ 紹介書配信回数を更新しました', 'success');
+}
+
+function saveEmailSetting(key, val) {
+  const cur = Auth.getCurrentMember();
+  const es = { ...(cur.emailSettings || {}), [key]: val };
+  Store.update('members', me.id, { emailSettings: es });
+  App.toast('✅ メール設定を更新しました', 'success');
+}
+
+function showChangeEmail() {
+  App.modal(`
+    <div class="modal-header"><h3>メールアドレス変更</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">新しいメールアドレス</label><input type="email" class="form-control" id="newEmail" placeholder="new@example.com"></div>
+      <div class="form-group"><label class="form-label">現在のパスワード（確認）</label><input type="password" class="form-control" id="confirmPw2"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitEmailChange()">変更する</button>
+    </div>`);
+}
+
+function submitEmailChange() {
+  const email = document.getElementById('newEmail')?.value?.trim();
+  const pw = document.getElementById('confirmPw2')?.value;
+  if (!email) { App.toast('メールアドレスを入力してください','warning'); return; }
+  if (pw !== me.password) { App.toast('パスワードが正しくありません','error'); return; }
+  Store.update('members', me.id, { email, notificationEmail: email });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('✅ メールアドレスを変更しました', 'success');
+  render();
+}
+
+function showChangePassword() {
+  App.modal(`
+    <div class="modal-header"><h3>パスワード変更</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">現在のパスワード</label><input type="password" class="form-control" id="curPw"></div>
+      <div class="form-group"><label class="form-label">新しいパスワード</label><input type="password" class="form-control" id="newPw"></div>
+      <div class="form-group"><label class="form-label">新しいパスワード（確認）</label><input type="password" class="form-control" id="newPw2"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitPasswordChange()">変更する</button>
+    </div>`);
+}
+
+function submitPasswordChange() {
+  const cur = document.getElementById('curPw')?.value;
+  const nw = document.getElementById('newPw')?.value;
+  const nw2 = document.getElementById('newPw2')?.value;
+  if (cur !== me.password) { App.toast('現在のパスワードが正しくありません','error'); return; }
+  if (nw.length < 6) { App.toast('パスワードは6文字以上にしてください','warning'); return; }
+  if (nw !== nw2) { App.toast('新しいパスワードが一致しません','warning'); return; }
+  Store.update('members', me.id, { password: nw });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('✅ パスワードを変更しました', 'success');
+}
+
+function showChangeNotifEmail() {
+  App.modal(`
+    <div class="modal-header"><h3>お知らせ用メール変更</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">メールアドレス</label><input type="email" class="form-control" id="notifEmail" value="${me.notificationEmail}"></div>
+      <p class="form-hint">ログイン用アドレスと異なるメールアドレスを設定できます。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="saveNotifEmail()">保存</button>
+    </div>`);
+}
+
+function saveNotifEmail() {
+  const email = document.getElementById('notifEmail')?.value?.trim();
+  if (!email) return;
+  Store.update('members', me.id, { notificationEmail: email });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('✅ お知らせ用メールを更新しました', 'success');
+  render();
+}
+
+function showSuspend() {
+  const cur = Auth.getCurrentMember();
+  if (cur.suspended) {
+    App.confirm('活動を再開しますか？', () => {
+      Store.update('members', me.id, { suspended: false, suspendStartDate: null, suspendEndDate: null });
+      App.toast('✅ 活動を再開しました', 'success');
+      render();
+    });
+    return;
+  }
+  App.modal(`
+    <div class="modal-header"><h3>⏸️ 活動休止申請</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-sub);margin-bottom:14px;">休止中は月会費が発生しません。最大6ヶ月間休止できます。</p>
+      <div class="form-group"><label class="form-label">休止開始日</label><input type="date" class="form-control" id="suspStart"></div>
+      <div class="form-group"><label class="form-label">休止終了日（予定）</label><input type="date" class="form-control" id="suspEnd"></div>
+      <div class="form-group"><label class="form-label">理由</label><select class="form-control" id="suspReason"><option>仕事が忙しいため</option><option>体調不良のため</option><option>その他</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitSuspend()">申請する</button>
+    </div>`);
+}
+
+function submitSuspend() {
+  const s = document.getElementById('suspStart')?.value;
+  const e = document.getElementById('suspEnd')?.value;
+  if (!s || !e) { App.toast('日付を入力してください','warning'); return; }
+  Store.update('members', me.id, { suspended: true, suspendStartDate: s, suspendEndDate: e });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast('✅ 休止申請を受け付けました', 'success');
+  render();
+}
+
+function showDeductionInfo() {
+  const cur = Auth.getCurrentMember();
+  App.modal(`
+    <div class="modal-header"><h3>💴 引き落とし情報</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">次回引き落とし予定額</div>
+        <div style="font-size:36px;font-weight:700;color:var(--primary);">${App.fmtMoney(cur.nextDeductionAmount)}</div>
+        <div style="font-size:13px;color:var(--text-sub);margin-top:6px;">${App.fmtDate(cur.nextDeductionDate,{yearMonthDay:true})} 予定</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px;font-size:13px;color:var(--text-sub);">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span>月会費（スタンダード）</span><span style="font-weight:600;">¥32,000</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;">
+          <span>合計</span><span style="font-weight:700;color:var(--primary);">¥32,000</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">閉じる</button></div>`);
+}
+
+function showWithdraw() {
+  App.modal(`
+    <div class="modal-header"><h3>退会申請</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div style="background:#FFEBEE;border-radius:10px;padding:14px;font-size:13px;color:#C62828;margin-bottom:14px;line-height:1.6;">
+        ⚠️ 退会後はすべてのデータが削除され、復旧できません。本当によろしいですか？
+      </div>
+      <div class="form-group"><label class="form-label">退会理由</label><select class="form-control"><option>成婚したため</option><option>活動を一時停止したい（休止制度をご利用ください）</option><option>その他</option></select></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-danger btn-full" onclick="App.toast('退会申請を受け付けました。担当アドバイザーからご連絡します。','success');document.querySelector('.modal-overlay').remove();">退会申請を送信</button>
+    </div>`);
+}
+
+function doLogout() {
+  App.confirm('ログアウトしますか？', () => Auth.logoutMember());
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>問い合わせ管理 - 管理画面</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/admin.css">
+<style>
+.inq-layout { display:grid; grid-template-columns:340px 1fr; gap:0; background:#fff; border-radius:10px; overflow:hidden; border:1px solid var(--border); min-height:calc(100vh - 180px); }
+.inq-sidebar { border-right:1px solid var(--border); overflow-y:auto; max-height:calc(100vh - 180px); }
+.inq-list-row { display:flex; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .15s; }
+.inq-list-row:hover { background:var(--bg); }
+.inq-list-row.active { background:var(--primary-light); border-left:3px solid var(--primary); }
+.inq-detail { display:flex; flex-direction:column; max-height:calc(100vh - 180px); }
+.inq-detail-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.inq-msgs { flex:1; overflow-y:auto; padding:16px; background:var(--bg); }
+.inq-msg-row { display:flex; gap:10px; margin-bottom:14px; }
+.inq-msg-row.advisor { flex-direction:row-reverse; }
+.inq-msg-bubble { max-width:70%; padding:10px 14px; border-radius:14px; background:#fff; border:1px solid var(--border); font-size:13px; line-height:1.6; }
+.inq-msg-row.advisor .inq-msg-bubble { background:var(--primary); color:#fff; border-color:var(--primary); }
+.inq-msg-time { font-size:10px; color:var(--text-muted); margin-top:4px; }
+.inq-reply-bar { padding:14px; background:#fff; border-top:1px solid var(--border); display:flex; gap:8px; align-items:flex-end; }
+@media (max-width:900px) { .inq-layout { grid-template-columns:1fr; } .inq-sidebar { max-height:300px; } }
+</style>
+</head>
+<body class="admin-body">
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">💍</div>
+    <div class="sidebar-logo-text">ハーモニー<br><span style="font-size:10px;opacity:.6;">管理システム</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="sidebar-item"><span class="sidebar-icon">📊</span>ダッシュボード</a>
+    <a href="members.html"   class="sidebar-item"><span class="sidebar-icon">👥</span>会員管理</a>
+    <a href="events.html"    class="sidebar-item"><span class="sidebar-icon">📅</span>イベント管理</a>
+    <a href="notifications.html" class="sidebar-item"><span class="sidebar-icon">🔔</span>お知らせ配信</a>
+    <a href="inquiries.html" class="sidebar-item active"><span class="sidebar-icon">💬</span>問い合わせ管理</a>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="sidebar-item" onclick="App.confirm('ログアウトしますか？',()=>{Auth.logoutAdmin();location.href='login.html';})" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;color:rgba(255,255,255,.6);">
+      <span class="sidebar-icon">🚪</span>ログアウト
+    </button>
+  </div>
+</aside>
+
+<div class="admin-main">
+  <header class="admin-topbar">
+    <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')">☰</button>
+    <h1 class="topbar-title">問い合わせ管理</h1>
+    <div class="topbar-right">
+      <select class="form-control" id="filterStatus" onchange="render()" style="height:36px;font-size:13px;">
+        <option value="">すべて</option>
+        <option value="open">未回答のみ</option>
+        <option value="answered">回答済みのみ</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="admin-content">
+    <div class="kpi-grid" id="kpiRow"></div>
+
+    <div class="inq-layout">
+      <div class="inq-sidebar" id="inqSidebar"></div>
+      <div class="inq-detail" id="inqDetail">
+        <div class="empty-state" style="margin:auto;">
+          <div class="empty-state-icon">💬</div>
+          <div class="empty-state-title">左の一覧から問い合わせを選択</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('show');"></div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const admin = Auth.requireAdmin();
+let selectedId = null;
+
+function render() {
+  const filter = document.getElementById('filterStatus').value;
+  let inquiries = Store.get('inquiries') ?? [];
+  if (filter) inquiries = inquiries.filter(i => filter==='open' ? i.status!=='answered' : i.status==='answered');
+  inquiries.sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+
+  // KPI
+  const all = Store.get('inquiries') ?? [];
+  document.getElementById('kpiRow').innerHTML = [
+    { label:'総問い合わせ', value: all.length, icon:'💬', color:'#C45C82' },
+    { label:'未回答', value: all.filter(i=>i.status!=='answered').length, icon:'🔴', color:'#EF4444' },
+    { label:'回答済み', value: all.filter(i=>i.status==='answered').length, icon:'✅', color:'#059669' },
+    { label:'今日', value: all.filter(i=>i.createdAt?.startsWith(new Date().toISOString().slice(0,10))).length, icon:'📅', color:'#8B5CF6' },
+  ].map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:${k.color}20;color:${k.color};">${k.icon}</div>
+      <div class="kpi-body"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.color};">${k.value}</div></div>
+    </div>`).join('');
+
+  // Sidebar list
+  const sb = document.getElementById('inqSidebar');
+  if (!inquiries.length) {
+    sb.innerHTML = '<div class="empty-state" style="padding:30px;"><div class="empty-state-icon">📭</div><div class="empty-state-title">該当なし</div></div>';
+    return;
+  }
+  sb.innerHTML = inquiries.map(inq => {
+    const m = Store.getById('members', inq.memberId);
+    const msgs = Store.query('inquiryMessages', x => x.inquiryId === inq.id).sort((a,b)=>a.sentAt.localeCompare(b.sentAt));
+    const last = msgs[msgs.length-1];
+    return `
+    <div class="inq-list-row ${selectedId===inq.id?'active':''}" onclick="openInq('${inq.id}')">
+      <div style="width:38px;height:38px;border-radius:50%;flex-shrink:0;overflow:hidden;">
+        ${m?App.avatarImg(m.name, m.gender, 38, ''):''}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;font-weight:700;">${m?.name??'—'}</div>
+          <div style="font-size:11px;color:var(--text-muted);">${App.fmtDatetime(inq.createdAt)}</div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin-top:2px;color:var(--text);">${inq.subject}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${last?last.text.slice(0,42):'メッセージなし'}</div>
+        <div style="margin-top:4px;"><span class="chip ${inq.status==='answered'?'chip-ok':'chip-pending'}" style="font-size:10px;">${inq.status==='answered'?'回答済み':'未回答'}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openInq(id) {
+  selectedId = id;
+  const inq = Store.getById('inquiries', id);
+  const m   = Store.getById('members', inq.memberId);
+  const msgs = Store.query('inquiryMessages', x => x.inquiryId === id).sort((a,b)=>a.sentAt.localeCompare(b.sentAt));
+
+  document.getElementById('inqDetail').innerHTML = `
+    <div class="inq-detail-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;border-radius:50%;overflow:hidden;">
+          ${m?App.avatarImg(m.name, m.gender, 38, ''):''}
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;">${inq.subject}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${m?.name??'—'} ／ ${m?.id??'—'}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span class="chip ${inq.status==='answered'?'chip-ok':'chip-pending'}" style="font-size:11px;">${inq.status==='answered'?'回答済み':'未回答'}</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleStatus('${id}','${inq.status}')">${inq.status==='answered'?'未回答に戻す':'回答済みに変更'}</button>
+      </div>
+    </div>
+    <div class="inq-msgs" id="inqMsgs">
+      ${msgs.map(msg => {
+        const isAdvisor = msg.senderType === 'advisor';
+        return `
+        <div class="inq-msg-row ${isAdvisor?'advisor':''}">
+          <div style="width:32px;height:32px;border-radius:50%;background:${isAdvisor?'#C45C82':'var(--bg)'};display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0;">${isAdvisor?'👩':(m?.gender==='female'?'👤':'👤')}</div>
+          <div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;${isAdvisor?'text-align:right;':''}">${isAdvisor?'アドバイザー':m?.name??'会員'}</div>
+            <div class="inq-msg-bubble">${msg.text.replace(/\n/g,'<br>')}</div>
+            <div class="inq-msg-time" style="${isAdvisor?'text-align:right;':''}">${App.fmtDatetime(msg.sentAt)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="inq-reply-bar">
+      <textarea id="replyInput" class="form-control" rows="2" placeholder="返信メッセージを入力..." style="resize:none;flex:1;font-size:13px;"></textarea>
+      <button class="btn btn-primary" onclick="sendReply('${id}')" style="height:48px;padding:0 18px;">📤 送信</button>
+    </div>`;
+
+  setTimeout(() => { const c = document.getElementById('inqMsgs'); if(c) c.scrollTop = c.scrollHeight; }, 50);
+  render();
+}
+
+function sendReply(inqId) {
+  const input = document.getElementById('replyInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  const inq = Store.getById('inquiries', inqId);
+  Store.create('inquiryMessages', {
+    id: Store.nextId('inquiryMessages','IQ'),
+    inquiryId: inqId,
+    senderId: inq.advisorId,
+    senderType: 'advisor',
+    text,
+    sentAt: new Date().toISOString(),
+  });
+  Store.update('inquiries', inqId, { status: 'answered' });
+  App.toast('✅ 返信を送信しました', 'success');
+  openInq(inqId);
+}
+
+function toggleStatus(id, current) {
+  const next = current === 'answered' ? 'open' : 'answered';
+  Store.update('inquiries', id, { status: next });
+  App.toast('ステータスを変更しました', 'default');
+  openInq(id);
+}
+
+render();
+</script>
+</body>
+</html>

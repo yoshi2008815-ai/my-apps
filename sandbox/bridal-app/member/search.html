@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>写真検索 - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <div class="header-spacer"></div>
+  <h1>🔍 写真検索</h1>
+  <button class="header-btn" id="filterBtn" onclick="toggleFilter()">🎛️</button>
+</header>
+
+<!-- Filter panel -->
+<div id="filterPanel" style="display:none;background:#fff;border-bottom:1px solid var(--border);padding:14px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">年齢（下限）</label>
+      <select class="form-control" id="ageMin">
+        <option value="">指定なし</option>
+        <option>25</option><option>28</option><option>30</option><option>33</option><option>35</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">年齢（上限）</label>
+      <select class="form-control" id="ageMax">
+        <option value="">指定なし</option>
+        <option>30</option><option>33</option><option>35</option><option>38</option><option>40</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">居住地</label>
+      <select class="form-control" id="prefFilter">
+        <option value="">すべて</option>
+        <option>東京都</option><option>神奈川県</option><option>埼玉県</option><option>千葉県</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">年収</label>
+      <select class="form-control" id="incomeFilter">
+        <option value="">指定なし</option>
+        <option>400万円以上</option><option>500万円以上</option><option>700万円以上</option><option>1000万円以上</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost btn-sm" onclick="clearFilter()">リセット</button>
+    <button class="btn btn-primary btn-sm btn-full" onclick="applyFilter()">検索する</button>
+  </div>
+</div>
+
+<div class="search-bar">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="search-input" id="searchInput" placeholder="名前・職業・趣味で検索..." oninput="renderResults()">
+  </div>
+</div>
+
+<div class="filter-bar" id="filterChips">
+  <button class="filter-chip active" data-filter="all" onclick="setFilter('all',this)">すべて</button>
+  <button class="filter-chip" data-filter="tokyo" onclick="setFilter('tokyo',this)">東京都</button>
+  <button class="filter-chip" data-filter="kanagawa" onclick="setFilter('kanagawa',this)">神奈川県</button>
+  <button class="filter-chip" data-filter="saitama" onclick="setFilter('saitama',this)">埼玉県</button>
+  <button class="filter-chip" data-filter="chiba" onclick="setFilter('chiba',this)">千葉県</button>
+</div>
+
+<main class="app-main" style="padding-top:8px;" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item" data-nav="home"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item" data-nav="intro"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item active" data-nav="search"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item" data-nav="events"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item" data-nav="msg"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item" data-nav="mypage"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+let activeFilter = 'all';
+let filterPanelOpen = false;
+
+function toggleFilter() {
+  filterPanelOpen = !filterPanelOpen;
+  document.getElementById('filterPanel').style.display = filterPanelOpen ? 'block' : 'none';
+}
+
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderResults();
+}
+
+function clearFilter() {
+  ['ageMin','ageMax','prefFilter','incomeFilter'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+}
+
+function applyFilter() { renderResults(); toggleFilter(); }
+
+function renderResults() {
+  const q = document.getElementById('searchInput')?.value?.toLowerCase() ?? '';
+  const ageMin = parseInt(document.getElementById('ageMin')?.value) || 0;
+  const ageMax = parseInt(document.getElementById('ageMax')?.value) || 99;
+  const pref = document.getElementById('prefFilter')?.value ?? '';
+  const oppGender = me.gender === 'female' ? 'male' : 'female';
+
+  let members = Store.query('members', m =>
+    m.id !== me.id &&
+    m.gender === oppGender &&
+    m.status === 'active'
+  );
+
+  if (activeFilter === 'tokyo')    members = members.filter(m => m.prefecture === '東京都');
+  if (activeFilter === 'kanagawa') members = members.filter(m => m.prefecture === '神奈川県');
+  if (activeFilter === 'saitama')  members = members.filter(m => m.prefecture === '埼玉県');
+  if (activeFilter === 'chiba')    members = members.filter(m => m.prefecture === '千葉県');
+  if (pref) members = members.filter(m => m.prefecture === pref);
+  if (ageMin || ageMax < 99) members = members.filter(m => { const a = App.age(m.birthdate); return a >= ageMin && a <= ageMax; });
+  if (q) members = members.filter(m => (m.name+m.occupation+(m.hobbies||[]).join('')).toLowerCase().includes(q));
+
+  const content = document.getElementById('mainContent');
+  if (!members.length) {
+    content.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-title">条件に合う会員が見つかりません</div><p class="empty-state-text">条件を変えて再度お試しください</p></div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">${members.length}名が見つかりました</p>
+    <div class="member-grid">${members.map(m => memberCard(m)).join('')}</div>`;
+}
+
+function memberCard(m) {
+  const a = App.age(m.birthdate);
+  return `
+  <div class="member-card" onclick="showMemberDetail('${m.id}')">
+    <div class="member-card-img">${App.avatarImg(m.name, m.gender, 100, '')}</div>
+    <div class="member-card-body">
+      <div class="member-card-name">${m.name}</div>
+      <div class="member-card-age">${a}歳 / ${m.height}cm</div>
+      <div class="member-card-meta">
+        <span class="member-card-tag">${m.prefecture}</span>
+        <span class="member-card-tag">${m.occupation}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function showMemberDetail(id) {
+  const m = Store.getById('members', id);
+  if (!m) return;
+  const a = App.age(m.birthdate);
+  App.modal(`
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;">${App.avatarImg(m.name, m.gender, 44, '')}<div><div style="font-size:17px;font-weight:700;">${m.name}</div><div style="font-size:12px;color:var(--text-muted);">${a}歳 / ${m.height}cm / ${m.prefecture}</div></div></div>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;line-height:1.6;color:var(--text-sub);">${m.selfIntroduction}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${(m.hobbies||[]).map(h=>`<span class="chip chip-matching">${h}</span>`).join('')}</div>
+      <div style="background:#fff;border-radius:10px;border:1px solid var(--border);">
+        ${[['職業',m.occupation],['年収',m.income],['学歴',m.education],['喫煙',m.smoking],['飲酒',m.drinking]].map(([l,v])=>`<div class="profile-row"><div class="profile-label">${l}</div><div class="profile-value">${v||'—'}</div></div>`).join('')}
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-direction:column;gap:8px;">
+      <button class="btn btn-primary btn-full" onclick="sendStarFromModal('${m.id}','${m.name}')">⭐ スターを送る</button>
+      <button class="btn btn-secondary btn-full" onclick="document.querySelector('.modal-overlay').remove();showTalkModal('${m.id}','${m.name}')">💬 お話し申込</button>
+    </div>`);
+}
+
+function sendStarFromModal(id, name) {
+  const exists = Store.query('stars', s => s.fromMemberId === me.id && s.toMemberId === id);
+  if (exists.length) { App.toast('すでにスターを送信済みです', 'warning'); return; }
+  Store.create('stars', { id: Store.nextId('stars','S'), fromMemberId: me.id, toMemberId: id, sentAt: new Date().toISOString(), status: 'pending' });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast(`⭐ ${name}さんにスターを送りました！`, 'success');
+}
+
+function showTalkModal(id, name) {
+  App.modal(`
+    <div class="modal-header"><h3>💬 お話し申込 - ${name}さん</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">メッセージ</label><textarea class="form-control" id="talkMsg2" rows="4" placeholder="プロフィールを拝見して..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">キャンセル</button>
+      <button class="btn btn-primary btn-full" onclick="submitTalk2('${id}','${name}')">申込む</button>
+    </div>`);
+}
+
+function submitTalk2(id, name) {
+  const msg = document.getElementById('talkMsg2')?.value?.trim();
+  if (!msg) { App.toast('メッセージを入力してください','warning'); return; }
+  Store.create('talkApplications', { id: Store.nextId('talkApplications','TA'), fromMemberId: me.id, toMemberId: id, sentAt: new Date().toISOString(), status: 'pending', message: msg });
+  document.querySelector('.modal-overlay')?.remove();
+  App.toast(`💬 ${name}さんにお話し申込を送りました！`, 'success');
+}
+
+renderResults();
+</script>
+</body>
+</html>

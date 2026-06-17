@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理画面ログイン - ハーモニーブライダル</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/admin.css">
+<style>
+.admin-login-page { min-height:100vh; background:linear-gradient(135deg,#1E2438 0%,#2C3553 100%); display:flex; align-items:center; justify-content:center; padding:24px; }
+.admin-login-card { background:#fff; border-radius:16px; padding:40px 36px; width:100%; max-width:420px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+.admin-login-logo { text-align:center; margin-bottom:32px; }
+.admin-login-logo-badge { display:inline-flex; align-items:center; gap:10px; background:linear-gradient(135deg,#C45C82,#9C3A62); padding:12px 20px; border-radius:12px; margin-bottom:12px; }
+.admin-login-logo-icon { font-size:26px; }
+.admin-login-logo-name { color:#fff; font-size:18px; font-weight:700; }
+.admin-login-sub { font-size:13px; color:var(--text-muted); }
+.admin-login-title { font-size:22px; font-weight:700; text-align:center; margin-bottom:28px; color:var(--text); }
+.demo-creds { background:#F0F4FF; border:1px solid #C7D2FE; border-radius:10px; padding:12px 14px; margin-bottom:22px; font-size:12px; color:#4338CA; line-height:1.8; }
+</style>
+</head>
+<body>
+<div class="admin-login-page">
+  <div class="admin-login-card">
+    <div class="admin-login-logo">
+      <div class="admin-login-logo-badge">
+        <div class="admin-login-logo-icon">💍</div>
+        <div class="admin-login-logo-name">ハーモニーブライダル</div>
+      </div>
+      <div class="admin-login-sub">Staff Management System</div>
+    </div>
+    <div class="admin-login-title">管理画面へログイン</div>
+
+    <div class="demo-creds">
+      <strong>デモ用アカウント</strong><br>
+      admin@harmony.jp / admin1234（システム管理者）<br>
+      manager@harmony.jp / manager1234（マネージャー）
+    </div>
+
+    <form onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label class="form-label">メールアドレス</label>
+        <input type="email" class="form-control" id="email" placeholder="admin@harmony.jp" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">パスワード</label>
+        <div style="position:relative;">
+          <input type="password" class="form-control" id="password" placeholder="パスワード" autocomplete="current-password" required style="padding-right:44px;">
+          <button type="button" onclick="togglePw()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;" id="pwToggleBtn">👁</button>
+        </div>
+      </div>
+      <div id="errorMsg" style="color:#E53E3E;font-size:13px;margin-bottom:12px;display:none;"></div>
+      <button type="submit" class="btn btn-primary btn-full btn-lg" id="loginBtn">ログイン</button>
+    </form>
+
+    <div style="text-align:center;margin-top:20px;">
+      <a href="../index.html" style="font-size:12px;color:var(--text-muted);">← サービスサイトに戻る</a>
+    </div>
+  </div>
+</div>
+
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+if (Auth.getCurrentAdmin()) {
+  location.replace('dashboard.html');
+}
+
+function togglePw() {
+  const pw = document.getElementById('password');
+  const btn = document.getElementById('pwToggleBtn');
+  pw.type = pw.type === 'password' ? 'text' : 'password';
+  btn.textContent = pw.type === 'password' ? '👁' : '🙈';
+}
+
+function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('errorMsg');
+  const email = document.getElementById('email').value.trim();
+  const pw    = document.getElementById('password').value;
+
+  App.setLoading(btn, true);
+  errEl.style.display = 'none';
+
+  setTimeout(() => {
+    const admin = Auth.loginAdmin(email, pw);
+    App.setLoading(btn, false);
+    if (!admin) {
+      errEl.textContent = 'メールアドレスまたはパスワードが正しくありません';
+      errEl.style.display = 'block';
+      document.getElementById('password').value = '';
+      return;
+    }
+    location.replace('dashboard.html');
+  }, 600);
+}
+</script>
+</body>
+</html>

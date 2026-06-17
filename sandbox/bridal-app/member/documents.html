@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>書類提出 - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <button class="back-btn" onclick="history.back()">‹</button>
+  <h1>書類提出</h1>
+  <div class="header-spacer"></div>
+</header>
+<main class="app-main" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+const DOC_ICONS = { '独身証明書':'📜', '収入証明書':'💴', '住民票':'🏠', '卒業証明書':'🎓' };
+const STATUS_INFO = {
+  approved:      { label:'審査済み',   cls:'chip-ok',      icon:'✅' },
+  pending:       { label:'審査中',     cls:'chip-review',  icon:'⏳' },
+  rejected:      { label:'再提出が必要', cls:'chip-ng',    icon:'❌' },
+  not_submitted: { label:'未提出',     cls:'chip-none',    icon:'📤' }
+};
+
+function render() {
+  const docs = Store.query('documents', d => d.memberId === me.id);
+  const approved = docs.filter(d => d.status === 'approved').length;
+  const total    = docs.length;
+  const allDone  = docs.filter(d => d.status !== 'not_submitted' && d.status !== 'rejected').length;
+
+  document.getElementById('mainContent').innerHTML = `
+    <!-- Progress -->
+    <div style="background:var(--primary-grad);border-radius:14px;padding:18px 16px;margin-bottom:16px;color:#fff;">
+      <div style="font-size:13px;opacity:.85;margin-bottom:6px;">書類提出状況</div>
+      <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:10px;">
+        <div style="font-size:32px;font-weight:700;line-height:1;">${approved}</div>
+        <div style="font-size:14px;opacity:.85;margin-bottom:4px;">/ ${total} 件 審査済み</div>
+      </div>
+      <div style="background:rgba(255,255,255,.3);border-radius:99px;height:8px;overflow:hidden;">
+        <div style="background:#fff;height:100%;border-radius:99px;width:${total?Math.round(approved/total*100):0}%;transition:width .5s;"></div>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div style="background:#FFF8E1;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#E65100;border-left:3px solid #FF9800;">
+      ⚠️ 独身証明書・収入証明書は成婚前に必須書類です。早めのご提出をお願いします。
+    </div>
+
+    <!-- Document list -->
+    <div class="card" style="overflow:hidden;margin-bottom:16px;">
+      ${docs.map(d => {
+        const si = STATUS_INFO[d.status] || STATUS_INFO.not_submitted;
+        return `
+        <div class="doc-row">
+          <div class="doc-icon">${DOC_ICONS[d.type] || '📄'}</div>
+          <div class="doc-info">
+            <div class="doc-name">${d.type} ${d.note ? `<span style="font-size:11px;color:var(--text-muted);">(${d.note})</span>` : ''}</div>
+            <div class="doc-meta">
+              ${d.submittedAt ? `提出日: ${App.fmtDate(d.submittedAt,{yearMonthDay:true})}` : '未提出'}
+              ${d.reviewedAt ? ` / 審査日: ${App.fmtDate(d.reviewedAt,{yearMonthDay:true})}` : ''}
+            </div>
+          </div>
+          <div class="doc-action">
+            <span class="chip ${si.cls}" style="font-size:11px;">${si.icon} ${si.label}</span>
+          </div>
+        </div>
+        ${d.status === 'not_submitted' || d.status === 'rejected' ? `
+        <div style="padding:10px 16px 12px 60px;">
+          <div class="upload-area" onclick="simulateUpload('${d.id}','${d.type}')">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">タップしてファイルを選択</div>
+            <div class="upload-hint">JPG / PNG / PDF（最大10MB）</div>
+          </div>
+        </div>` : ''}`;
+      }).join('')}
+    </div>
+
+    <!-- Guide -->
+    <div class="card">
+      <div class="card-header"><h3>📋 提出書類ガイド</h3></div>
+      <div class="card-body">
+        ${[
+          ['独身証明書','市区町村役場で発行（発行後3ヶ月以内）'],
+          ['収入証明書','源泉徴収票または確定申告書の写し（直近1年分）'],
+          ['住民票','市区町村役場で発行（発行後3ヶ月以内）'],
+          ['卒業証明書','最終学歴の卒業証明書（任意）']
+        ].map(([name,desc])=>`
+          <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+            <div style="font-size:13px;font-weight:600;width:100px;flex-shrink:0;">${name}</div>
+            <div style="font-size:12px;color:var(--text-sub);line-height:1.5;">${desc}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function simulateUpload(docId, docName) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,.pdf';
+  input.onchange = () => {
+    if (!input.files.length) return;
+    App.toast(`⏳ ${docName}をアップロード中...`, 'info', 1500);
+    setTimeout(() => {
+      Store.update('documents', docId, { status: 'pending', submittedAt: new Date().toISOString().slice(0,10) });
+      App.toast(`✅ ${docName}を提出しました。審査をお待ちください。`, 'success');
+      render();
+    }, 1500);
+  };
+  input.click();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お知らせ - ハーモニーブライダル</title>
+<link rel="manifest" href="../manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/member.css">
+</head>
+<body>
+<div class="member-app">
+<header class="app-header">
+  <button class="back-btn" onclick="history.back()">‹</button>
+  <h1>お知らせ</h1>
+  <button class="header-btn" onclick="markAllRead()" title="すべて既読">✓✓</button>
+</header>
+<main class="app-main no-pad" id="mainContent"></main>
+<nav class="bottom-nav">
+  <a href="dashboard.html" class="nav-item"><span class="nav-icon">🏠</span><span class="nav-label">ホーム</span></a>
+  <a href="introductions.html" class="nav-item"><span class="nav-icon">💌</span><span class="nav-label">紹介書</span></a>
+  <a href="search.html" class="nav-item"><span class="nav-icon">🔍</span><span class="nav-label">検索</span></a>
+  <a href="events.html" class="nav-item"><span class="nav-icon">📅</span><span class="nav-label">イベント</span></a>
+  <a href="board.html" class="nav-item"><span class="nav-icon">💬</span><span class="nav-label">メッセージ</span></a>
+  <a href="mypage.html" class="nav-item"><span class="nav-icon">👤</span><span class="nav-label">マイページ</span></a>
+</nav>
+</div>
+<script src="../js/seed.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+const session = Auth.requireMember();
+if (!session) throw new Error('not logged in');
+const me = Auth.getCurrentMember();
+
+function render() {
+  const personal = Store.query('notifications', n => n.memberId === me.id)
+    .sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+  const global = Store.get('globalNotifications') ?? [];
+  const all = [
+    ...personal.map(n => ({ ...n, _type: 'personal' })),
+    ...global.map(n => ({ ...n, _type: 'global', read: true }))
+  ].sort((a,b) => b.createdAt.localeCompare(a.createdAt));
+
+  if (!all.length) {
+    document.getElementById('mainContent').innerHTML = `<div class="empty-state" style="padding-top:60px;"><div class="empty-state-icon">📢</div><div class="empty-state-title">お知らせはありません</div></div>`;
+    return;
+  }
+  document.getElementById('mainContent').innerHTML = all.map(n => `
+    <div class="notif-item${n.read?'':' unread'}" onclick="openNotif('${n.id}','${n._type}')">
+      <div class="notif-icon" style="${n.important?'background:#FFF3E0;':''}">${n.icon ?? '📢'}</div>
+      <div class="notif-content">
+        <div class="notif-title">${n.important?'⚠️ ':''} ${n.title}</div>
+        <div class="notif-body">${n.body}</div>
+        <div class="notif-time">${App.fmtDatetime(n.createdAt)}</div>
+      </div>
+      ${!n.read ? '<div class="unread-dot"></div>' : ''}
+    </div>`).join('');
+}
+
+function openNotif(id, type) {
+  if (type === 'personal') {
+    const n = Store.getById('notifications', id);
+    if (!n) return;
+    if (!n.read) Store.update('notifications', id, { read: true });
+    App.modal(`
+      <div class="modal-header"><h3 style="font-size:15px;">${n.title}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${App.fmtDatetime(n.createdAt)}</p>
+        <p style="font-size:14px;line-height:1.75;color:var(--text-sub);">${n.body}</p>
+      </div>
+      <div class="modal-footer">
+        ${n.link ? `<button class="btn btn-primary btn-full" onclick="location.href='${n.link}';document.querySelector('.modal-overlay').remove()">詳細を見る</button>` : ''}
+        <button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">閉じる</button>
+      </div>`);
+    render();
+  } else {
+    const gns = Store.get('globalNotifications') ?? [];
+    const n = gns.find(g => g.id === id);
+    if (!n) return;
+    App.modal(`
+      <div class="modal-header"><h3 style="font-size:15px;">${n.title}</h3><button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button></div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${App.fmtDate(n.createdAt,{yearMonthDay:true})}</p>
+        <p style="font-size:14px;line-height:1.75;color:var(--text-sub);">${n.body}</p>
+      </div>
+      <div class="modal-footer"><button class="btn btn-ghost btn-full" onclick="this.closest('.modal-overlay').remove()">閉じる</button></div>`);
+  }
+}
+
+function markAllRead() {
+  const unread = Store.query('notifications', n => n.memberId === me.id && !n.read);
+  unread.forEach(n => Store.update('notifications', n.id, { read: true }));
+  App.toast('すべて既読にしました', 'default');
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
