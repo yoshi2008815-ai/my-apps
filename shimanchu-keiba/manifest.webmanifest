@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "しまんちゅ競馬予想",
+  "short_name": "しまんちゅ競馬",
+  "description": "4人それぞれのJSONを切り替えて使える、スマホ優先の競馬予想アプリ",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eceee9",
+  "theme_color": "#243027",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
