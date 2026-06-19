@@ -114,7 +114,9 @@ async function loadProfile(id) {
     renderEmptyState(profile);
     return;
   }
-  selectRace(firstDay, 0);
+  curDay = -1;
+  curRace = -1;
+  renderInitialSelectionState(profile);
 }
 
 async function fetchProfileData(profile) {
@@ -189,7 +191,7 @@ function buildRacePane() {
     return `${+m}/${+dd}`;
   };
   $("racepane").innerHTML = DATA.days.map((day, dayIndex) => `
-    <details class="daygrp" ${dayIndex === 0 ? "open" : ""}>
+    <details class="daygrp">
       <summary>${fmtDate(day.date)}（${day.races.length}R）</summary>
       ${day.races.map((race, raceIndex) => `
         <button class="rbtn" data-d="${dayIndex}" data-r="${raceIndex}">
@@ -390,6 +392,12 @@ function renderEmptyState(profile) {
   $("modelStat").textContent = `${profile.label} のレースデータなし`;
   $("racehead").innerHTML = `<h1>${profile.label} に表示できるレースがありません</h1><div class='sub'><span>${profile.dataUrl} を作成してから再読み込みしてください</span></div>`;
   $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>scripts/exportDemo.ts を使って ${profile.label} 用JSONを生成すると、この画面にレース一覧が表示されます。</td></tr>`;
+}
+
+function renderInitialSelectionState(profile) {
+  $("racepane").querySelectorAll(".rbtn").forEach((button) => button.classList.remove("on"));
+  $("racehead").innerHTML = `<h1>レースを選んでください</h1><div class='sub'><span>${profile.label} の開催一覧はすべて閉じた状態で表示しています</span></div>`;
+  $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>左の開催日を開いて、見たいレースを選んでください。</td></tr>`;
 }
 
 function getInitialProfileId() {
