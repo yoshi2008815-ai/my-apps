@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="しまんちゅ競馬予想。4人それぞれのJSONを切り替えて使える、スマホ優先の競馬予想アプリ" />
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+  <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+  <meta name="theme-color" content="#243027" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="しまんちゅ競馬予想" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <title>しまんちゅ競馬予想</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="titlebar">
+    <span class="logo">しまんちゅ競馬予想</span>
+    <span class="spacer"></span>
+    <button class="install" id="installBtn" hidden>アプリ追加</button>
+    <span class="stat" id="modelStat">読込中…</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="tgroup tgroup-user">
+      <span class="lbl">利用者</span>
+      <div class="profilegrid" id="profileSeg">
+        <button data-user="yoshi">ヨシ</button>
+        <button data-user="tsubo">ツボ</button>
+        <button data-user="taka">タカ</button>
+        <button data-user="kosu">コス</button>
+      </div>
+    </div>
+    <div class="tgroup">
+      <span class="lbl">学習</span>
+      <div class="seg" id="scopeSeg">
+        <button data-scope="graded" class="on">重賞のみ</button>
+        <button data-scope="all">一般も含む</button>
+      </div>
+    </div>
+    <div class="tgroup">
+      <span class="lbl">重み</span>
+      <div class="wt"><span class="k p">着順</span><input type="range" id="wPlace" min="0" max="1" step="0.05"><span class="v" id="vPlace"></span></div>
+      <div class="wt"><span class="k j">騎手</span><input type="range" id="wJockey" min="0" max="1" step="0.05"><span class="v" id="vJockey"></span></div>
+      <div class="wt"><span class="k t">タイム</span><input type="range" id="wTime" min="0" max="1" step="0.05"><span class="v" id="vTime"></span></div>
+      <button class="reset" id="resetW">初期化</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <nav class="racepane" id="racepane"></nav>
+    <main class="main">
+      <div class="racehead" id="racehead"></div>
+      <div class="gridwrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>予想</th><th class="mobile-hide">印</th><th>馬番</th><th>馬名</th><th class="mobile-hide">騎手</th><th>総合</th>
+              <th class="col-detail">着順力</th><th class="col-detail">騎手力</th><th class="col-detail">タイム力</th>
+              <th class="col-detail">親(父/母)</th><th>結果</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="footer" id="footer"></div>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="pop" id="pop"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
