@@ -75,6 +75,18 @@ body { font-family:var(--font); background:var(--bg); color:var(--ink); font-siz
   padding:0 12px;
   cursor:pointer;
 }
+.recommend {
+  font-size:12px;
+  font-weight:700;
+  color:#fff;
+  background:var(--head);
+  border:1px solid var(--head);
+  border-radius:8px;
+  min-height:40px;
+  padding:0 14px;
+  cursor:pointer;
+}
+.recommend:hover { opacity:.92; }
 
 .body { display:grid; grid-template-columns:198px minmax(0,1fr); align-items:start; }
 
@@ -167,6 +179,31 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
 .hist li .r { font-family:var(--mono); font-weight:600; flex:none; }
 .hist li .r.win { color:var(--gold); }
 .empty { color:var(--ink-faint); font-size:12px; }
+.reco-grid { display:grid; gap:12px; }
+.reco-card { border:1px solid var(--line); border-radius:12px; padding:12px; background:var(--row-alt); }
+.reco-card.recommended { border-color:var(--accent); background:var(--accent-soft); }
+.reco-card-head { display:grid; gap:6px; margin-bottom:10px; }
+.reco-card-head h3 { margin:0; font-size:15px; }
+.reco-weight { font-family:var(--mono); font-size:14px; font-weight:700; color:var(--accent-ink); }
+.metriclist { display:grid; gap:8px; }
+.metricrow { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:10px; background:var(--surface); border:1px solid var(--line-soft); font-size:13px; }
+.metricrow span { color:var(--ink-soft); line-height:1.5; }
+.metricrow b { font-family:var(--mono); font-size:14px; color:var(--ink); white-space:nowrap; }
+.actionrow { margin-top:12px; }
+.applyreco {
+  width:100%;
+  min-height:44px;
+  border:none;
+  border-radius:12px;
+  background:var(--accent);
+  color:#fff;
+  font:inherit;
+  font-size:14px;
+  font-weight:700;
+  padding:0 16px;
+  cursor:pointer;
+}
+.applyreco[disabled] { background:var(--line); color:var(--ink-soft); cursor:default; }
 
 .footer { font-size:11px; color:var(--ink-faint); padding:10px 12px; }
 
@@ -188,6 +225,7 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
   .wt input[type=range] { width:100%; min-height:44px; }
   .wt .v { width:auto; font-size:13px; }
   .reset { min-height:44px; padding:0 14px; font-size:13px; }
+  .recommend { width:100%; min-height:46px; padding:0 14px; font-size:14px; }
   .body { grid-template-columns:1fr; }
   .racepane { position:static; max-height:34vh; border-right:none; border-bottom:2px solid var(--accent); }
   .daygrp > summary { padding:12px 14px; font-size:15px; }
@@ -218,6 +256,10 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
   .sec h3 { font-size:15px; }
   .sec .fml { font-size:13px; }
   .sec .val { font-size:16px; }
+  .reco-card { padding:14px; }
+  .reco-weight { font-size:15px; line-height:1.5; }
+  .metricrow { padding:10px 12px; font-size:14px; }
+  .metricrow b { font-size:15px; }
   .hist li { display:block; font-size:13px; padding:6px 0; }
   .hist li .l,
   .hist li .r { display:block; white-space:normal; }

@@ -9,6 +9,7 @@ const PROFILES = [
   { id: "taka", label: "タカ", dataUrl: "data/taka.json" },
   { id: "kosu", label: "コス", dataUrl: "data/kosu.json" },
 ];
+const RECOMMENDATION_DATES = ["2026-06-13", "2026-06-14"];
 const WAKU = {1:"w1",2:"w2",3:"w3",4:"w4",5:"w5",6:"w6",7:"w7",8:"w8"};
 const MARK = {1:"◎",2:"○",3:"▲",4:"△",5:"△"};
 
@@ -76,6 +77,7 @@ function bindControls() {
     syncWeightControls();
     if (DATA) render();
   });
+  $("recommendBtn").addEventListener("click", openRecommendationPop);
 }
 
 function syncWeightControls() {
@@ -424,6 +426,200 @@ function syncProfileQuery(id) {
 
 function getProfileById(id) {
   return PROFILES.find((profile) => profile.id === id) || null;
+}
+
+function fmtPctRate(value) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function scopeLabel() {
+  return scope === "graded" ? "重賞のみ" : "一般も含む";
+}
+
+function normalizeWeights(weightSet) {
+  return {
+    place: weightSet.place ?? weightSet.wp ?? 0,
+    jockey: weightSet.jockey ?? weightSet.wj ?? 0,
+    time: weightSet.time ?? weightSet.wt ?? 0,
+  };
+}
+
+function formatWeights(weightSet) {
+  const normalized = normalizeWeights(weightSet);
+  return `着順${f2(normalized.place)} / 騎手${f2(normalized.jockey)} / タイム${f2(normalized.time)}`;
+}
+
+function scoreEntry(entry, weightSet, scopeKey = scope) {
+  const comp = entry?.[scopeKey];
+  if (!comp) return Number.NEGATIVE_INFINITY;
+  const normalized = normalizeWeights(weightSet);
+  return normalized.place * comp.placeScore + normalized.jockey * comp.jockeyScore + normalized.time * comp.timeScore;
+}
+
+function getRecommendationDayDates() {
+  if (!DATA?.days?.length) return [];
+  const finishedDates = DATA.days
+    .filter((day) => day.races.some((race) => race.entries.some((entry) => entry.actualPlace != null)))
+    .map((day) => day.date);
+  const preferred = RECOMMENDATION_DATES.filter((date) => finishedDates.includes(date));
+  if (preferred.length === RECOMMENDATION_DATES.length) return preferred;
+  return finishedDates.slice(0, 2);
+}
+
+function collectRecommendationRaces(dates) {
+  if (!DATA?.days?.length || !dates.length) return [];
+  const selected = new Set(dates);
+  return DATA.days
+    .filter((day) => selected.has(day.date))
+    .flatMap((day) => day.races
+      .filter((race) => [1, 2, 3].every((place) => race.entries.some((entry) => entry.actualPlace === place)))
+      .map((race) => ({ date: day.date, race })));
+}
+
+function evaluateWeightSet(recommendationRaces, weightSet, scopeKey = scope) {
+  const total = recommendationRaces.length;
+  const normalized = normalizeWeights(weightSet);
+  const rankTop3Counts = [0, 0, 0];
+  const exactCounts = [0, 0, 0];
+  let winnerInTop3Count = 0;
+  let top3BoxCount = 0;
+
+  for (const { race } of recommendationRaces) {
+    const ranked = [...race.entries]
+      .map((entry) => ({ entry, score: scoreEntry(entry, normalized, scopeKey) }))
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.entry);
+    const predictedTop3 = ranked.slice(0, 3);
+    const predictedHorses = predictedTop3.map((entry) => entry.horse);
+    const actualTop3 = [1, 2, 3].map((place) => race.entries.find((entry) => entry.actualPlace === place)?.horse ?? null);
+
+    predictedTop3.forEach((entry, index) => {
+      if (entry.actualPlace != null && entry.actualPlace <= 3) rankTop3Counts[index] += 1;
+      if (entry.actualPlace === index + 1) exactCounts[index] += 1;
+    });
+    if (actualTop3[0] && predictedHorses.includes(actualTop3[0])) winnerInTop3Count += 1;
+    if (actualTop3.every((horse) => horse && predictedHorses.includes(horse))) top3BoxCount += 1;
+  }
+
+  return {
+    weights: normalized,
+    races: total,
+    rankTop3Counts,
+    exactCounts,
+    winnerInTop3Count,
+    top3BoxCount,
+    rankTop3Rates: rankTop3Counts.map((count) => count / total),
+    exactRates: exactCounts.map((count) => count / total),
+    winnerInTop3Rate: winnerInTop3Count / total,
+    top3BoxRate: top3BoxCount / total,
+    score: rankTop3Counts[0] * 3 + rankTop3Counts[1] * 2 + rankTop3Counts[2],
+  };
+}
+
+function compareRecommendationStats(a, b) {
+  return (
+    b.score - a.score ||
+    b.exactCounts[0] - a.exactCounts[0] ||
+    b.winnerInTop3Count - a.winnerInTop3Count ||
+    b.top3BoxCount - a.top3BoxCount ||
+    Math.max(a.weights.place, a.weights.jockey, a.weights.time) - Math.max(b.weights.place, b.weights.jockey, b.weights.time)
+  );
+}
+
+function findRecommendedWeightSet(recommendationRaces, scopeKey = scope) {
+  let best = null;
+  for (let placeTicks = 0; placeTicks <= 20; placeTicks++) {
+    for (let jockeyTicks = 0; jockeyTicks <= 20 - placeTicks; jockeyTicks++) {
+      const timeTicks = 20 - placeTicks - jockeyTicks;
+      const candidate = evaluateWeightSet(recommendationRaces, {
+        place: placeTicks / 20,
+        jockey: jockeyTicks / 20,
+        time: timeTicks / 20,
+      }, scopeKey);
+      if (!best || compareRecommendationStats(best, candidate) > 0) best = candidate;
+    }
+  }
+  return best;
+}
+
+function metricRows(stats) {
+  return [
+    ["予想1位が1着", fmtPctRate(stats.exactRates[0])],
+    ["予想1位が3着内", fmtPctRate(stats.rankTop3Rates[0])],
+    ["予想2位が3着内", fmtPctRate(stats.rankTop3Rates[1])],
+    ["予想3位が3着内", fmtPctRate(stats.rankTop3Rates[2])],
+    ["勝ち馬が予想TOP3に入る", fmtPctRate(stats.winnerInTop3Rate)],
+    ["予想TOP3で3着内を全部拾う", fmtPctRate(stats.top3BoxRate)],
+  ];
+}
+
+function renderRecommendationCard(title, stats, extraClass = "") {
+  return `<div class="reco-card ${extraClass}">
+    <div class="reco-card-head">
+      <h3>${title}</h3>
+      <div class="reco-weight">${formatWeights(stats.weights)}</div>
+    </div>
+    <div class="metriclist">
+      ${metricRows(stats).map(([label, value]) => `<div class="metricrow"><span>${label}</span><b>${value}</b></div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function openRecommendationPop() {
+  if (!DATA) return;
+  const dates = getRecommendationDayDates();
+  const recommendationRaces = collectRecommendationRaces(dates);
+  const dayLabel = dates.length ? dates.map(fmtD).join("・") : "対象日なし";
+
+  if (!recommendationRaces.length) {
+    $("pop").innerHTML = `
+      <div class="ph">
+        <span class="n">結果からのおすすめ重み</span>
+        <button class="x" id="popx">×</button>
+      </div>
+      <div class="pc">
+        <div class="sec hl">
+          <h3>おすすめを作れませんでした</h3>
+          <div class="fml">${dayLabel} の確定結果つきレースが不足しています。</div>
+        </div>
+      </div>`;
+    $("popx").addEventListener("click", closePop);
+    $("overlay").hidden = false;
+    return;
+  }
+
+  const recommended = findRecommendedWeightSet(recommendationRaces, scope);
+  const current = evaluateWeightSet(recommendationRaces, weights, scope);
+  const sameWeights = ["place", "jockey", "time"].every((key) => Math.abs(recommended.weights[key] - current.weights[key]) < 0.001);
+
+  $("pop").innerHTML = `
+    <div class="ph">
+      <span class="n">結果からのおすすめ重み</span>
+      <button class="x" id="popx">×</button>
+    </div>
+    <div class="pc">
+      <div class="sec hl">
+        <h3>${dayLabel} の結果で分析</h3>
+        <div class="fml">${scopeLabel()} / ${recommendationRaces.length}レースを集計。予想1位〜3位が実際の3着内へどれだけ入ったかを基準に、おすすめ重みを選んでいます。</div>
+        <div class="val">おすすめ: ${formatWeights(recommended.weights)}</div>
+      </div>
+      <div class="reco-grid">
+        ${renderRecommendationCard("おすすめ", recommended, "recommended")}
+        ${renderRecommendationCard("現在の設定", current)}
+      </div>
+      <div class="actionrow">
+        <button class="applyreco" id="applyRecoBtn" ${sameWeights ? "disabled" : ""}>${sameWeights ? "この重みを使用中です" : "この重みを適用"}</button>
+      </div>
+    </div>`;
+
+  $("popx").addEventListener("click", closePop);
+  $("applyRecoBtn")?.addEventListener("click", () => {
+    weights = { ...recommended.weights };
+    syncWeightControls();
+    if (DATA && race()) render();
+    closePop();
+  });
+  $("overlay").hidden = false;
 }
 
 // ---- 最適重みづけ探索（着順:騎手:タイム の比を5%刻みで全通り試す・231通り） ----
