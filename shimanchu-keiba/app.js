@@ -14,7 +14,7 @@ const WAKU = {1:"w1",2:"w2",3:"w3",4:"w4",5:"w5",6:"w6",7:"w7",8:"w8"};
 const MARK = {1:"◎",2:"○",3:"▲",4:"△",5:"△"};
 
 let DATA = null;
-let scope = "graded";
+let scope = "all";
 let weights = { place: 0.5, jockey: 0.2, time: 0.3 };
 let curDay = 0;
 let curRace = 0;
@@ -432,8 +432,8 @@ function fmtPctRate(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function scopeLabel() {
-  return scope === "graded" ? "重賞のみ" : "一般も含む";
+function scopeLabel(scopeKey = scope) {
+  return scopeKey === "graded" ? "重賞のみ" : "一般も含む";
 }
 
 function normalizeWeights(weightSet) {
@@ -588,9 +588,10 @@ function openRecommendationPop() {
     return;
   }
 
-  const recommended = findRecommendedWeightSet(recommendationRaces, scope);
-  const current = evaluateWeightSet(recommendationRaces, weights, scope);
-  const sameWeights = ["place", "jockey", "time"].every((key) => Math.abs(recommended.weights[key] - current.weights[key]) < 0.001);
+  const recommendationScope = "all";
+  const recommended = findRecommendedWeightSet(recommendationRaces, recommendationScope);
+  const current = evaluateWeightSet(recommendationRaces, weights, recommendationScope);
+  const sameWeights = scope === recommendationScope && ["place", "jockey", "time"].every((key) => Math.abs(recommended.weights[key] - current.weights[key]) < 0.001);
 
   $("pop").innerHTML = `
     <div class="ph">
@@ -600,7 +601,7 @@ function openRecommendationPop() {
     <div class="pc">
       <div class="sec hl">
         <h3>${dayLabel} の結果で分析</h3>
-        <div class="fml">${scopeLabel()} / ${recommendationRaces.length}レースを集計。予想1位〜3位が実際の3着内へどれだけ入ったかを基準に、おすすめ重みを選んでいます。</div>
+        <div class="fml">${scopeLabel(recommendationScope)} / ${recommendationRaces.length}レースを集計。予想1位〜3位が実際の3着内へどれだけ入ったかを基準に、おすすめ重みを選んでいます。</div>
         <div class="val">おすすめ: ${formatWeights(recommended.weights)}</div>
       </div>
       <div class="reco-grid">
@@ -615,6 +616,8 @@ function openRecommendationPop() {
   $("popx").addEventListener("click", closePop);
   $("applyRecoBtn")?.addEventListener("click", () => {
     weights = { ...recommended.weights };
+    scope = recommendationScope;
+    [...$("scopeSeg").children].forEach((item) => item.classList.toggle("on", item.dataset.scope === scope));
     syncWeightControls();
     if (DATA && race()) render();
     closePop();
