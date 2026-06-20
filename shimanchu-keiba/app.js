@@ -9,13 +9,15 @@ const PROFILES = [
   { id: "taka", label: "タカ", dataUrl: "data/taka.json" },
   { id: "kosu", label: "コス", dataUrl: "data/kosu.json" },
 ];
-const RECOMMENDATION_DATES = ["2026-06-13", "2026-06-14"];
+const RECOMMENDATION_BASE_DATES = ["2026-06-13", "2026-06-14"];
+const PROFILE_STATE_STORAGE_KEY = "shimanchu-keiba-state-v1";
+const SAVED_PREDICTIONS_STORAGE_KEY = "shimanchu-keiba-predictions-v1";
 const WAKU = {1:"w1",2:"w2",3:"w3",4:"w4",5:"w5",6:"w6",7:"w7",8:"w8"};
 const MARK = {1:"◎",2:"○",3:"▲",4:"△",5:"△"};
 
 let DATA = null;
 let scope = "all";
-let weights = { place: 0.5, jockey: 0.2, time: 0.3 };
+let weights = { place: 0.5, jockey: 0.2, time: 0.3, parent: 0 };
 let curDay = 0;
 let curRace = 0;
 let selectedHorse = null;
@@ -58,34 +60,44 @@ function bindControls() {
     const button = e.target.closest("button");
     if (!button) return;
     scope = button.dataset.scope;
-    [...$("scopeSeg").children].forEach((item) => item.classList.toggle("on", item === button));
+    syncScopeButtons();
+    persistProfileState();
     if (DATA) render();
   });
 
-  for (const [sliderId, valueId, key] of [["wPlace", "vPlace", "place"], ["wJockey", "vJockey", "jockey"], ["wTime", "vTime", "time"]]) {
+  for (const [sliderId, valueId, key] of [["wPlace", "vPlace", "place"], ["wJockey", "vJockey", "jockey"], ["wTime", "vTime", "time"], ["wParent", "vParent", "parent"]]) {
     const input = $(sliderId);
     input.addEventListener("input", () => {
       weights[key] = parseFloat(input.value);
       $(valueId).textContent = f2(weights[key]);
+      persistProfileState();
       if (DATA) render();
     });
   }
 
   syncWeightControls();
   $("resetW").addEventListener("click", () => {
-    weights = DATA?.meta?.weights ? { ...DATA.meta.weights } : { place: 0.5, jockey: 0.2, time: 0.3 };
+    weights = DATA?.meta?.weights ? { parent: 0, ...DATA.meta.weights } : { place: 0.5, jockey: 0.2, time: 0.3, parent: 0 };
     syncWeightControls();
+    persistProfileState();
     if (DATA) render();
   });
   $("recommendBtn").addEventListener("click", openRecommendationPop);
+  syncScopeButtons();
 }
 
 function syncWeightControls() {
-  for (const [sliderId, valueId, key] of [["wPlace", "vPlace", "place"], ["wJockey", "vJockey", "jockey"], ["wTime", "vTime", "time"]]) {
+  for (const [sliderId, valueId, key] of [["wPlace", "vPlace", "place"], ["wJockey", "vJockey", "jockey"], ["wTime", "vTime", "time"], ["wParent", "vParent", "parent"]]) {
     const input = $(sliderId);
-    input.value = String(weights[key]);
-    $(valueId).textContent = f2(weights[key]);
+    input.value = String(weights[key] ?? 0);
+    $(valueId).textContent = f2(weights[key] ?? 0);
   }
+}
+
+function syncScopeButtons() {
+  $("scopeSeg").querySelectorAll("button").forEach((button) => {
+    button.classList.toggle("on", button.dataset.scope === scope);
+  });
 }
 
 async function loadProfile(id) {
@@ -105,7 +117,14 @@ async function loadProfile(id) {
     return;
   }
 
-  weights = { ...(DATA.meta?.weights || { place: 0.5, jockey: 0.2, time: 0.3 }) };
+  const savedState = loadProfileState(profile.id);
+  scope = savedState?.scope === "graded" ? "graded" : "all";
+  weights = {
+    parent: 0,
+    ...(DATA.meta?.weights || { place: 0.5, jockey: 0.2, time: 0.3 }),
+    ...(savedState?.weights || {}),
+  };
+  syncScopeButtons();
   syncWeightControls();
   $("modelStat").innerHTML = `${profile.label}用 / 学習 <b>${DATA.meta.trainedRaces.toLocaleString()}</b> レース`;
   $("footer").textContent = `出典: JRA-VAN DataLab (JV-Link)。${profile.label}用JSONを読込中。デモであり的中を保証するものではありません。`;
@@ -234,18 +253,22 @@ function compOf(entry) {
 
 function scoreOf(entry) {
   const comp = compOf(entry);
-  return weights.place * comp.placeScore + weights.jockey * comp.jockeyScore + weights.time * comp.timeScore;
+  return weights.place * comp.placeScore + weights.jockey * comp.jockeyScore + weights.time * comp.timeScore + (weights.parent ?? 0) * (comp.parentScore ?? 0.5);
 }
 
-function rescored() {
-  const currentRace = race();
-  if (!currentRace) return [];
-  const list = currentRace.entries.map((entry) => ({ entry, score: scoreOf(entry) }));
+function rankRaceEntries(currentRace, weightSet = weights, scopeKey = scope) {
+  const list = currentRace.entries.map((entry) => ({ entry, score: scoreEntry(entry, weightSet, scopeKey) }));
   list.sort((a, b) => b.score - a.score);
   list.forEach((item, index) => {
     item.rank = index + 1;
   });
   return list;
+}
+
+function rescored() {
+  const currentRace = race();
+  if (!currentRace) return [];
+  return rankRaceEntries(currentRace, weights, scope);
 }
 
 function resBadge(place) {
@@ -254,12 +277,10 @@ function resBadge(place) {
   return `<span class="res ${cls}">${place}</span>`;
 }
 
-function parentCell(entry) {
-  const parent = entry.parent;
-  if (!parent) return `<span class="none">–</span>`;
-  const sireScore = parent.sireScore != null ? ` <span class="psc">${f2(parent.sireScore)}</span>` : "";
-  const damScore = parent.damScore != null ? ` <span class="psc">${f2(parent.damScore)}</span>` : "";
-  return `<span class="pn">父 ${parent.sire || "–"}</span>${sireScore}<br><span class="pn">母 ${parent.dam || "–"}</span>${damScore}`;
+function parentNames(entry) {
+  const p = entry.parent;
+  if (!p) return `<span class="none">–</span>`;
+  return `<span class="pn">父 ${p.sire || "–"}</span><br><span class="pn">母 ${p.dam || "–"}</span>`;
 }
 
 function render() {
@@ -281,7 +302,7 @@ function render() {
       <td class="cell col-detail" data-c="place"><span class="sc">${f2(comp.placeScore)}</span><div class="minibar"><i class="f-p" style="width:${pct(comp.placeScore)}%"></i></div></td>
       <td class="cell col-detail" data-c="jockey"><span class="sc">${f2(comp.jockeyScore)}</span><div class="minibar"><i class="f-j" style="width:${pct(comp.jockeyScore)}%"></i></div></td>
       <td class="cell col-detail" data-c="time"><span class="sc">${f2(comp.timeScore)}</span><div class="minibar"><i class="f-t" style="width:${pct(comp.timeScore)}%"></i></div></td>
-      <td class="parent col-detail">${parentCell(entry)}</td>
+      <td class="cell parent col-detail" data-c="parent"><span class="sc">${comp.parentScore != null ? f2(comp.parentScore) : "–"}</span><div class="minibar"><i class="f-parent" style="width:${pct(comp.parentScore ?? 0.5)}%"></i></div><div class="pnames">${parentNames(entry)}</div></td>
       <td class="rescel">${resBadge(entry.actualPlace)}</td>
     </tr>`;
   }).join("");
@@ -300,6 +321,7 @@ function render() {
     });
     row.addEventListener("click", () => openPop(horse, null));
   });
+  renderPredictionPanel();
 }
 
 function openPop(horse, focus) {
@@ -313,8 +335,9 @@ function openPop(horse, focus) {
 
   const placeHist = comp.hist.length ? `<ul class="hist">${comp.hist.map((hist) => `<li><span class="l">${fmtD(hist.date)} ${hist.race}</span><span class="r ${hist.place === 1 ? "win" : ""}">${hist.place}着/${hist.field}頭 → ${f2(hist.ps)}</span></li>`).join("")}</ul>` : `<div class="empty">過去の出走データなし（このスコープ）</div>`;
   const timeHist = comp.hist.length ? `<ul class="hist">${comp.hist.map((hist) => `<li><span class="l">${fmtD(hist.date)} ${hist.race}</span><span class="r">z=${hist.z >= 0 ? "+" : ""}${hist.z.toFixed(2)}</span></li>`).join("")}</ul>` : `<div class="empty">過去の出走データなし</div>`;
+  const H3CLS = { place: "p", jockey: "j", time: "t", parent: "parent" };
   const section = (cls, title, formula, value, extra) => `<div class="sec ${focus === cls ? "hl" : ""}">
-    <h3 class="${cls[0]}">${title}</h3><div class="fml">${formula}</div><div class="val">${value}</div>${extra || ""}</div>`;
+    <h3 class="${H3CLS[cls] || cls[0]}">${title}</h3><div class="fml">${formula}</div><div class="val">${value}</div>${extra || ""}</div>`;
 
   $("pop").innerHTML = `
     <div class="ph">
@@ -325,12 +348,13 @@ function openPop(horse, focus) {
     <div class="pc">
       <div class="sec hl">
         <h3>総合スコア = ${item.rank}位</h3>
-        <div class="fml">総合 = 着順力×${f2(weights.place)} ＋ 騎手力×${f2(weights.jockey)} ＋ タイム力×${f2(weights.time)}</div>
-        <div class="val">${f2(comp.placeScore)}×${f2(weights.place)} + ${f2(comp.jockeyScore)}×${f2(weights.jockey)} + ${f2(comp.timeScore)}×${f2(weights.time)} = ${score.toFixed(3)}</div>
+        <div class="fml">総合 = 着順力×${f2(weights.place)} ＋ 騎手力×${f2(weights.jockey)} ＋ タイム力×${f2(weights.time)}${weights.parent > 0 ? ` ＋ 親力×${f2(weights.parent)}` : ""}</div>
+        <div class="val">${f2(comp.placeScore)}×${f2(weights.place)} + ${f2(comp.jockeyScore)}×${f2(weights.jockey)} + ${f2(comp.timeScore)}×${f2(weights.time)}${weights.parent > 0 ? ` + ${f2(comp.parentScore ?? 0.5)}×${f2(weights.parent)}` : ""} = ${score.toFixed(3)}</div>
       </div>
       ${section("place", "着順力 = " + f2(comp.placeScore), "各レースの着順スコア =（頭数−着順）÷（頭数−1）。1着=1.00 最下位=0.00。その平均が着順力。", `過去${comp.runs}走の平均 = <b>${f2(comp.placeScore)}</b>（勝率${pct(comp.winRate)}% / 複勝率${pct(comp.top3Rate)}%）`, placeHist)}
       ${section("jockey", "騎手力 = " + f2(comp.jockeyScore), "騎手の複勝率（3着内に入った割合）。", `${entry.jockey}：${comp.jockeyStat.top3}/${comp.jockeyStat.runs}走 → 複勝率 <b>${pct(comp.jockeyScore)}%</b>`)}
       ${section("time", "タイム力 = " + f2(comp.timeScore), "各レース内での相対速度 z =（レース平均タイム−自分のタイム）÷標準偏差。速いほど大。平均zを0〜1に正規化(z+2)/4。", `平均z = ${comp.avgZ >= 0 ? "+" : ""}${comp.avgZ.toFixed(2)} → 正規化 <b>${f2(comp.timeScore)}</b>`, timeHist)}
+      ${section("parent", "親力 = " + (comp.parentScore != null ? f2(comp.parentScore) : "–"), "父・母それぞれの産駒（兄弟馬）の平均着順スコアを計算し、その平均を親力とする。", entry.parent ? `父 ${entry.parent.sire || "–"}（産駒スコア: ${entry.parent.sireScore != null ? f2(entry.parent.sireScore) : "–"}）<br>母 ${entry.parent.dam || "–"}（産駒スコア: ${entry.parent.damScore != null ? f2(entry.parent.damScore) : "–"}）<br>→ 親力 <b>${comp.parentScore != null ? f2(comp.parentScore) : "データなし"}</b>` : "血統データなし（スクレイピング未取得または未登録）")}
     </div>`;
   $("popx").addEventListener("click", closePop);
   $("overlay").hidden = false;
@@ -383,14 +407,16 @@ function renderLoadError(profile, error) {
   console.error(error);
   DATA = null;
   $("racepane").innerHTML = "";
-  $("modelStat").textContent = `${profile.label} のデータ読込失敗`;
   $("racehead").innerHTML = `<h1>${profile.label} のJSONを読み込めませんでした</h1><div class='sub'><span>${profile.dataUrl} を確認してください</span></div>`;
+  $("predictPanel").innerHTML = "";
+  $("modelStat").textContent = `${profile.label} のデータ読込失敗`;
   $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>${profile.label} 用のJSONが見つからないか、通信に失敗しました。初回アクセス時はオンラインで ${profile.dataUrl} を取得してください。</td></tr>`;
   $("footer").textContent = `${profile.label} 用データを取得できませんでした。`;
 }
 
 function renderEmptyState(profile) {
   $("racepane").innerHTML = "";
+  $("predictPanel").innerHTML = "";
   $("modelStat").textContent = `${profile.label} のレースデータなし`;
   $("racehead").innerHTML = `<h1>${profile.label} に表示できるレースがありません</h1><div class='sub'><span>${profile.dataUrl} を作成してから再読み込みしてください</span></div>`;
   $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>scripts/exportDemo.ts を使って ${profile.label} 用JSONを生成すると、この画面にレース一覧が表示されます。</td></tr>`;
@@ -398,8 +424,155 @@ function renderEmptyState(profile) {
 
 function renderInitialSelectionState(profile) {
   $("racepane").querySelectorAll(".rbtn").forEach((button) => button.classList.remove("on"));
+  $("predictPanel").innerHTML = "";
   $("racehead").innerHTML = `<h1>レースを選んでください</h1><div class='sub'><span>${profile.label} の開催一覧はすべて閉じた状態で表示しています</span></div>`;
   $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>左の開催日を開いて、見たいレースを選んでください。</td></tr>`;
+}
+
+function readJsonStorage(key, fallback) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonStorage(key, value) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function loadProfileStates() {
+  return readJsonStorage(PROFILE_STATE_STORAGE_KEY, {});
+}
+
+function loadProfileState(id) {
+  return loadProfileStates()[id] || null;
+}
+
+function persistProfileState() {
+  if (!profileId) return;
+  const states = loadProfileStates();
+  states[profileId] = {
+    scope,
+    weights: { ...weights },
+  };
+  writeJsonStorage(PROFILE_STATE_STORAGE_KEY, states);
+}
+
+function loadSavedPredictions() {
+  return readJsonStorage(SAVED_PREDICTIONS_STORAGE_KEY, {});
+}
+
+function persistSavedPredictions(predictions) {
+  writeJsonStorage(SAVED_PREDICTIONS_STORAGE_KEY, predictions);
+}
+
+function currentRaceKey(dayIndex = curDay, raceIndex = curRace) {
+  const day = DATA?.days?.[dayIndex];
+  const currentRace = DATA?.days?.[dayIndex]?.races?.[raceIndex];
+  if (!day || !currentRace) return null;
+  return [profileId, day.date, currentRace.venue || "", currentRace.raceNo || currentRace.label || raceIndex].join("::");
+}
+
+function buildPredictionSnapshot(dayIndex = curDay, raceIndex = curRace) {
+  const day = DATA?.days?.[dayIndex];
+  const currentRace = DATA?.days?.[dayIndex]?.races?.[raceIndex];
+  if (!day || !currentRace) return null;
+  const rankings = rankRaceEntries(currentRace, weights, scope).slice(0, 3);
+  return {
+    key: currentRaceKey(dayIndex, raceIndex),
+    profileId,
+    date: day.date,
+    venue: currentRace.venue,
+    raceNo: currentRace.raceNo,
+    raceLabel: currentRace.label,
+    raceName: currentRace.raceName,
+    scope,
+    weights: { ...weights },
+    top3: rankings.map(({ entry, score, rank }) => ({
+      rank,
+      horse: entry.horse,
+      umaban: entry.umaban,
+      jockey: entry.jockey,
+      score: Number(score.toFixed(3)),
+    })),
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function getSavedPrediction(dayIndex = curDay, raceIndex = curRace) {
+  const key = currentRaceKey(dayIndex, raceIndex);
+  if (!key) return null;
+  return loadSavedPredictions()[key] || null;
+}
+
+function formatSavedAt(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleString("ja-JP", {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return value;
+  }
+}
+
+function renderPredictionChips(snapshot) {
+  return snapshot.top3.map((item) => `<span class="predictchip r${item.rank}">${["◎", "○", "▲"][item.rank - 1] || "△"}${item.horse}</span>`).join("");
+}
+
+function saveCurrentPrediction() {
+  const snapshot = buildPredictionSnapshot();
+  if (!snapshot?.key) return;
+  const predictions = loadSavedPredictions();
+  predictions[snapshot.key] = snapshot;
+  persistSavedPredictions(predictions);
+  renderPredictionPanel("この端末に保存しました");
+}
+
+function renderPredictionPanel(message = "") {
+  const panel = $("predictPanel");
+  if (!panel) return;
+  const currentRace = race();
+  if (!currentRace) {
+    panel.innerHTML = "";
+    return;
+  }
+
+  const current = buildPredictionSnapshot();
+  if (!current) {
+    panel.innerHTML = "";
+    return;
+  }
+  const saved = getSavedPrediction();
+
+  panel.innerHTML = `
+    <div class="predictcard">
+      <div class="predictcard-head">
+        <div>
+          <div class="predictlabel">現在の予想</div>
+          <div class="predictmeta">${scopeLabel(current.scope)} / ${formatWeights(current.weights)}</div>
+        </div>
+        <button class="saveprediction" id="savePredictionBtn">予想を保存</button>
+      </div>
+      <div class="predictchips">${renderPredictionChips(current)}</div>
+      ${saved ? `
+        <div class="savedprediction">
+          <div class="savedprediction-head">保存済み予想 <span>${formatSavedAt(saved.savedAt)}</span></div>
+          <div class="predictchips">${renderPredictionChips(saved)}</div>
+          <div class="savedprediction-meta">${scopeLabel(saved.scope)} / ${formatWeights(saved.weights)}</div>
+        </div>` : `
+        <div class="savedprediction emptyhint">保存すると、アプリ改版後もこの端末に予想が残ります。</div>`}
+      ${message ? `<div class="predictnotice">${message}</div>` : ""}
+    </div>`;
+
+  $("savePredictionBtn")?.addEventListener("click", saveCurrentPrediction);
 }
 
 function getInitialProfileId() {
@@ -441,19 +614,22 @@ function normalizeWeights(weightSet) {
     place: weightSet.place ?? weightSet.wp ?? 0,
     jockey: weightSet.jockey ?? weightSet.wj ?? 0,
     time: weightSet.time ?? weightSet.wt ?? 0,
+    parent: weightSet.parent ?? 0,
   };
 }
 
 function formatWeights(weightSet) {
-  const normalized = normalizeWeights(weightSet);
-  return `着順${f2(normalized.place)} / 騎手${f2(normalized.jockey)} / タイム${f2(normalized.time)}`;
+  const n = normalizeWeights(weightSet);
+  let s = `着順${f2(n.place)} / 騎手${f2(n.jockey)} / タイム${f2(n.time)}`;
+  if (n.parent > 0) s += ` / 親${f2(n.parent)}`;
+  return s;
 }
 
 function scoreEntry(entry, weightSet, scopeKey = scope) {
   const comp = entry?.[scopeKey];
   if (!comp) return Number.NEGATIVE_INFINITY;
-  const normalized = normalizeWeights(weightSet);
-  return normalized.place * comp.placeScore + normalized.jockey * comp.jockeyScore + normalized.time * comp.timeScore;
+  const n = normalizeWeights(weightSet);
+  return n.place * comp.placeScore + n.jockey * comp.jockeyScore + n.time * comp.timeScore + n.parent * (comp.parentScore ?? 0.5);
 }
 
 function getRecommendationDayDates() {
@@ -461,9 +637,11 @@ function getRecommendationDayDates() {
   const finishedDates = DATA.days
     .filter((day) => day.races.some((race) => race.entries.some((entry) => entry.actualPlace != null)))
     .map((day) => day.date);
-  const preferred = RECOMMENDATION_DATES.filter((date) => finishedDates.includes(date));
-  if (preferred.length === RECOMMENDATION_DATES.length) return preferred;
-  return finishedDates.slice(0, 2);
+  if (!finishedDates.length) return [];
+  const selectedDates = RECOMMENDATION_BASE_DATES.filter((date) => finishedDates.includes(date));
+  const latestFinishedDate = finishedDates[finishedDates.length - 1];
+  if (latestFinishedDate && !selectedDates.includes(latestFinishedDate)) selectedDates.push(latestFinishedDate);
+  return selectedDates.length ? selectedDates : finishedDates.slice(-2);
 }
 
 function collectRecommendationRaces(dates) {
@@ -522,21 +700,21 @@ function compareRecommendationStats(a, b) {
     b.exactCounts[0] - a.exactCounts[0] ||
     b.winnerInTop3Count - a.winnerInTop3Count ||
     b.top3BoxCount - a.top3BoxCount ||
-    Math.max(a.weights.place, a.weights.jockey, a.weights.time) - Math.max(b.weights.place, b.weights.jockey, b.weights.time)
+    Math.max(a.weights.place, a.weights.jockey, a.weights.time, a.weights.parent ?? 0) - Math.max(b.weights.place, b.weights.jockey, b.weights.time, b.weights.parent ?? 0)
   );
 }
 
 function findRecommendedWeightSet(recommendationRaces, scopeKey = scope) {
   let best = null;
-  for (let placeTicks = 0; placeTicks <= 20; placeTicks++) {
-    for (let jockeyTicks = 0; jockeyTicks <= 20 - placeTicks; jockeyTicks++) {
-      const timeTicks = 20 - placeTicks - jockeyTicks;
-      const candidate = evaluateWeightSet(recommendationRaces, {
-        place: placeTicks / 20,
-        jockey: jockeyTicks / 20,
-        time: timeTicks / 20,
-      }, scopeKey);
-      if (!best || compareRecommendationStats(best, candidate) > 0) best = candidate;
+  for (let pi = 0; pi <= 20; pi++) {
+    for (let ji = 0; ji <= 20 - pi; ji++) {
+      for (let ti = 0; ti <= 20 - pi - ji; ti++) {
+        const par = 20 - pi - ji - ti;
+        const candidate = evaluateWeightSet(recommendationRaces, {
+          place: pi / 20, jockey: ji / 20, time: ti / 20, parent: par / 20,
+        }, scopeKey);
+        if (!best || compareRecommendationStats(best, candidate) > 0) best = candidate;
+      }
     }
   }
   return best;
@@ -591,7 +769,7 @@ function openRecommendationPop() {
   const recommendationScope = "all";
   const recommended = findRecommendedWeightSet(recommendationRaces, recommendationScope);
   const current = evaluateWeightSet(recommendationRaces, weights, recommendationScope);
-  const sameWeights = scope === recommendationScope && ["place", "jockey", "time"].every((key) => Math.abs(recommended.weights[key] - current.weights[key]) < 0.001);
+  const sameWeights = scope === recommendationScope && ["place", "jockey", "time", "parent"].every((key) => Math.abs((recommended.weights[key] ?? 0) - (current.weights[key] ?? 0)) < 0.001);
 
   $("pop").innerHTML = `
     <div class="ph">
@@ -617,15 +795,16 @@ function openRecommendationPop() {
   $("applyRecoBtn")?.addEventListener("click", () => {
     weights = { ...recommended.weights };
     scope = recommendationScope;
-    [...$("scopeSeg").children].forEach((item) => item.classList.toggle("on", item.dataset.scope === scope));
+    syncScopeButtons();
     syncWeightControls();
+    persistProfileState();
     if (DATA && race()) render();
     closePop();
   });
   $("overlay").hidden = false;
 }
 
-// ---- 最適重みづけ探索（着順:騎手:タイム の比を5%刻みで全通り試す・231通り） ----
+// ---- 最適重みづけ探索（着順:騎手:タイム:親 を5%刻みで全通り試す・1771通り） ----
 function findBestWeights() {
   const currentRace = race();
   if (!currentRace) return null;
@@ -638,16 +817,18 @@ function findBestWeights() {
   const best = [];
   for (let pi = 0; pi <= 20; pi++) {
     for (let ji = 0; ji <= 20 - pi; ji++) {
-      const ti = 20 - pi - ji;
-      const wp = pi / 20, wj = ji / 20, wt = ti / 20;
-      const ranked = [...entries]
-        .map((e) => ({ h: e.horse, s: wp * e[scope].placeScore + wj * e[scope].jockeyScore + wt * e[scope].timeScore }))
-        .sort((a, b) => b.s - a.s)
-        .map((x) => x.h);
-      const hit = [0, 1, 2].map((i) => ranked[i] === actual[i]);
-      const trio = actual.filter(Boolean).every((a) => ranked.slice(0, 3).includes(a));
-      const n = hit.filter(Boolean).length;
-      if (n > 0 || trio) best.push({ wp, wj, wt, hit, trio, n });
+      for (let ti = 0; ti <= 20 - pi - ji; ti++) {
+        const par = 20 - pi - ji - ti;
+        const wp = pi / 20, wj = ji / 20, wt = ti / 20, wpar = par / 20;
+        const ranked = [...entries]
+          .map((e) => ({ h: e.horse, s: wp * e[scope].placeScore + wj * e[scope].jockeyScore + wt * e[scope].timeScore + wpar * (e[scope].parentScore ?? 0.5) }))
+          .sort((a, b) => b.s - a.s)
+          .map((x) => x.h);
+        const hit = [0, 1, 2].map((i) => ranked[i] === actual[i]);
+        const trio = actual.filter(Boolean).every((a) => ranked.slice(0, 3).includes(a));
+        const n = hit.filter(Boolean).length;
+        if (n > 0 || trio) best.push({ wp, wj, wt, wpar, hit, trio, n });
+      }
     }
   }
   best.sort((a, b) => (b.trio ? 10 : 0) + b.n - (a.trio ? 10 : 0) - a.n);
@@ -666,14 +847,14 @@ function openResultPop() {
 
   // 現在の重みでの予測
   const cur = [...entries]
-    .map((e) => ({ h: e.horse, s: weights.place * e[scope].placeScore + weights.jockey * e[scope].jockeyScore + weights.time * e[scope].timeScore }))
+    .map((e) => ({ h: e.horse, s: weights.place * e[scope].placeScore + weights.jockey * e[scope].jockeyScore + weights.time * e[scope].timeScore + (weights.parent ?? 0) * (e[scope].parentScore ?? 0.5) }))
     .sort((a, b) => b.s - a.s)
     .map((x) => x.h);
   const curHit = [0, 1, 2].map((i) => cur[i] === actual[i]);
   const curTrio = actual.filter(Boolean).every((a) => cur.slice(0, 3).includes(a));
   const curHitN = curHit.filter(Boolean).length;
 
-  const wstr = (c) => `着順${f2(c.wp)} / 騎手${f2(c.wj)} / タイム${f2(c.wt)}`;
+  const wstr = (c) => `着順${f2(c.wp)} / 騎手${f2(c.wj)} / タイム${f2(c.wt)}${c.wpar > 0 ? ` / 親${f2(c.wpar)}` : ""}`;
   const hitLabel = (c) => {
     const parts = [c.hit[0] ? "1位" : "", c.hit[1] ? "2位" : "", c.hit[2] ? "3位" : ""].filter(Boolean);
     if (c.trio && !c.hit.every(Boolean)) parts.push("3連複");
@@ -700,7 +881,7 @@ function openResultPop() {
         <div class="val">◎${actual[0] || "–"} &nbsp;○${actual[1] || "–"} &nbsp;▲${actual[2] || "–"}</div>
       </div>
       <div class="sec">
-        <h3>現在の設定 &nbsp;<span style="font-weight:400;font-size:11px">${wstr(weights)}</span></h3>
+        <h3>現在の設定 &nbsp;<span style="font-weight:400;font-size:11px">${formatWeights(weights)}</span></h3>
         <div class="val ${curHitN > 0 ? "hit-ok" : ""}">${curLabel()}</div>
         <div class="fml" style="margin-top:4px">予測: ◎${cur[0] || "–"} &nbsp;○${cur[1] || "–"} &nbsp;▲${cur[2] || "–"}</div>
       </div>
@@ -708,9 +889,9 @@ function openResultPop() {
       <div class="sec">
         <h3>的中できる重みづけ &nbsp;<span style="font-weight:400;font-size:11px">全${best.length}通り・うち3連複${trioCount}通り</span></h3>
         <table class="opttbl">
-          <thead><tr><th>着順</th><th>騎手</th><th>タイム</th><th>的中</th></tr></thead>
+          <thead><tr><th>着順</th><th>騎手</th><th>タイム</th><th>親</th><th>的中</th></tr></thead>
           <tbody>${topN.map((c) => `<tr class="${rowCls(c)}">
-            <td>${f2(c.wp)}</td><td>${f2(c.wj)}</td><td>${f2(c.wt)}</td>
+            <td>${f2(c.wp)}</td><td>${f2(c.wj)}</td><td>${f2(c.wt)}</td><td>${c.wpar > 0 ? f2(c.wpar) : "–"}</td>
             <td>${hitLabel(c)}</td></tr>`).join("")}
           </tbody>
         </table>

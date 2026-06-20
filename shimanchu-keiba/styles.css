@@ -2,7 +2,7 @@
   --bg:#eceee9; --surface:#fff; --ink:#1b1e1b; --ink-soft:#5c625c; --ink-faint:#969c96;
   --line:#d7dbd4; --line-soft:#e8ebe5; --accent:#0f7a4d; --accent-soft:#e6f2ec; --accent-ink:#0a5739;
   --head:#243027; --head-ink:#eaf3ee; --gold:#c08a00;
-  --bar-place:#1a7a45; --bar-jockey:#2767c4; --bar-time:#cf6a16;
+  --bar-place:#1a7a45; --bar-jockey:#2767c4; --bar-time:#cf6a16; --bar-parent:#8b46b0;
   --row-alt:#f7f9f6; --sel:#fff7df;
   --mono:"SF Mono","Cascadia Mono",Consolas,monospace;
   --font:-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
@@ -62,7 +62,7 @@ body { font-family:var(--font); background:var(--bg); color:var(--ink); font-siz
 .seg button.on { background:var(--accent); color:#fff; font-weight:600; }
 .wt { display:flex; align-items:center; gap:6px; }
 .wt .k { font-size:12px; font-weight:600; width:32px; }
-.wt .k.p{color:var(--bar-place)} .wt .k.j{color:var(--bar-jockey)} .wt .k.t{color:var(--bar-time)}
+.wt .k.p{color:var(--bar-place)} .wt .k.j{color:var(--bar-jockey)} .wt .k.t{color:var(--bar-time)} .wt .k.par{color:var(--bar-parent)}
 .wt input[type=range] { width:92px; accent-color:var(--accent); }
 .wt .v { font-family:var(--mono); font-size:12px; width:30px; text-align:right; }
 .reset {
@@ -108,6 +108,34 @@ body { font-family:var(--font); background:var(--bg); color:var(--ink); font-siz
 .gbadge.g1{background:#b8392c} .gbadge.g2{background:#2767c4} .gbadge.g3{background:var(--accent)}
 .racehead h1 { font-size:17px; margin:0; font-weight:700; }
 .racehead .sub { color:var(--ink-soft); font-size:13px; display:flex; gap:10px; flex-wrap:wrap; }
+.predictpanel { background:var(--surface); border-bottom:1px solid var(--line); padding:10px 12px 12px; }
+.predictcard { border:1px solid var(--line); border-radius:12px; background:var(--row-alt); padding:12px; }
+.predictcard-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.predictlabel { font-size:13px; font-weight:800; color:var(--head); }
+.predictmeta { font-size:12px; color:var(--ink-soft); margin-top:4px; }
+.predictchips { display:flex; flex-wrap:wrap; gap:8px; }
+.predictchip { display:inline-flex; align-items:center; min-height:36px; padding:0 12px; border-radius:999px; background:var(--surface); border:1px solid var(--line); font-size:13px; font-weight:700; color:var(--ink); }
+.predictchip.r1 { border-color:rgba(192,138,0,.35); background:#fff6dc; color:#8a5e00; }
+.predictchip.r2 { border-color:rgba(15,122,77,.22); background:#edf8f2; color:var(--accent-ink); }
+.predictchip.r3 { border-color:rgba(39,103,196,.18); background:#eef4ff; color:#1f4c8f; }
+.saveprediction {
+  border:none;
+  border-radius:12px;
+  min-height:44px;
+  padding:0 16px;
+  background:var(--accent);
+  color:#fff;
+  font:inherit;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  flex:none;
+}
+.savedprediction { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
+.savedprediction-head { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--ink-soft); font-weight:700; margin-bottom:8px; }
+.savedprediction-meta { margin-top:8px; font-size:12px; color:var(--ink-soft); }
+.emptyhint { margin-top:12px; font-size:12px; color:var(--ink-soft); line-height:1.6; }
+.predictnotice { margin-top:10px; padding:9px 10px; border-radius:10px; background:var(--accent-soft); color:var(--accent-ink); font-size:13px; font-weight:700; }
 
 .gridwrap { overflow-x:auto; }
 .grid { width:100%; border-collapse:collapse; background:var(--surface); }
@@ -132,7 +160,7 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
 .cell .sc { font-family:var(--mono); font-size:12px; color:var(--ink-soft); }
 .minibar { height:5px; width:48px; background:var(--line); border-radius:999px; overflow:hidden; margin:3px auto 0; }
 .minibar>i { display:block; height:100%; }
-.f-p{background:var(--bar-place)} .f-j{background:var(--bar-jockey)} .f-t{background:var(--bar-time)}
+.f-p{background:var(--bar-place)} .f-j{background:var(--bar-jockey)} .f-t{background:var(--bar-time)} .f-parent{background:var(--bar-parent)}
 .res { font-family:var(--mono); font-weight:700; font-size:12px; padding:3px 7px; border-radius:4px; background:var(--line); color:var(--ink-soft); }
 .rescel { cursor:pointer; }
 .rescel:hover .res { opacity:.75; }
@@ -149,6 +177,8 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
 .parent .none{color:var(--ink-faint)}
 .parent .pn { color:var(--ink); }
 .parent .psc { font-family:var(--mono); font-size:9px; color:var(--ink-faint); }
+.pnames { font-size:9px; color:var(--ink-soft); line-height:1.3; margin-top:2px; }
+.pnames .pn { color:var(--ink); }
 .emptycell {
   padding:18px 14px !important;
   text-align:left !important;
@@ -169,7 +199,7 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
 .sec { margin-bottom:14px; }
 .sec.hl { background:var(--accent-soft); border-radius:8px; padding:9px 10px; }
 .sec h3 { margin:0 0 4px; font-size:14px; }
-.sec h3.p{color:var(--bar-place)} .sec h3.j{color:var(--bar-jockey)} .sec h3.t{color:var(--bar-time)}
+.sec h3.p{color:var(--bar-place)} .sec h3.j{color:var(--bar-jockey)} .sec h3.t{color:var(--bar-time)} .sec h3.parent{color:var(--bar-parent)}
 .sec .fml { font-size:12px; color:var(--ink-soft); line-height:1.6; margin-bottom:6px; }
 .sec .val { font-family:var(--mono); font-weight:700; font-size:15px; }
 .hl .val { color:var(--accent-ink); font-size:16px; }
@@ -235,6 +265,19 @@ tr.r1 .rank{color:var(--gold)} tr.r2 .rank,tr.r3 .rank{color:var(--accent)}
   .racehead { padding:12px 14px; gap:8px; }
   .racehead h1 { font-size:20px; }
   .racehead .sub { font-size:13px; gap:8px 12px; }
+  .predictpanel { padding:12px 14px 14px; }
+  .predictcard { padding:14px; }
+  .predictcard-head { display:grid; gap:10px; }
+  .predictlabel { font-size:14px; }
+  .predictmeta { font-size:13px; line-height:1.5; }
+  .predictchips { gap:10px; }
+  .predictchip { min-height:40px; font-size:14px; }
+  .saveprediction { width:100%; min-height:46px; font-size:14px; }
+  .savedprediction-head { display:block; font-size:13px; line-height:1.5; }
+  .savedprediction-head span { display:block; margin-top:4px; }
+  .savedprediction-meta,
+  .emptyhint,
+  .predictnotice { font-size:13px; line-height:1.6; }
   .grid th { font-size:12px; padding:9px 6px; }
   .grid td { padding:10px 6px; vertical-align:top; }
   .rank { font-size:18px; }
