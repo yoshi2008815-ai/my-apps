@@ -235,8 +235,8 @@ function raceSubMeta(currentRace, date) {
   const parts = [date];
   const courseLine = `${currentRace.trackType || ""}${currentRace.distance ? currentRace.distance + "m" : ""}` || currentRace.course || "";
   if (courseLine) parts.push(courseLine);
-  if (currentRace.trackCondition) parts.push(`馬場 ${currentRace.trackCondition}`);
-  if (currentRace.weather) parts.push(`天気 ${currentRace.weather}`);
+  parts.push(`馬場 ${currentRace.trackCondition || "未取得"}`);
+  parts.push(`天気 ${currentRace.weather || "未取得"}`);
   parts.push(`${currentRace.fieldSize}頭`);
   return parts.map((part) => `<span>${part}</span>`).join("");
 }
@@ -330,8 +330,13 @@ function environmentHist(detail) {
 
 function environmentValue(detail, score) {
   const rows = environmentRows(detail);
-  if (!rows.length) return `同条件データ不足のため <b>${f2(score ?? 0.5)}</b>`;
-  return `${rows.map((row) => `${row.label} ${row.runs}走 ${row.score != null ? f2(row.score) : "–"}`).join("<br>")}<br>→ 環境力 <b>${f2(score ?? 0.5)}</b>`;
+  const current = [
+    `今回: ${detail?.surface || "コース未取得"}`,
+    `馬場 ${detail?.trackCondition || "未取得"}`,
+    `天気 ${detail?.weather || "未取得"}`,
+  ].join(" / ");
+  if (!rows.length) return `${current}<br>同条件データ不足のため <b>${f2(score ?? 0.5)}</b>`;
+  return `${current}<br>${rows.map((row) => `${row.label} ${row.runs}走 ${row.score != null ? f2(row.score) : "–"}`).join("<br>")}<br>→ 環境力 <b>${f2(score ?? 0.5)}</b>`;
 }
 
 function render() {
