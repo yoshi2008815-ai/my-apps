@@ -9,7 +9,7 @@ const PROFILES = [
   { id: "taka", label: "タカ", dataUrl: "data/taka.json" },
   { id: "kosu", label: "コス", dataUrl: "data/kosu.json" },
 ];
-const RECOMMENDATION_BASE_DATES = ["2026-06-13", "2026-06-14"];
+const RECOMMENDATION_CUTOFF_DATE = "2026-06-22";
 const PROFILE_STATE_STORAGE_KEY = "shimanchu-keiba-state-v1";
 const SAVED_PREDICTIONS_STORAGE_KEY = "shimanchu-keiba-predictions-v1";
 const WAKU = {1:"w1",2:"w2",3:"w3",4:"w4",5:"w5",6:"w6",7:"w7",8:"w8"};
@@ -126,7 +126,8 @@ async function loadProfile(id) {
   };
   syncScopeButtons();
   syncWeightControls();
-  $("modelStat").innerHTML = `${profile.label}用 / 学習 <b>${DATA.meta.trainedRaces.toLocaleString()}</b> レース`;
+  const latestText = DATA.meta?.latestRaceDate ? ` / 最新結果 ${DATA.meta.latestRaceDate}` : "";
+  $("modelStat").innerHTML = `${profile.label}用 / 学習 <b>${DATA.meta.trainedRaces.toLocaleString()}</b> レース${latestText}`;
   $("footer").textContent = `出典: JRA-VAN DataLab (JV-Link)。${profile.label}用JSONを読込中。デモであり的中を保証するものではありません。`;
   buildRacePane();
 
@@ -283,6 +284,18 @@ function parentNames(entry) {
   return `<span class="pn">父 ${p.sire || "–"}</span><br><span class="pn">母 ${p.dam || "–"}</span>`;
 }
 
+function grandParentLines(parent) {
+  if (!parent) return "";
+  const lines = [
+    ["父父", parent.sireSire],
+    ["父母", parent.sireDam],
+    ["母父", parent.damSire],
+    ["母母", parent.damDam],
+  ].filter(([, value]) => value);
+  if (!lines.length) return "";
+  return `<div class="fml" style="margin-top:8px">祖父母: ${lines.map(([label, value]) => `${label} ${value}`).join(" / ")}</div>`;
+}
+
 function render() {
   const currentRace = race();
   if (!currentRace) return;
@@ -354,7 +367,7 @@ function openPop(horse, focus) {
       ${section("place", "着順力 = " + f2(comp.placeScore), "各レースの着順スコア =（頭数−着順）÷（頭数−1）。1着=1.00 最下位=0.00。その平均が着順力。", `過去${comp.runs}走の平均 = <b>${f2(comp.placeScore)}</b>（勝率${pct(comp.winRate)}% / 複勝率${pct(comp.top3Rate)}%）`, placeHist)}
       ${section("jockey", "騎手力 = " + f2(comp.jockeyScore), "騎手の複勝率（3着内に入った割合）。", `${entry.jockey}：${comp.jockeyStat.top3}/${comp.jockeyStat.runs}走 → 複勝率 <b>${pct(comp.jockeyScore)}%</b>`)}
       ${section("time", "タイム力 = " + f2(comp.timeScore), "各レース内での相対速度 z =（レース平均タイム−自分のタイム）÷標準偏差。速いほど大。平均zを0〜1に正規化(z+2)/4。", `平均z = ${comp.avgZ >= 0 ? "+" : ""}${comp.avgZ.toFixed(2)} → 正規化 <b>${f2(comp.timeScore)}</b>`, timeHist)}
-      ${section("parent", "親力 = " + (comp.parentScore != null ? f2(comp.parentScore) : "–"), "父・母それぞれの産駒（兄弟馬）の平均着順スコアを計算し、その平均を親力とする。", entry.parent ? `父 ${entry.parent.sire || "–"}（産駒スコア: ${entry.parent.sireScore != null ? f2(entry.parent.sireScore) : "–"}）<br>母 ${entry.parent.dam || "–"}（産駒スコア: ${entry.parent.damScore != null ? f2(entry.parent.damScore) : "–"}）<br>→ 親力 <b>${comp.parentScore != null ? f2(comp.parentScore) : "データなし"}</b>` : "血統データなし（スクレイピング未取得または未登録）")}
+      ${section("parent", "親力 = " + (comp.parentScore != null ? f2(comp.parentScore) : "–"), "父・母の産駒平均を太く、祖父母の系統値を補助的に使って血統スコア化しています。近い血統ほど比重を高くしています。", entry.parent ? `父 ${entry.parent.sire || "–"}（産駒スコア: ${entry.parent.sireScore != null ? f2(entry.parent.sireScore) : "–"}）<br>母 ${entry.parent.dam || "–"}（産駒スコア: ${entry.parent.damScore != null ? f2(entry.parent.damScore) : "–"}）<br>→ 親力 <b>${comp.parentScore != null ? f2(comp.parentScore) : "データなし"}</b>${grandParentLines(entry.parent)}` : "血統データなし（スクレイピング未取得または未登録）")}
     </div>`;
   $("popx").addEventListener("click", closePop);
   $("overlay").hidden = false;
@@ -636,12 +649,19 @@ function getRecommendationDayDates() {
   if (!DATA?.days?.length) return [];
   const finishedDates = DATA.days
     .filter((day) => day.races.some((race) => race.entries.some((entry) => entry.actualPlace != null)))
-    .map((day) => day.date);
+    .map((day) => day.date)
+    .filter((date) => date <= RECOMMENDATION_CUTOFF_DATE);
   if (!finishedDates.length) return [];
-  const selectedDates = RECOMMENDATION_BASE_DATES.filter((date) => finishedDates.includes(date));
-  const latestFinishedDate = finishedDates[finishedDates.length - 1];
-  if (latestFinishedDate && !selectedDates.includes(latestFinishedDate)) selectedDates.push(latestFinishedDate);
-  return selectedDates.length ? selectedDates : finishedDates.slice(-2);
+  return finishedDates;
+}
+
+function recommendationCutoffText(dates) {
+  const latest = dates[dates.length - 1];
+  if (!latest) return "";
+  if (latest < RECOMMENDATION_CUTOFF_DATE) {
+    return `${RECOMMENDATION_CUTOFF_DATE}時点では ${latest} までの確定結果を集計しています。`;
+  }
+  return `${RECOMMENDATION_CUTOFF_DATE} までの確定結果を集計しています。`;
 }
 
 function collectRecommendationRaces(dates) {
@@ -748,6 +768,7 @@ function openRecommendationPop() {
   const dates = getRecommendationDayDates();
   const recommendationRaces = collectRecommendationRaces(dates);
   const dayLabel = dates.length ? dates.map(fmtD).join("・") : "対象日なし";
+  const cutoffText = recommendationCutoffText(dates);
 
   if (!recommendationRaces.length) {
     $("pop").innerHTML = `
@@ -758,7 +779,7 @@ function openRecommendationPop() {
       <div class="pc">
         <div class="sec hl">
           <h3>おすすめを作れませんでした</h3>
-          <div class="fml">${dayLabel} の確定結果つきレースが不足しています。</div>
+          <div class="fml">${dayLabel} の確定結果つきレースが不足しています。${cutoffText}</div>
         </div>
       </div>`;
     $("popx").addEventListener("click", closePop);
@@ -779,7 +800,7 @@ function openRecommendationPop() {
     <div class="pc">
       <div class="sec hl">
         <h3>${dayLabel} の結果で分析</h3>
-        <div class="fml">${scopeLabel(recommendationScope)} / ${recommendationRaces.length}レースを集計。予想1位〜3位が実際の3着内へどれだけ入ったかを基準に、おすすめ重みを選んでいます。</div>
+        <div class="fml">${scopeLabel(recommendationScope)} / ${recommendationRaces.length}レースを集計。予想1位〜3位が実際の3着内へどれだけ入ったかを基準に、おすすめ重みを選んでいます。${cutoffText}</div>
         <div class="val">おすすめ: ${formatWeights(recommended.weights)}</div>
       </div>
       <div class="reco-grid">

@@ -1,5 +1,5 @@
-const SHELL_CACHE = "shimanchu-keiba-shell-v7";
-const DATA_CACHE = "shimanchu-keiba-data-v7";
+const SHELL_CACHE = "shimanchu-keiba-shell-v8";
+const DATA_CACHE = "shimanchu-keiba-data-v8";
 const PROFILE_MANIFESTS = ["./data/yoshi.json", "./data/tsubo.json", "./data/taka.json", "./data/kosu.json"];
 const SHELL_ASSETS = [
   "./",
