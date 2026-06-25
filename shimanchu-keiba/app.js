@@ -14,10 +14,18 @@ const PROFILE_STATE_STORAGE_KEY = "shimanchu-keiba-state-v1";
 const SAVED_PREDICTIONS_STORAGE_KEY = "shimanchu-keiba-predictions-v1";
 const WAKU = {1:"w1",2:"w2",3:"w3",4:"w4",5:"w5",6:"w6",7:"w7",8:"w8"};
 const MARK = {1:"◎",2:"○",3:"▲",4:"△",5:"△"};
+const DEFAULT_WEIGHT_SET = { place: 0.45, jockey: 0.2, time: 0.25, environment: 0.1, parent: 0 };
+const WEIGHT_FIELDS = [
+  ["wPlace", "vPlace", "place"],
+  ["wJockey", "vJockey", "jockey"],
+  ["wTime", "vTime", "time"],
+  ["wEnvironment", "vEnvironment", "environment"],
+  ["wParent", "vParent", "parent"],
+];
 
 let DATA = null;
 let scope = "all";
-let weights = { place: 0.5, jockey: 0.2, time: 0.3, parent: 0 };
+let weights = { ...DEFAULT_WEIGHT_SET };
 let curDay = 0;
 let curRace = 0;
 let selectedHorse = null;
@@ -27,6 +35,7 @@ let profileId = getInitialProfileId();
 const $ = (id) => document.getElementById(id);
 const pct = (v) => Math.round(Math.max(0, Math.min(1, v || 0)) * 100);
 const f2 = (v) => (v || 0).toFixed(2);
+const defaultWeightSet = (metaWeights = null) => ({ ...DEFAULT_WEIGHT_SET, ...(metaWeights || {}) });
 
 async function main() {
   registerServiceWorker();
@@ -65,7 +74,7 @@ function bindControls() {
     if (DATA) render();
   });
 
-  for (const [sliderId, valueId, key] of [["wPlace", "vPlace", "place"], ["wJockey", "vJockey", "jockey"], ["wTime", "vTime", "time"], ["wParent", "vParent", "parent"]]) {
+  for (const [sliderId, valueId, key] of WEIGHT_FIELDS) {
     const input = $(sliderId);
     input.addEventListener("input", () => {
       weights[key] = parseFloat(input.value);
@@ -77,7 +86,7 @@ function bindControls() {
 
   syncWeightControls();
   $("resetW").addEventListener("click", () => {
-    weights = DATA?.meta?.weights ? { parent: 0, ...DATA.meta.weights } : { place: 0.5, jockey: 0.2, time: 0.3, parent: 0 };
+    weights = defaultWeightSet(DATA?.meta?.weights);
     syncWeightControls();
     persistProfileState();
     if (DATA) render();
@@ -87,7 +96,7 @@ function bindControls() {
 }
 
 function syncWeightControls() {
-  for (const [sliderId, valueId, key] of [["wPlace", "vPlace", "place"], ["wJockey", "vJockey", "jockey"], ["wTime", "vTime", "time"], ["wParent", "vParent", "parent"]]) {
+  for (const [sliderId, valueId, key] of WEIGHT_FIELDS) {
     const input = $(sliderId);
     input.value = String(weights[key] ?? 0);
     $(valueId).textContent = f2(weights[key] ?? 0);
@@ -119,11 +128,7 @@ async function loadProfile(id) {
 
   const savedState = loadProfileState(profile.id);
   scope = savedState?.scope === "graded" ? "graded" : "all";
-  weights = {
-    parent: 0,
-    ...(DATA.meta?.weights || { place: 0.5, jockey: 0.2, time: 0.3 }),
-    ...(savedState?.weights || {}),
-  };
+  weights = defaultWeightSet({ ...(DATA.meta?.weights || {}), ...(savedState?.weights || {}) });
   syncScopeButtons();
   syncWeightControls();
   const latestText = DATA.meta?.latestRaceDate ? ` / 最新結果 ${DATA.meta.latestRaceDate}` : "";
@@ -226,6 +231,16 @@ function buildRacePane() {
   });
 }
 
+function raceSubMeta(currentRace, date) {
+  const parts = [date];
+  const courseLine = `${currentRace.trackType || ""}${currentRace.distance ? currentRace.distance + "m" : ""}` || currentRace.course || "";
+  if (courseLine) parts.push(courseLine);
+  if (currentRace.trackCondition) parts.push(`馬場 ${currentRace.trackCondition}`);
+  if (currentRace.weather) parts.push(`天気 ${currentRace.weather}`);
+  parts.push(`${currentRace.fieldSize}頭`);
+  return parts.map((part) => `<span>${part}</span>`).join("");
+}
+
 function selectRace(dayIndex, raceIndex) {
   curDay = dayIndex;
   curRace = raceIndex;
@@ -240,7 +255,7 @@ function selectRace(dayIndex, raceIndex) {
   const named = currentRace.raceName && currentRace.raceName !== `${currentRace.venue}${currentRace.raceNo}R`;
   $("racehead").innerHTML = `<span class="gbadge ${gcls}">${currentRace.grade || "一般"}</span>
     <h1>${currentRace.venue}${currentRace.raceNo}R${named ? "　" + currentRace.raceName : ""}</h1>
-    <div class="sub"><span>${DATA.days[dayIndex].date}</span><span>${currentRace.trackType || ""}${currentRace.distance ? currentRace.distance + "m" : ""}</span><span>${currentRace.fieldSize}頭</span></div>`;
+    <div class="sub">${raceSubMeta(currentRace, DATA.days[dayIndex].date)}</div>`;
   render();
 }
 
@@ -254,7 +269,7 @@ function compOf(entry) {
 
 function scoreOf(entry) {
   const comp = compOf(entry);
-  return weights.place * comp.placeScore + weights.jockey * comp.jockeyScore + weights.time * comp.timeScore + (weights.parent ?? 0) * (comp.parentScore ?? 0.5);
+  return weights.place * comp.placeScore + weights.jockey * comp.jockeyScore + weights.time * comp.timeScore + (weights.environment ?? 0) * (comp.environmentScore ?? 0.5) + (weights.parent ?? 0) * (comp.parentScore ?? 0.5);
 }
 
 function rankRaceEntries(currentRace, weightSet = weights, scopeKey = scope) {
@@ -296,6 +311,29 @@ function grandParentLines(parent) {
   return `<div class="fml" style="margin-top:8px">祖父母: ${lines.map(([label, value]) => `${label} ${value}`).join(" / ")}</div>`;
 }
 
+function environmentRows(detail) {
+  if (!detail) return [];
+  const rows = [];
+  if (detail.surface) rows.push({ label: `同じ${detail.surface}`, runs: detail.surfaceRuns ?? 0, score: detail.surfaceScore });
+  if (detail.trackCondition) rows.push({ label: `馬場 ${detail.trackCondition}`, runs: detail.conditionRuns ?? 0, score: detail.conditionScore });
+  if (detail.weather) rows.push({ label: `天気 ${detail.weather}`, runs: detail.weatherRuns ?? 0, score: detail.weatherScore });
+  return rows;
+}
+
+function environmentHist(detail) {
+  const rows = environmentRows(detail);
+  if (!rows.length) {
+    return `<div class="empty">芝/ダート・馬場状態・天気の同条件データがまだありません。環境力は中立値 0.50 です。</div>`;
+  }
+  return `<ul class="hist">${rows.map((row) => `<li><span class="l">${row.label}</span><span class="r">${row.runs}走 → ${row.score != null ? f2(row.score) : "–"}</span></li>`).join("")}</ul>`;
+}
+
+function environmentValue(detail, score) {
+  const rows = environmentRows(detail);
+  if (!rows.length) return `同条件データ不足のため <b>${f2(score ?? 0.5)}</b>`;
+  return `${rows.map((row) => `${row.label} ${row.runs}走 ${row.score != null ? f2(row.score) : "–"}`).join("<br>")}<br>→ 環境力 <b>${f2(score ?? 0.5)}</b>`;
+}
+
 function render() {
   const currentRace = race();
   if (!currentRace) return;
@@ -309,12 +347,13 @@ function render() {
       <td class="rank">${rank}</td>
       <td class="mark mobile-hide">${MARK[rank] || ""}</td>
       <td><span class="uma ${WAKU[entry.waku] || "w1"}">${entry.umaban ?? "-"}</span></td>
-      <td class="hn">${entry.horse}<div class="s">${entry.sexAge || ""} ${entry.weight ? entry.weight + "k" : ""}</div><div class="mobile-meta">${entry.jockey} / 複勝${pct(comp.jockeyTop3Rate)}%</div></td>
+      <td class="hn">${entry.horse}<div class="s">${entry.sexAge || ""} ${entry.weight ? entry.weight + "k" : ""}</div><div class="mobile-meta">${entry.jockey} / 複勝${pct(comp.jockeyTop3Rate)}% / 環境${f2(comp.environmentScore ?? 0.5)}</div></td>
       <td class="jk mobile-hide">${entry.jockey}<div class="s">複勝${pct(comp.jockeyTop3Rate)}%</div></td>
       <td class="tot">${score.toFixed(3)}</td>
       <td class="cell col-detail" data-c="place"><span class="sc">${f2(comp.placeScore)}</span><div class="minibar"><i class="f-p" style="width:${pct(comp.placeScore)}%"></i></div></td>
       <td class="cell col-detail" data-c="jockey"><span class="sc">${f2(comp.jockeyScore)}</span><div class="minibar"><i class="f-j" style="width:${pct(comp.jockeyScore)}%"></i></div></td>
       <td class="cell col-detail" data-c="time"><span class="sc">${f2(comp.timeScore)}</span><div class="minibar"><i class="f-t" style="width:${pct(comp.timeScore)}%"></i></div></td>
+      <td class="cell col-detail" data-c="environment"><span class="sc">${f2(comp.environmentScore ?? 0.5)}</span><div class="minibar"><i class="f-env" style="width:${pct(comp.environmentScore ?? 0.5)}%"></i></div></td>
       <td class="cell parent col-detail" data-c="parent"><span class="sc">${comp.parentScore != null ? f2(comp.parentScore) : "–"}</span><div class="minibar"><i class="f-parent" style="width:${pct(comp.parentScore ?? 0.5)}%"></i></div><div class="pnames">${parentNames(entry)}</div></td>
       <td class="rescel">${resBadge(entry.actualPlace)}</td>
     </tr>`;
@@ -348,7 +387,7 @@ function openPop(horse, focus) {
 
   const placeHist = comp.hist.length ? `<ul class="hist">${comp.hist.map((hist) => `<li><span class="l">${fmtD(hist.date)} ${hist.race}</span><span class="r ${hist.place === 1 ? "win" : ""}">${hist.place}着/${hist.field}頭 → ${f2(hist.ps)}</span></li>`).join("")}</ul>` : `<div class="empty">過去の出走データなし（このスコープ）</div>`;
   const timeHist = comp.hist.length ? `<ul class="hist">${comp.hist.map((hist) => `<li><span class="l">${fmtD(hist.date)} ${hist.race}</span><span class="r">z=${hist.z >= 0 ? "+" : ""}${hist.z.toFixed(2)}</span></li>`).join("")}</ul>` : `<div class="empty">過去の出走データなし</div>`;
-  const H3CLS = { place: "p", jockey: "j", time: "t", parent: "parent" };
+  const H3CLS = { place: "p", jockey: "j", time: "t", environment: "env", parent: "parent" };
   const section = (cls, title, formula, value, extra) => `<div class="sec ${focus === cls ? "hl" : ""}">
     <h3 class="${H3CLS[cls] || cls[0]}">${title}</h3><div class="fml">${formula}</div><div class="val">${value}</div>${extra || ""}</div>`;
 
@@ -361,12 +400,13 @@ function openPop(horse, focus) {
     <div class="pc">
       <div class="sec hl">
         <h3>総合スコア = ${item.rank}位</h3>
-        <div class="fml">総合 = 着順力×${f2(weights.place)} ＋ 騎手力×${f2(weights.jockey)} ＋ タイム力×${f2(weights.time)}${weights.parent > 0 ? ` ＋ 親力×${f2(weights.parent)}` : ""}</div>
-        <div class="val">${f2(comp.placeScore)}×${f2(weights.place)} + ${f2(comp.jockeyScore)}×${f2(weights.jockey)} + ${f2(comp.timeScore)}×${f2(weights.time)}${weights.parent > 0 ? ` + ${f2(comp.parentScore ?? 0.5)}×${f2(weights.parent)}` : ""} = ${score.toFixed(3)}</div>
+        <div class="fml">総合 = 着順力×${f2(weights.place)} ＋ 騎手力×${f2(weights.jockey)} ＋ タイム力×${f2(weights.time)} ＋ 環境力×${f2(weights.environment ?? 0)}${weights.parent > 0 ? ` ＋ 親力×${f2(weights.parent)}` : ""}</div>
+        <div class="val">${f2(comp.placeScore)}×${f2(weights.place)} + ${f2(comp.jockeyScore)}×${f2(weights.jockey)} + ${f2(comp.timeScore)}×${f2(weights.time)} + ${f2(comp.environmentScore ?? 0.5)}×${f2(weights.environment ?? 0)}${weights.parent > 0 ? ` + ${f2(comp.parentScore ?? 0.5)}×${f2(weights.parent)}` : ""} = ${score.toFixed(3)}</div>
       </div>
       ${section("place", "着順力 = " + f2(comp.placeScore), "各レースの着順スコア =（頭数−着順）÷（頭数−1）。1着=1.00 最下位=0.00。その平均が着順力。", `過去${comp.runs}走の平均 = <b>${f2(comp.placeScore)}</b>（勝率${pct(comp.winRate)}% / 複勝率${pct(comp.top3Rate)}%）`, placeHist)}
       ${section("jockey", "騎手力 = " + f2(comp.jockeyScore), "騎手の複勝率（3着内に入った割合）。", `${entry.jockey}：${comp.jockeyStat.top3}/${comp.jockeyStat.runs}走 → 複勝率 <b>${pct(comp.jockeyScore)}%</b>`)}
       ${section("time", "タイム力 = " + f2(comp.timeScore), "各レース内での相対速度 z =（レース平均タイム−自分のタイム）÷標準偏差。速いほど大。平均zを0〜1に正規化(z+2)/4。", `平均z = ${comp.avgZ >= 0 ? "+" : ""}${comp.avgZ.toFixed(2)} → 正規化 <b>${f2(comp.timeScore)}</b>`, timeHist)}
+      ${section("environment", "環境力 = " + f2(comp.environmentScore ?? 0.5), "同じ芝/ダートを最重視し、馬場状態があれば中位、天気があれば補助として使います。同条件での着順スコア平均を重み付きで合成しています。", environmentValue(comp.environmentDetail, comp.environmentScore), environmentHist(comp.environmentDetail))}
       ${section("parent", "親力 = " + (comp.parentScore != null ? f2(comp.parentScore) : "–"), "父・母の産駒平均を太く、祖父母の系統値を補助的に使って血統スコア化しています。近い血統ほど比重を高くしています。", entry.parent ? `父 ${entry.parent.sire || "–"}（産駒スコア: ${entry.parent.sireScore != null ? f2(entry.parent.sireScore) : "–"}）<br>母 ${entry.parent.dam || "–"}（産駒スコア: ${entry.parent.damScore != null ? f2(entry.parent.damScore) : "–"}）<br>→ 親力 <b>${comp.parentScore != null ? f2(comp.parentScore) : "データなし"}</b>${grandParentLines(entry.parent)}` : "血統データなし（スクレイピング未取得または未登録）")}
     </div>`;
   $("popx").addEventListener("click", closePop);
@@ -423,7 +463,7 @@ function renderLoadError(profile, error) {
   $("racehead").innerHTML = `<h1>${profile.label} のJSONを読み込めませんでした</h1><div class='sub'><span>${profile.dataUrl} を確認してください</span></div>`;
   $("predictPanel").innerHTML = "";
   $("modelStat").textContent = `${profile.label} のデータ読込失敗`;
-  $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>${profile.label} 用のJSONが見つからないか、通信に失敗しました。初回アクセス時はオンラインで ${profile.dataUrl} を取得してください。</td></tr>`;
+  $("rows").innerHTML = `<tr><td class='emptycell' colspan='12'>${profile.label} 用のJSONが見つからないか、通信に失敗しました。初回アクセス時はオンラインで ${profile.dataUrl} を取得してください。</td></tr>`;
   $("footer").textContent = `${profile.label} 用データを取得できませんでした。`;
 }
 
@@ -432,14 +472,14 @@ function renderEmptyState(profile) {
   $("predictPanel").innerHTML = "";
   $("modelStat").textContent = `${profile.label} のレースデータなし`;
   $("racehead").innerHTML = `<h1>${profile.label} に表示できるレースがありません</h1><div class='sub'><span>${profile.dataUrl} を作成してから再読み込みしてください</span></div>`;
-  $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>scripts/exportDemo.ts を使って ${profile.label} 用JSONを生成すると、この画面にレース一覧が表示されます。</td></tr>`;
+  $("rows").innerHTML = `<tr><td class='emptycell' colspan='12'>scripts/exportDemo.ts を使って ${profile.label} 用JSONを生成すると、この画面にレース一覧が表示されます。</td></tr>`;
 }
 
 function renderInitialSelectionState(profile) {
   $("racepane").querySelectorAll(".rbtn").forEach((button) => button.classList.remove("on"));
   $("predictPanel").innerHTML = "";
   $("racehead").innerHTML = `<h1>レースを選んでください</h1><div class='sub'><span>${profile.label} の開催一覧はすべて閉じた状態で表示しています</span></div>`;
-  $("rows").innerHTML = `<tr><td class='emptycell' colspan='11'>左の開催日を開いて、見たいレースを選んでください。</td></tr>`;
+  $("rows").innerHTML = `<tr><td class='emptycell' colspan='12'>左の開催日を開いて、見たいレースを選んでください。</td></tr>`;
 }
 
 function readJsonStorage(key, fallback) {
@@ -627,13 +667,14 @@ function normalizeWeights(weightSet) {
     place: weightSet.place ?? weightSet.wp ?? 0,
     jockey: weightSet.jockey ?? weightSet.wj ?? 0,
     time: weightSet.time ?? weightSet.wt ?? 0,
+    environment: weightSet.environment ?? weightSet.wenv ?? 0,
     parent: weightSet.parent ?? 0,
   };
 }
 
 function formatWeights(weightSet) {
   const n = normalizeWeights(weightSet);
-  let s = `着順${f2(n.place)} / 騎手${f2(n.jockey)} / タイム${f2(n.time)}`;
+  let s = `着順${f2(n.place)} / 騎手${f2(n.jockey)} / タイム${f2(n.time)} / 環境${f2(n.environment)}`;
   if (n.parent > 0) s += ` / 親${f2(n.parent)}`;
   return s;
 }
@@ -642,7 +683,7 @@ function scoreEntry(entry, weightSet, scopeKey = scope) {
   const comp = entry?.[scopeKey];
   if (!comp) return Number.NEGATIVE_INFINITY;
   const n = normalizeWeights(weightSet);
-  return n.place * comp.placeScore + n.jockey * comp.jockeyScore + n.time * comp.timeScore + n.parent * (comp.parentScore ?? 0.5);
+  return n.place * comp.placeScore + n.jockey * comp.jockeyScore + n.time * comp.timeScore + n.environment * (comp.environmentScore ?? 0.5) + n.parent * (comp.parentScore ?? 0.5);
 }
 
 function getRecommendationDayDates() {
@@ -720,7 +761,7 @@ function compareRecommendationStats(a, b) {
     b.exactCounts[0] - a.exactCounts[0] ||
     b.winnerInTop3Count - a.winnerInTop3Count ||
     b.top3BoxCount - a.top3BoxCount ||
-    Math.max(a.weights.place, a.weights.jockey, a.weights.time, a.weights.parent ?? 0) - Math.max(b.weights.place, b.weights.jockey, b.weights.time, b.weights.parent ?? 0)
+    Math.max(a.weights.place, a.weights.jockey, a.weights.time, a.weights.environment ?? 0, a.weights.parent ?? 0) - Math.max(b.weights.place, b.weights.jockey, b.weights.time, b.weights.environment ?? 0, b.weights.parent ?? 0)
   );
 }
 
@@ -729,11 +770,17 @@ function findRecommendedWeightSet(recommendationRaces, scopeKey = scope) {
   for (let pi = 0; pi <= 20; pi++) {
     for (let ji = 0; ji <= 20 - pi; ji++) {
       for (let ti = 0; ti <= 20 - pi - ji; ti++) {
-        const par = 20 - pi - ji - ti;
-        const candidate = evaluateWeightSet(recommendationRaces, {
-          place: pi / 20, jockey: ji / 20, time: ti / 20, parent: par / 20,
-        }, scopeKey);
-        if (!best || compareRecommendationStats(best, candidate) > 0) best = candidate;
+        for (let ei = 0; ei <= 20 - pi - ji - ti; ei++) {
+          const par = 20 - pi - ji - ti - ei;
+          const candidate = evaluateWeightSet(recommendationRaces, {
+            place: pi / 20,
+            jockey: ji / 20,
+            time: ti / 20,
+            environment: ei / 20,
+            parent: par / 20,
+          }, scopeKey);
+          if (!best || compareRecommendationStats(best, candidate) > 0) best = candidate;
+        }
       }
     }
   }
@@ -790,7 +837,7 @@ function openRecommendationPop() {
   const recommendationScope = "all";
   const recommended = findRecommendedWeightSet(recommendationRaces, recommendationScope);
   const current = evaluateWeightSet(recommendationRaces, weights, recommendationScope);
-  const sameWeights = scope === recommendationScope && ["place", "jockey", "time", "parent"].every((key) => Math.abs((recommended.weights[key] ?? 0) - (current.weights[key] ?? 0)) < 0.001);
+  const sameWeights = scope === recommendationScope && ["place", "jockey", "time", "environment", "parent"].every((key) => Math.abs((recommended.weights[key] ?? 0) - (current.weights[key] ?? 0)) < 0.001);
 
   $("pop").innerHTML = `
     <div class="ph">
@@ -825,7 +872,7 @@ function openRecommendationPop() {
   $("overlay").hidden = false;
 }
 
-// ---- 最適重みづけ探索（着順:騎手:タイム:親 を5%刻みで全通り試す・1771通り） ----
+// ---- 最適重みづけ探索（着順:騎手:タイム:環境:親 を5%刻みで全通り試す・10626通り） ----
 function findBestWeights() {
   const currentRace = race();
   if (!currentRace) return null;
@@ -839,16 +886,22 @@ function findBestWeights() {
   for (let pi = 0; pi <= 20; pi++) {
     for (let ji = 0; ji <= 20 - pi; ji++) {
       for (let ti = 0; ti <= 20 - pi - ji; ti++) {
-        const par = 20 - pi - ji - ti;
-        const wp = pi / 20, wj = ji / 20, wt = ti / 20, wpar = par / 20;
-        const ranked = [...entries]
-          .map((e) => ({ h: e.horse, s: wp * e[scope].placeScore + wj * e[scope].jockeyScore + wt * e[scope].timeScore + wpar * (e[scope].parentScore ?? 0.5) }))
-          .sort((a, b) => b.s - a.s)
-          .map((x) => x.h);
-        const hit = [0, 1, 2].map((i) => ranked[i] === actual[i]);
-        const trio = actual.filter(Boolean).every((a) => ranked.slice(0, 3).includes(a));
-        const n = hit.filter(Boolean).length;
-        if (n > 0 || trio) best.push({ wp, wj, wt, wpar, hit, trio, n });
+        for (let wei = 0; wei <= 20 - pi - ji - ti; wei++) {
+          const par = 20 - pi - ji - ti - wei;
+          const wp = pi / 20;
+          const wj = ji / 20;
+          const wt = ti / 20;
+          const wenv = wei / 20;
+          const wpar = par / 20;
+          const ranked = [...entries]
+            .map((e) => ({ h: e.horse, s: wp * e[scope].placeScore + wj * e[scope].jockeyScore + wt * e[scope].timeScore + wenv * (e[scope].environmentScore ?? 0.5) + wpar * (e[scope].parentScore ?? 0.5) }))
+            .sort((a, b) => b.s - a.s)
+            .map((x) => x.h);
+          const hit = [0, 1, 2].map((i) => ranked[i] === actual[i]);
+          const trio = actual.filter(Boolean).every((a) => ranked.slice(0, 3).includes(a));
+          const n = hit.filter(Boolean).length;
+          if (n > 0 || trio) best.push({ wp, wj, wt, wenv, wpar, hit, trio, n });
+        }
       }
     }
   }
@@ -868,14 +921,14 @@ function openResultPop() {
 
   // 現在の重みでの予測
   const cur = [...entries]
-    .map((e) => ({ h: e.horse, s: weights.place * e[scope].placeScore + weights.jockey * e[scope].jockeyScore + weights.time * e[scope].timeScore + (weights.parent ?? 0) * (e[scope].parentScore ?? 0.5) }))
+    .map((e) => ({ h: e.horse, s: weights.place * e[scope].placeScore + weights.jockey * e[scope].jockeyScore + weights.time * e[scope].timeScore + (weights.environment ?? 0) * (e[scope].environmentScore ?? 0.5) + (weights.parent ?? 0) * (e[scope].parentScore ?? 0.5) }))
     .sort((a, b) => b.s - a.s)
     .map((x) => x.h);
   const curHit = [0, 1, 2].map((i) => cur[i] === actual[i]);
   const curTrio = actual.filter(Boolean).every((a) => cur.slice(0, 3).includes(a));
   const curHitN = curHit.filter(Boolean).length;
 
-  const wstr = (c) => `着順${f2(c.wp)} / 騎手${f2(c.wj)} / タイム${f2(c.wt)}${c.wpar > 0 ? ` / 親${f2(c.wpar)}` : ""}`;
+  const wstr = (c) => `着順${f2(c.wp)} / 騎手${f2(c.wj)} / タイム${f2(c.wt)} / 環境${f2(c.wenv)}${c.wpar > 0 ? ` / 親${f2(c.wpar)}` : ""}`;
   const hitLabel = (c) => {
     const parts = [c.hit[0] ? "1位" : "", c.hit[1] ? "2位" : "", c.hit[2] ? "3位" : ""].filter(Boolean);
     if (c.trio && !c.hit.every(Boolean)) parts.push("3連複");
@@ -910,9 +963,9 @@ function openResultPop() {
       <div class="sec">
         <h3>的中できる重みづけ &nbsp;<span style="font-weight:400;font-size:11px">全${best.length}通り・うち3連複${trioCount}通り</span></h3>
         <table class="opttbl">
-          <thead><tr><th>着順</th><th>騎手</th><th>タイム</th><th>親</th><th>的中</th></tr></thead>
+          <thead><tr><th>着順</th><th>騎手</th><th>タイム</th><th>環境</th><th>親</th><th>的中</th></tr></thead>
           <tbody>${topN.map((c) => `<tr class="${rowCls(c)}">
-            <td>${f2(c.wp)}</td><td>${f2(c.wj)}</td><td>${f2(c.wt)}</td><td>${c.wpar > 0 ? f2(c.wpar) : "–"}</td>
+            <td>${f2(c.wp)}</td><td>${f2(c.wj)}</td><td>${f2(c.wt)}</td><td>${f2(c.wenv)}</td><td>${c.wpar > 0 ? f2(c.wpar) : "–"}</td>
             <td>${hitLabel(c)}</td></tr>`).join("")}
           </tbody>
         </table>
