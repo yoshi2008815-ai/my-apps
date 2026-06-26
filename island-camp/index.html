@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0b3d4d" />
+<title>島キャンプ思い出マップ</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./icon.svg" />
+<style>
+  :root{
+    --bg:#06222b; --panel:#0d3340; --panel2:#11414f; --line:#1d5566;
+    --ink:#eaf6f8; --sub:#8fb9c2; --accent:#ffcc4d; --accent2:#4fd1c5;
+    --pin:#ff7a59; --fav:#ffcc4d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN",sans-serif;
+    background:var(--bg); color:var(--ink); overflow:hidden;
+  }
+  /* ===== レイアウト ===== */
+  .app{display:flex; height:100dvh; height:100vh}
+  .mapwrap{flex:1; position:relative; min-width:0}
+  .panel{
+    width:380px; max-width:88vw; background:var(--panel); border-left:1px solid var(--line);
+    display:flex; flex-direction:column; transform:translateX(100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:30;
+  }
+  .panel.open{transform:translateX(0)}
+  @media (max-width:760px){
+    .app{flex-direction:column}
+    .panel{position:fixed; top:0; right:0; height:100dvh; height:100vh; box-shadow:-8px 0 40px rgba(0,0,0,.5)}
+  }
+  /* ===== ヘッダー ===== */
+  .topbar{
+    position:absolute; top:0; left:0; right:0; z-index:20; padding:14px 16px;
+    display:flex; align-items:center; gap:10px; pointer-events:none;
+  }
+  .title{pointer-events:auto}
+  .title h1{margin:0; font-size:1.05rem; letter-spacing:.04em}
+  .title p{margin:2px 0 0; font-size:.72rem; color:var(--sub)}
+  .spacer{flex:1}
+  .topbar button{pointer-events:auto}
+  .btn{
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line);
+    border-radius:10px; padding:8px 12px; font-size:.8rem; cursor:pointer; font-weight:600;
+  }
+  .btn:hover{background:#16515f}
+  .btn.accent{background:var(--accent); color:#22324b; border-color:transparent}
+  .btn.ghost{background:transparent}
+  /* ===== 地図 ===== */
+  svg.map{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
+  svg.map.dragging{cursor:grabbing}
+  .land{fill:#13414f; stroke:#1f5d6e; stroke-width:1}
+  .grid{stroke:#0f3a47; stroke-width:1}
+  .region-label{fill:#5a8a96; font-size:13px; font-weight:700; letter-spacing:.15em}
+  .pin{cursor:pointer}
+  .pin .dot{fill:var(--pin); stroke:#fff; stroke-width:2; transition:r .15s}
+  .pin.fav .dot{fill:var(--fav)}
+  .pin .ring{fill:none; stroke:var(--accent2); stroke-width:2; opacity:0}
+  .pin:hover .dot{r:11}
+  .pin.active .ring{opacity:.9}
+  .pin .lbl{
+    fill:var(--ink); font-size:12px; font-weight:700; paint-order:stroke;
+    stroke:#06222b; stroke-width:3px; pointer-events:none;
+  }
+  .pin .visits{fill:#06222b; font-size:9px; font-weight:800; text-anchor:middle; pointer-events:none}
+  .zoomctl{position:absolute; right:16px; bottom:16px; z-index:20; display:flex; flex-direction:column; gap:6px}
+  .zoomctl button{width:40px; height:40px; font-size:1.2rem; border-radius:10px}
+  /* 凡例 */
+  .legend{
+    position:absolute; left:16px; bottom:16px; z-index:20; background:rgba(13,51,64,.85);
+    border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.72rem; color:var(--sub);
+    backdrop-filter:blur(4px); max-width:60vw;
+  }
+  .legend b{color:var(--ink)}
+  .legend .row{display:flex; align-items:center; gap:6px; margin-top:4px}
+  .swatch{width:12px;height:12px;border-radius:50%;display:inline-block}
+  /* ===== 詳細パネル中身 ===== */
+  .phead{padding:18px 18px 12px; border-bottom:1px solid var(--line); position:relative}
+  .phead .close{position:absolute; top:14px; right:14px}
+  .phead .badge{display:inline-block; font-size:.68rem; background:var(--panel2); border:1px solid var(--line);
+    color:var(--sub); padding:3px 8px; border-radius:999px; margin-bottom:8px}
+  .phead h2{margin:0; font-size:1.35rem}
+  .phead .meta{margin-top:6px; font-size:.78rem; color:var(--sub); display:flex; gap:14px; flex-wrap:wrap}
+  .phead .summary{margin-top:10px; font-size:.86rem; line-height:1.55; color:#cfe8ec}
+  .pbody{flex:1; overflow-y:auto; padding:0 18px 90px}
+  .sec{margin-top:22px}
+  .sec h3{font-size:.8rem; letter-spacing:.12em; color:var(--accent2); margin:0 0 10px;
+    text-transform:uppercase; display:flex; align-items:center; gap:8px}
+  .sec h3 .add{margin-left:auto; font-size:.72rem; color:var(--accent); cursor:pointer; font-weight:700; text-transform:none}
+  .gallery{display:grid; grid-template-columns:repeat(3,1fr); gap:6px}
+  .gallery .ph{position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; background:var(--panel2)}
+  .gallery .ph img{width:100%; height:100%; object-fit:cover}
+  .gallery .ph .del{position:absolute; top:3px; right:3px; background:rgba(0,0,0,.55); color:#fff;
+    border:none; border-radius:6px; width:22px; height:22px; cursor:pointer; font-size:.8rem}
+  .gallery .add-ph{display:flex; align-items:center; justify-content:center; border:1.5px dashed var(--line);
+    aspect-ratio:1; border-radius:10px; color:var(--sub); cursor:pointer; font-size:1.6rem}
+  .gallery .add-ph:hover{border-color:var(--accent2); color:var(--accent2)}
+  ul.list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+  ul.list li{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-size:.84rem; line-height:1.5; display:flex; gap:8px; align-items:flex-start}
+  ul.list li .ic{flex:none}
+  ul.list li .txt{flex:1; min-width:0; word-break:break-word}
+  ul.list li .x{color:var(--sub); cursor:pointer; flex:none; opacity:.5}
+  ul.list li .x:hover{opacity:1; color:var(--pin)}
+  .shop .t{font-weight:700}
+  .shop .ty{font-size:.7rem; color:var(--accent2); margin-left:6px}
+  .shop .n{display:block; color:var(--sub); margin-top:2px; font-size:.78rem}
+  .log .d{font-weight:700; color:var(--accent); font-size:.76rem}
+  .empty{font-size:.8rem; color:var(--sub); font-style:italic; padding:4px 2px}
+  /* 編集ボタン行 */
+  .editrow{display:flex; gap:6px; margin-top:8px}
+  .editrow input, .editrow select, .editrow textarea{
+    background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+    padding:8px 10px; font-size:.82rem; font-family:inherit; width:100%;
+  }
+  .editrow.col{flex-direction:column}
+  .fav-toggle{cursor:pointer; font-size:1.1rem}
+  /* トースト */
+  .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:#0b2630; border:1px solid var(--line); color:var(--ink); padding:10px 18px; border-radius:999px;
+    font-size:.82rem; opacity:0; transition:.25s; z-index:100; pointer-events:none}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  /* スタートヒント */
+  .hint{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center;
+    color:var(--sub); pointer-events:none; z-index:5; transition:opacity .4s}
+  .hint .big{font-size:2.2rem; margin-bottom:8px}
+  .hidden{display:none !important}
+  /* 入力フォーム（モーダル風） */
+  .modal{position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px}
+  .modal.open{display:flex}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; width:100%; max-width:380px}
+  .card h3{margin:0 0 14px; font-size:1rem}
+  .card label{display:block; font-size:.74rem; color:var(--sub); margin:10px 0 4px}
+  .card input,.card textarea,.card select{width:100%; background:var(--bg); color:var(--ink);
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:.86rem; font-family:inherit}
+  .card .actions{display:flex; gap:8px; margin-top:18px; justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="mapwrap">
+    <div class="topbar">
+      <div class="title">
+        <h1>🏝 島キャンプ思い出マップ</h1>
+        <p>20年分の島旅を地図でふりかえる</p>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="addIslandBtn" title="島を追加">＋島</button>
+      <button class="btn ghost" id="menuBtn" title="データ">⋯</button>
+    </div>
+
+    <svg class="map" id="map" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid meet"></svg>
+
+    <div class="hint" id="hint">
+      <div class="big">👆</div>
+      島のピンをタップすると<br>思い出が開きます
+    </div>
+
+    <div class="legend">
+      <b>凡例</b>
+      <div class="row"><span class="swatch" style="background:#ffcc4d"></span> お気に入りの島</div>
+      <div class="row"><span class="swatch" style="background:#ff7a59"></span> 訪問した島（数字＝回数）</div>
+    </div>
+
+    <div class="zoomctl">
+      <button class="btn" id="zin">＋</button>
+      <button class="btn" id="zout">－</button>
+      <button class="btn" id="zreset" title="全体表示">⤢</button>
+    </div>
+  </div>
+
+  <!-- 詳細パネル -->
+  <aside class="panel" id="panel">
+    <div class="phead">
+      <button class="btn ghost close" id="closePanel">✕</button>
+      <span class="badge" id="pBadge">伊豆諸島</span>
+      <h2 id="pName"><span id="pFav" class="fav-toggle" title="お気に入り">☆</span> <span id="pTitle"></span></h2>
+      <div class="meta" id="pMeta"></div>
+      <div class="summary" id="pSummary"></div>
+    </div>
+    <div class="pbody" id="pBody"></div>
+  </aside>
+</div>
+
+<!-- データメニュー モーダル -->
+<div class="modal" id="dataModal">
+  <div class="card">
+    <h3>データの管理</h3>
+    <p style="font-size:.8rem;color:var(--sub);margin:0 0 6px;line-height:1.5">
+      追加・編集した内容と写真はこの端末に保存されています。バックアップや別端末への移行に使えます。</p>
+    <div class="actions" style="flex-direction:column;align-items:stretch">
+      <button class="btn" id="exportBtn">⬇ バックアップを書き出す（JSON）</button>
+      <button class="btn" id="importBtn">⬆ バックアップを読み込む</button>
+      <input type="file" id="importFile" accept="application/json" class="hidden">
+      <button class="btn ghost" id="resetBtn" style="color:var(--pin)">⟲ 初期データに戻す</button>
+      <button class="btn ghost" id="closeData">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 汎用入力モーダル -->
+<div class="modal" id="formModal">
+  <div class="card" id="formCard"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="./data.js"></script>
+<script src="./app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  }
+</script>
+</body>
+</html>

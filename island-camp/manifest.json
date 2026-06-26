@@ -1,0 +1,16 @@
+{
+  "name": "島キャンプ思い出マップ",
+  "short_name": "島キャンプ",
+  "description": "20年分の島旅を日本地図でふりかえる。写真・お店・ナレッジ・Tipsを島ごとに記録できる旅日記マップ。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#06222b",
+  "theme_color": "#0b3d4d",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
