@@ -9,15 +9,20 @@
 <link rel="apple-touch-icon" href="./icon.svg" />
 <style>
   :root{
-    --bg:#06222b; --panel:#0d3340; --panel2:#11414f; --line:#1d5566;
+    /* UI パネル（ダーク系を維持）*/
+    --bg:#0d1f24; --panel:#112830; --panel2:#163340; --line:#244e5c;
     --ink:#eaf6f8; --sub:#8fb9c2; --accent:#ffcc4d; --accent2:#4fd1c5;
-    --pin:#ff7a59; --fav:#ffcc4d;
+    --pin:#e06040; --fav:#e8c830;
+    /* 白地図 カラー */
+    --sea:#c0d8e8; --land:#e8e4d8; --isle:#c8d8b4; --isle-fav:#e0d080;
+    --isle-stroke:#8aaa80; --land-stroke:#b0aaA0;
+    --map-label:#8aA0aa; --map-text:#2a2520;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN",sans-serif;
-    background:var(--bg); color:var(--ink); overflow:hidden;
+    background:var(--sea); color:var(--ink); overflow:hidden;
   }
   /* ===== レイアウト ===== */
   .app{display:flex; height:100dvh; height:100vh}
@@ -34,8 +39,10 @@
   }
   /* ===== ヘッダー ===== */
   .topbar{
-    position:absolute; top:0; left:0; right:0; z-index:20; padding:14px 16px;
+    position:absolute; top:0; left:0; right:0; z-index:20; padding:12px 16px;
     display:flex; align-items:center; gap:10px; pointer-events:none;
+    background:rgba(13,31,36,.88); backdrop-filter:blur(8px);
+    border-bottom:1px solid rgba(255,255,255,.08);
   }
   .title{pointer-events:auto}
   .title h1{margin:0; font-size:1.05rem; letter-spacing:.04em}
@@ -46,37 +53,44 @@
     background:var(--panel2); color:var(--ink); border:1px solid var(--line);
     border-radius:10px; padding:8px 12px; font-size:.8rem; cursor:pointer; font-weight:600;
   }
-  .btn:hover{background:#16515f}
+  .btn:hover{background:#1e4a5c}
   .btn.accent{background:var(--accent); color:#22324b; border-color:transparent}
   .btn.ghost{background:transparent}
   /* ===== 地図 ===== */
   svg.map{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
   svg.map.dragging{cursor:grabbing}
-  .land{fill:#13414f; stroke:#1f5d6e; stroke-width:1}
-  .grid{stroke:#0f3a47; stroke-width:1}
-  .region-label{fill:#5a8a96; font-size:13px; font-weight:700; letter-spacing:.15em}
+  /* 島シェイプ */
+  .isle-shape{cursor:pointer; transition:opacity .15s}
+  .isle-shape:hover .isle-body{filter:brightness(0.92)}
+  .isle-shape.active .isle-body{stroke:#2a7ec8; stroke-width:3}
+  .isle-shape .isle-lbl{
+    font-weight:700; fill:var(--map-text);
+    paint-order:stroke; stroke:#fff; stroke-width:3px; pointer-events:none;
+  }
+  /* ドット型ピン（シェイプデータのない島） */
   .pin{cursor:pointer}
   .pin .dot{fill:var(--pin); stroke:#fff; stroke-width:2; transition:r .15s}
   .pin.fav .dot{fill:var(--fav)}
-  .pin .ring{fill:none; stroke:var(--accent2); stroke-width:2; opacity:0}
+  .pin .ring{fill:none; stroke:#4a90c8; stroke-width:2; opacity:0}
   .pin:hover .dot{r:11}
   .pin.active .ring{opacity:.9}
   .pin .lbl{
-    fill:var(--ink); font-size:12px; font-weight:700; paint-order:stroke;
-    stroke:#06222b; stroke-width:3px; pointer-events:none;
+    fill:var(--map-text); font-size:12px; font-weight:700; paint-order:stroke;
+    stroke:#fff; stroke-width:3px; pointer-events:none;
   }
-  .pin .visits{fill:#06222b; font-size:9px; font-weight:800; text-anchor:middle; pointer-events:none}
+  .pin .visits{fill:#fff; font-size:9px; font-weight:800; text-anchor:middle; pointer-events:none}
   .zoomctl{position:absolute; right:16px; bottom:16px; z-index:20; display:flex; flex-direction:column; gap:6px}
   .zoomctl button{width:40px; height:40px; font-size:1.2rem; border-radius:10px}
   /* 凡例 */
   .legend{
-    position:absolute; left:16px; bottom:16px; z-index:20; background:rgba(13,51,64,.85);
-    border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.72rem; color:var(--sub);
+    position:absolute; left:16px; bottom:16px; z-index:20;
+    background:rgba(13,31,36,.88); border:1px solid rgba(255,255,255,.1);
+    border-radius:12px; padding:10px 12px; font-size:.72rem; color:var(--sub);
     backdrop-filter:blur(4px); max-width:60vw;
   }
   .legend b{color:var(--ink)}
   .legend .row{display:flex; align-items:center; gap:6px; margin-top:4px}
-  .swatch{width:12px;height:12px;border-radius:50%;display:inline-block}
+  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
   /* ===== 詳細パネル中身 ===== */
   .phead{padding:18px 18px 12px; border-bottom:1px solid var(--line); position:relative}
   .phead .close{position:absolute; top:14px; right:14px}
@@ -124,9 +138,11 @@
     font-size:.82rem; opacity:0; transition:.25s; z-index:100; pointer-events:none}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
   /* スタートヒント */
-  .hint{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center;
-    color:var(--sub); pointer-events:none; z-index:5; transition:opacity .4s}
-  .hint .big{font-size:2.2rem; margin-bottom:8px}
+  .hint{position:absolute; left:50%; top:55%; transform:translate(-50%,-50%); text-align:center;
+    color:#5a7a88; pointer-events:none; z-index:5; transition:opacity .4s;
+    background:rgba(255,255,255,.7); border-radius:14px; padding:14px 20px;
+    backdrop-filter:blur(4px); font-size:.88rem; line-height:1.6}
+  .hint .big{font-size:2rem; margin-bottom:6px}
   .hidden{display:none !important}
   /* 入力フォーム（モーダル風） */
   .modal{position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px}
@@ -161,8 +177,9 @@
 
     <div class="legend">
       <b>凡例</b>
-      <div class="row"><span class="swatch" style="background:#ffcc4d"></span> お気に入りの島</div>
-      <div class="row"><span class="swatch" style="background:#ff7a59"></span> 訪問した島（数字＝回数）</div>
+      <div class="row"><span class="swatch" style="background:#e0d080;border:1px solid #b0a850"></span> お気に入りの島</div>
+      <div class="row"><span class="swatch" style="background:#c8d8b4;border:1px solid #8aaa80"></span> 訪問した島</div>
+      <div class="row"><span class="swatch" style="background:#e8e4d8;border:1px solid #b0aaa0"></span> 陸地（参考）</div>
     </div>
 
     <div class="zoomctl">

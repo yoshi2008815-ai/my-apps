@@ -60,8 +60,8 @@ const $ = sel => document.querySelector(sel);
 const svg = $('#map');
 const SVGNS = 'http://www.w3.org/2000/svg';
 
-/* ---------- 地図の背景（陸地シルエット・簡略） ---------- */
-// 主要陸地を緯度経度のアンカーから滑らかな多角形で近似（あくまで位置の手がかり用）
+/* ---------- 地図データ ---------- */
+// 主要陸地（スムーズパス近似）
 const LANDMASSES = [
   // 本州
   [[41.5,140.4],[40.5,140.0],[39.9,139.8],[38.9,139.6],[37.8,138.8],[37.2,136.7],
@@ -76,54 +76,203 @@ const LANDMASSES = [
   // 四国
   [[34.3,134.0],[34.0,134.7],[33.5,134.3],[32.9,133.0],[33.3,132.4],[33.9,132.7],[34.2,133.3]]
 ];
-function landPath(coords){
+
+// 訪問島の形状データ（実寸の約1.5〜2倍・隣島と重ならないよう調整）
+// [lat, lng] の配列で輪郭を定義
+const ISLAND_SHAPE_DATA = {
+  // ===== 伊豆諸島 ===== (チェーン状で近接しているため慎重にサイズ設定)
+  'izu-oshima': [
+    // 大島: N-S方向にやや長い三角形〜楕円。実寸×1.8
+    [34.90,139.29],[34.92,139.36],[34.89,139.44],
+    [34.78,139.47],[34.64,139.44],[34.59,139.36],[34.63,139.28]
+  ],
+  'niijima': [
+    // 新島: 南北に細長い。実寸×1.8。大島と重ならないようS端を34.56以下に
+    [34.53,139.23],[34.54,139.27],[34.53,139.31],
+    [34.44,139.33],[34.30,139.31],[34.20,139.27],
+    [34.18,139.23],[34.28,139.21],[34.44,139.22]
+  ],
+  'kozushima': [
+    // 神津島: コンパクトな楕円形。実寸×2
+    [34.29,139.06],[34.31,139.14],[34.29,139.21],
+    [34.20,139.23],[34.11,139.20],[34.09,139.13],
+    [34.11,139.06],[34.20,139.03]
+  ],
+  'hachijojima': [
+    // 八丈島: 八の字（N=八丈富士、S=三原山系）実寸×1.8
+    [33.23,139.72],[33.25,139.79],[33.22,139.86],
+    [33.16,139.89],[33.10,139.88],[33.04,139.84],
+    [33.00,139.77],[32.99,139.71],[33.05,139.67],
+    [33.12,139.68],[33.17,139.70]
+  ],
+  // ===== 鹿児島の島 =====
+  'yakushima': [
+    // 屋久島: 三角形〜五角形。実寸×2（直径22px at scale1）
+    [30.59,130.30],[30.61,130.51],[30.57,130.72],
+    [30.44,130.80],[30.24,130.72],[30.12,130.51],
+    [30.16,130.30],[30.34,130.20]
+  ],
+  'amami-oshima': [
+    // 奄美大島: NE-SW方向に細長い。実寸×1.5
+    [28.76,129.34],[28.78,129.44],[28.72,129.54],
+    [28.56,129.59],[28.40,129.63],[28.24,129.64],
+    [28.08,129.60],[27.96,129.52],[27.88,129.42],
+    [27.86,129.33],[27.94,129.26],[28.10,129.24],
+    [28.28,129.25],[28.50,129.26],[28.66,129.29]
+  ],
+  // ===== 沖縄の島 =====
+  'ishigaki': [
+    // 石垣島: 西表と0.21°以上の隙間を確保。W端124.04以上
+    [24.55,124.10],[24.56,124.22],[24.54,124.34],
+    [24.46,124.40],[24.36,124.39],[24.26,124.33],
+    [24.22,124.20],[24.26,124.08],[24.36,124.04],
+    [24.46,124.06]
+  ],
+  'iriomote': [
+    // 西表島: 石垣と0.21°以上の隙間を確保。E端123.83以下
+    [24.49,123.46],[24.50,123.60],[24.49,123.75],
+    [24.42,123.83],[24.32,123.82],[24.22,123.76],
+    [24.20,123.62],[24.22,123.48],[24.32,123.42],[24.43,123.44]
+  ],
+  // ===== 新潟の島 =====
+  'sado': [
+    // 佐渡島: S字形。実寸×1.2（元々大きいので）
+    [38.50,138.18],[38.52,138.30],[38.48,138.44],
+    [38.36,138.52],[38.22,138.56],[38.12,138.62],
+    [38.05,138.74],[37.95,138.84],[37.83,138.86],
+    [37.79,138.76],[37.84,138.62],[37.96,138.52],
+    [38.14,138.44],[38.28,138.30],[38.40,138.16]
+  ]
+};
+
+// 参考地形（ユーザーの島リストにないが位置の手がかりに地図上へ薄く表示）
+const REF_ISLANDS = [
+  {
+    name: '沖縄本島',
+    coords: [
+      [26.92,128.20],[26.84,128.10],[26.74,127.98],[26.60,127.90],
+      [26.46,127.82],[26.32,127.74],[26.18,127.70],[26.06,127.68],
+      [25.98,127.72],[26.06,127.82],[26.20,127.92],[26.34,128.02],
+      [26.48,128.12],[26.60,128.20],[26.70,128.27],[26.82,128.32]
+    ]
+  },
+  {
+    name: '宮古島',
+    coords: [
+      [24.88,125.12],[24.90,125.24],[24.88,125.36],
+      [24.82,125.42],[24.74,125.42],[24.68,125.36],
+      [24.66,125.22],[24.70,125.10],[24.78,125.07],[24.86,125.10]
+    ]
+  },
+  {
+    name: '種子島',
+    coords: [
+      [30.76,130.88],[30.78,130.98],[30.74,131.06],
+      [30.56,131.08],[30.38,131.00],[30.28,130.90],
+      [30.26,130.82],[30.38,130.76],[30.56,130.78],[30.70,130.84]
+    ]
+  },
+  {
+    name: '対馬',
+    coords: [
+      [34.60,129.22],[34.66,129.30],[34.64,129.44],
+      [34.52,129.50],[34.36,129.48],[34.26,129.34],
+      [34.20,129.22],[34.26,129.14],[34.44,129.14],[34.56,129.18]
+    ]
+  }
+];
+
+/* ---------- 描画ユーティリティ ---------- */
+function smoothPath(coords){
   const pts = coords.map(([la,ln]) => project(la,ln));
-  // Catmull-Rom 風に閉じた滑らかパス
   let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} `;
   for (let i=0;i<pts.length;i++){
-    const p = pts[i], n = pts[(i+1)%pts.length];
-    const mx = (p.x+n.x)/2, my=(p.y+n.y)/2;
-    d += `Q ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${mx.toFixed(1)} ${my.toFixed(1)} `;
+    const p=pts[i], n=pts[(i+1)%pts.length];
+    d += `Q ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${((p.x+n.x)/2).toFixed(1)} ${((p.y+n.y)/2).toFixed(1)} `;
   }
   return d + 'Z';
 }
+function polyPoints(coords){
+  return coords.map(([la,ln])=>{const p=project(la,ln);return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;}).join(' ');
+}
+function centroid(coords){
+  const pts=coords.map(([la,ln])=>project(la,ln));
+  return {x:pts.reduce((s,p)=>s+p.x,0)/pts.length, y:pts.reduce((s,p)=>s+p.y,0)/pts.length};
+}
 
+/* ---------- 地図描画 ---------- */
 function drawBase(){
-  let g = '';
-  // 緯線・経線
-  for (let lat=24; lat<=46; lat+=2){ const y=project(lat,0).y; g += `<line class="grid" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}"/>`; }
-  for (let lng=124; lng<=144; lng+=4){ const x=project(0,lng).x; g += `<line class="grid" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}"/>`; }
-  // 陸地
-  for (const m of LANDMASSES){ g += `<path class="land" d="${landPath(m)}"/>`; }
+  // 海の背景
+  let g = `<rect width="${VW}" height="${VH}" fill="#c0d8e8"/>`;
+  // グリッド（薄く）
+  for(let lat=24;lat<=46;lat+=2){const y=project(lat,0).y; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}">`+'</line>';}
+  for(let lng=124;lng<=144;lng+=4){const x=project(0,lng).x; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}">`+'</line>';}
+  // 参考島（薄いクリーム色）
+  for(const ri of REF_ISLANDS){
+    g+=`<polygon points="${polyPoints(ri.coords)}" fill="#e4e0d4" stroke="#c0bab0" stroke-width="1" stroke-linejoin="round"/>
+        <text x="${centroid(ri.coords).x.toFixed(1)}" y="${centroid(ri.coords).y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
+          fill="#a09890" font-size="10" font-weight="600" paint-order="stroke" stroke="#e8e4d8" stroke-width="3px">${esc(ri.name)}</text>`;
+  }
+  // 陸地（本州・北海道・九州・四国）
+  for(const m of LANDMASSES){ g+=`<path fill="#e4e0d4" stroke="#b8b2a6" stroke-width="1.2" stroke-linejoin="round" d="${smoothPath(m)}"/>`; }
   // 地域ラベル
-  const labels = [
-    ['本州', 36.5, 138.0],['九州', 32.0, 130.3],['北海道', 43.6, 142.6],
-    ['伊豆諸島', 34.2, 140.6],['沖縄', 25.3, 126.6],['日本海', 39.5, 135.0]
-  ];
-  for (const [t,la,ln] of labels){ const p=project(la,ln); g += `<text class="region-label" x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle">${t}</text>`; }
+  const labels=[['本州',36.5,137.0],['九州',32.0,130.3],['北海道',43.6,142.5],
+    ['日本海',39.5,134.5],['太平洋',33.0,135.5],['東シナ海',28.0,125.5]];
+  for(const[t,la,ln] of labels){const p=project(la,ln);
+    g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="#92b0bc" font-size="13" font-weight="700" letter-spacing="2" opacity=".9">${t}</text>`;}
   return g;
 }
 
-/* ---------- ピン描画 ---------- */
-function drawPins(){
+function drawIslandShapes(){
+  // scale < 2のとき形状は描かずドットに任せる（密集した伊豆諸島の重なりを防ぐ）
+  const useShapes = STATE.view.scale >= 2;
   return STATE.islands.map(is => {
+    const coords = ISLAND_SHAPE_DATA[is.id];
+    if (!coords || !useShapes) return '';
+    const active = is.id === STATE.activeId;
+    const fill   = active ? '#9ec4e0' : is.fav ? '#e0d07a' : '#bdd4a6';
+    const stroke = active ? '#1e6eb8' : is.fav ? '#a09640' : '#7a9e70';
+    const sw     = active ? 2.5 : 1.2;
+    const c = centroid(coords);
+    // グループscaleとviewBox表示倍率の両方を逆補正して画面上の文字サイズを一定に保つ
+    // 目標: 12px CSS視覚サイズ = target / (group_scale × svgH/VH)
+    const k = STATE.view.scale * (STATE.vScale || 0.73);
+    const fs = +(12 / k).toFixed(2);
+    const visitFs = +(10 / k).toFixed(2);
+    const visits = is.visits ? `<text x="${c.x.toFixed(1)}" y="${(c.y + 14/k).toFixed(1)}" text-anchor="middle" fill="${active?'#14508a':is.fav?'#706010':'#3a6a30'}" font-size="${visitFs}" font-weight="800" opacity=".9">${is.visits}回</text>` : '';
+    const favMark = is.fav ? `<text x="${c.x.toFixed(1)}" y="${(c.y - 15/k).toFixed(1)}" text-anchor="middle" font-size="${+(13/k).toFixed(2)}">★</text>` : '';
+    return `<g class="isle-shape${active?' active':''}" data-id="${is.id}">
+      <polygon class="isle-body" points="${polyPoints(coords)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw/STATE.view.scale}" stroke-linejoin="round"/>
+      <text class="isle-lbl" x="${c.x.toFixed(1)}" y="${c.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}">${esc(is.name)}</text>
+      ${visits}${favMark}
+    </g>`;
+  }).join('');
+}
+
+function drawDotPins(){
+  // シェイプがある島はscale<2のときのみドット表示。シェイプのない島は常にドット
+  return STATE.islands.map(is => {
+    const hasShape = !!ISLAND_SHAPE_DATA[is.id];
+    if (hasShape && STATE.view.scale >= 2) return ''; // 形状表示中はドット不要
     const p = project(is.lat, is.lng);
-    const fav = is.fav ? ' fav' : '';
-    const active = is.id === STATE.activeId ? ' active' : '';
-    return `<g class="pin${fav}${active}" data-id="${is.id}" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})">
-      <circle class="ring" r="16"/>
-      <circle class="dot" r="9"/>
-      <text class="visits" y="3">${is.visits||''}</text>
-      <text class="lbl" x="13" y="4">${esc(is.name)}</text>
+    const active = is.id === STATE.activeId;
+    const fill   = is.fav ? '#d8c870' : '#e06040';
+    return `<g class="pin${is.fav?' fav':''}${active?' active':''}" data-id="${is.id}" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})">
+      ${active ? `<circle class="ring" r="16" fill="none" stroke="#2a7ec8" stroke-width="2" opacity=".8"/>` : ''}
+      <circle class="dot" r="${active?10:8}" fill="${fill}" stroke="#fff" stroke-width="1.5"/>
+      <text y="3" text-anchor="middle" fill="#fff" font-size="8" font-weight="800" pointer-events="none">${is.visits||''}</text>
+      <text x="12" y="4" fill="#2a2520" font-size="11" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="3px" pointer-events="none">${esc(is.name)}</text>
     </g>`;
   }).join('');
 }
 
 function renderMap(){
   const { scale, tx, ty } = STATE.view;
-  svg.innerHTML =
-    `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}${drawPins()}</g>`;
-  svg.querySelectorAll('.pin').forEach(el => {
+  // viewBox/viewport比率をキャッシュ（drawIslandShapes内で使用）
+  const svgH = svg.getBoundingClientRect().height;
+  STATE.vScale = svgH > 0 ? svgH / VH : 0.73;
+  svg.innerHTML = `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}${drawIslandShapes()}${drawDotPins()}</g>`;
+  svg.querySelectorAll('.isle-shape, .pin').forEach(el => {
     el.addEventListener('click', ev => { ev.stopPropagation(); openIsland(el.dataset.id); });
   });
 }
