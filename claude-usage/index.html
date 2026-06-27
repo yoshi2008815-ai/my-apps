@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claude利用コスト ダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="./usage_data.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 24px;
+      background: #f5f5f5;
+      color: #222;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 4px; }
+    .back { font-size: .85rem; color: #666; text-decoration: none; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 24px 0; }
+    .card { background: #fff; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .card .label { font-size: .8rem; color: #777; }
+    .card .value { font-size: 1.4rem; font-weight: 600; margin-top: 4px; }
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
+    .chart-box { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    th, td { padding: 8px 12px; text-align: right; font-size: .85rem; border-bottom: 1px solid #eee; }
+    th:first-child, td:first-child { text-align: left; }
+    th { background: #fafafa; color: #555; }
+    .empty { color: #888; padding: 40px 0; text-align: center; }
+    @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <a class="back" href="../">← ポータルへ戻る</a>
+  <h1>🪙 Claude利用コスト ダッシュボード</h1>
+  <p style="color:#666">usage_log.json の実績データを集計表示します（log_usage.py で記録）。</p>
+
+  <div id="content"></div>
+
+  <script>
+    const PRICING = { opus: [15, 75], sonnet: [3, 15], haiku: [1, 5] };
+
+    function costFor(model, inTok, outTok) {
+      const [inP, outP] = PRICING[model];
+      return (inTok / 1e6) * inP + (outTok / 1e6) * outP;
+    }
+
+    if (typeof USAGE_DATA === 'undefined') {
+      document.getElementById('content').innerHTML =
+        '<p class="empty">usage_data.js が見つかりません。log_usage.py で記録すると自動生成されます。</p>';
+    } else {
+      render(USAGE_DATA);
+    }
+
+    function render(data) {
+      const content = document.getElementById('content');
+      if (!data.length) {
+        content.innerHTML = '<p class="empty">まだ実績データがありません。log_usage.py で記録してください。</p>';
+        return;
+      }
+
+      const totalCost = data.reduce((s, d) => s + d.cost_usd, 0);
+      const totalIn = data.reduce((s, d) => s + d.input_tokens, 0);
+      const totalOut = data.reduce((s, d) => s + d.output_tokens, 0);
+
+      // what-if: 全件をOpus/Sonnet/Haikuで実行した場合の合計
+      const whatIfTotals = { opus: 0, sonnet: 0, haiku: 0 };
+      data.forEach(d => {
+        Object.keys(whatIfTotals).forEach(m => {
+          whatIfTotals[m] += costFor(m, d.input_tokens, d.output_tokens);
+        });
+      });
+
+      content.innerHTML = `
+        <div class="cards">
+          <div class="card"><div class="label">合計実費</div><div class="value">$${totalCost.toFixed(2)}</div></div>
+          <div class="card"><div class="label">入力トークン</div><div class="value">${totalIn.toLocaleString()}</div></div>
+          <div class="card"><div class="label">出力トークン</div><div class="value">${totalOut.toLocaleString()}</div></div>
+          <div class="card"><div class="label">記録件数</div><div class="value">${data.length}</div></div>
+        </div>
+
+        <div class="charts">
+          <div class="chart-box"><canvas id="bySkill"></canvas></div>
+          <div class="chart-box"><canvas id="whatIf"></canvas></div>
+        </div>
+
+        <h3>スキル別実績</h3>
+        <table id="skillTable"></table>
+      `;
+
+      // スキル別集計
+      const bySkill = {};
+      data.forEach(d => {
+        bySkill[d.skill] = bySkill[d.skill] || { cost: 0, in: 0, out: 0, count: 0 };
+        bySkill[d.skill].cost += d.cost_usd;
+        bySkill[d.skill].in += d.input_tokens;
+        bySkill[d.skill].out += d.output_tokens;
+        bySkill[d.skill].count += 1;
+      });
+
+      new Chart(document.getElementById('bySkill'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(bySkill),
+          datasets: [{ label: 'スキル別コスト($)', data: Object.values(bySkill).map(v => v.cost.toFixed(4)), backgroundColor: '#6366f1' }]
+        },
+        options: { plugins: { title: { display: true, text: 'スキル別コスト' } } }
+      });
+
+      new Chart(document.getElementById('whatIf'), {
+        type: 'bar',
+        data: {
+          labels: ['Opus', 'Sonnet', 'Haiku'],
+          datasets: [{
+            label: '同じ作業を各モデルで実行した場合の合計コスト($)',
+            data: [whatIfTotals.opus, whatIfTotals.sonnet, whatIfTotals.haiku],
+            backgroundColor: ['#ef4444', '#6366f1', '#22c55e']
+          }]
+        },
+        options: { plugins: { title: { display: true, text: 'モデル別 What-If 比較' } } }
+      });
+
+      const table = document.getElementById('skillTable');
+      table.innerHTML = `
+        <tr><th>スキル</th><th>件数</th><th>入力トークン</th><th>出力トークン</th><th>コスト($)</th></tr>
+        ${Object.entries(bySkill).map(([skill, v]) => `
+          <tr>
+            <td>${skill}</td>
+            <td>${v.count}</td>
+            <td>${v.in.toLocaleString()}</td>
+            <td>${v.out.toLocaleString()}</td>
+            <td>${v.cost.toFixed(4)}</td>
+          </tr>
+        `).join('')}
+      `;
+    }
+  </script>
+</body>
+</html>
