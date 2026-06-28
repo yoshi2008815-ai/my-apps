@@ -1,10 +1,12 @@
 // 島キャンプ思い出マップ Service Worker
-const CACHE = 'island-camp-v1';
+const CACHE = 'island-camp-v3';
 const ASSETS = [
   './',
   './index.html',
+  './geo.js',
   './app.js',
   './data.js',
+  './miyake.js',
   './manifest.json',
   './icon.svg',
   './icon-maskable.svg'
@@ -22,17 +24,14 @@ self.addEventListener('activate', e => {
   );
 });
 
-// キャッシュ優先（オフラインでも開ける）、無ければネット取得して追加
+// ネットワーク優先：常に最新を取得しキャッシュ更新。オフライン時のみキャッシュにフォールバック。
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(hit => {
-      if (hit) return hit;
-      return fetch(e.request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
-        return res;
-      }).catch(() => caches.match('./index.html'));
-    })
+    fetch(e.request).then(res => {
+      const copy = res.clone();
+      caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+      return res;
+    }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
   );
 });

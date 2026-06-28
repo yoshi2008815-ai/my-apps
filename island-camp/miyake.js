@@ -41,20 +41,25 @@ const MIYAKE_INFO = {
     { label: '三宅村役場', tel: '04994-5-0981', tag: '行政' },
     { label: 'タクシー（島内）', tel: '04994-2-0181', tag: 'タクシー' }
   ],
-  // ③ 地図上のスポット（0-100 の島内座標。中心が雄山）
-  spots: [
-    { id: 'oyama',     name: '雄山(775m)',     x: 50, y: 48, ic: '🌋' },
-    { id: 'tairoike',  name: '大路池',         x: 44, y: 70, ic: '🦆' },
-    { id: 'akakokko',  name: 'アカコッコ館',   x: 40, y: 74, ic: '🐦' },
-    { id: 'miikeport', name: '三池港',         x: 78, y: 40, ic: '⛴' },
-    { id: 'sabiport',  name: '錆ヶ浜港(伊ヶ谷)', x: 20, y: 46, ic: '⛴' },
-    { id: 'airport',   name: '三宅島空港',     x: 72, y: 70, ic: '✈' },
-    { id: 'hyotan',    name: 'ひょうたん山',   x: 30, y: 24, ic: '⛰' },
-    { id: 'megane',    name: 'メガネ岩',       x: 26, y: 60, ic: '🪨' },
-    { id: 'tomoga',    name: '富賀浜(シュノーケル)', x: 24, y: 56, ic: '🤿' },
-    { id: 'onsen',     name: 'ふるさとの湯',   x: 22, y: 50, ic: '♨' }
-  ]
+  // ③ 地図上のスポットは geo.js の実座標（GEO.miyakeSpots）を使用
 };
+
+/* ---------- 三宅島 実輪郭の投影（lat/lng → 0-100 ビューボックス） ---------- */
+function mykProject(){
+  const ring = (window.GEO && GEO.miyakeDetail) || [];
+  if (!ring.length) return null;
+  let mnLa=Infinity, mxLa=-Infinity, mnLn=Infinity, mxLn=-Infinity;
+  for (const [la,ln] of ring){
+    if(la<mnLa)mnLa=la; if(la>mxLa)mxLa=la; if(ln<mnLn)mnLn=ln; if(ln>mxLn)mxLn=ln;
+  }
+  const latMid=(mnLa+mxLa)/2, kx=Math.cos(latMid*Math.PI/180);
+  const w=(mxLn-mnLn)*kx, h=(mxLa-mnLa), pad=12, span=Math.max(w,h)||0.01;
+  const sc=(100-2*pad)/span;
+  const offx=pad+((100-2*pad)-w*sc)/2, offy=pad+((100-2*pad)-h*sc)/2;
+  const f=(la,ln)=>({ x:+(offx+(ln-mnLn)*kx*sc).toFixed(2), y:+(offy+(mxLa-la)*sc).toFixed(2) });
+  f.ring=ring;
+  return f;
+}
 
 /* ---------- メイン描画 ---------- */
 window.renderMiyakeBody = async function(is){
@@ -161,21 +166,31 @@ function panelHTML(is, tab){
 }
 
 /* ---------- ① 地図 ＋ ④ 行った場所登録 ---------- */
+function mykSpots(){ return (window.GEO && GEO.miyakeSpots) || []; }
+
 function mapHTML(is){
+  const proj = mykProject();
+  const spots = mykSpots();
   const visited = new Set(is.miyakeVisited);
-  const pins = MIYAKE_INFO.spots.map(s => {
+  // 実海岸線ポリゴン
+  const islandPts = proj ? proj.ring.map(([la,ln])=>{const q=proj(la,ln);return `${q.x},${q.y}`;}).join(' ') : '';
+  // 雄山カルデラ（山頂位置）
+  const oy = spots.find(s=>s.id==='oyama');
+  const cald = (oy && proj) ? proj(oy.lat,oy.lng) : {x:50,y:50};
+  const pins = spots.map(s => {
+    const q = proj ? proj(s.lat,s.lng) : {x:50,y:50};
     const on = visited.has(s.id);
-    return `<g class="myk-pin${on?' on':''}" data-spot="${s.id}" transform="translate(${s.x},${s.y})">
-      <circle r="3.6" fill="${on?'#ffcc4d':'#fff'}" stroke="${on?'#b8860b':'#2e5238'}" stroke-width="1.1"/>
-      <text x="5" y="2.4" font-size="4.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="1.1px">${esc(s.ic)} ${esc(s.name)}</text>
+    return `<g class="myk-pin${on?' on':''}" data-spot="${s.id}" transform="translate(${q.x},${q.y})">
+      <circle r="2.4" fill="${on?'#ffcc4d':'#fff'}" stroke="${on?'#b8860b':'#2e5238'}" stroke-width="0.9"/>
+      <text x="3.2" y="1.5" font-size="3.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="0.9px">${esc(s.ic)} ${esc(s.name)}</text>
     </g>`;
   }).join('');
   const custom = is.miyakePlaces.map((p,i) =>
     `<g class="myk-pin on custom" data-custom="${i}" transform="translate(${p.x},${p.y})">
-      <circle r="3.6" fill="#4fd1c5" stroke="#1b6b63" stroke-width="1.1"/>
-      <text x="5" y="2.4" font-size="4.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="1.1px">📍 ${esc(p.name)}</text>
+      <circle r="2.4" fill="#4fd1c5" stroke="#1b6b63" stroke-width="0.9"/>
+      <text x="3.2" y="1.5" font-size="3.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="0.9px">📍 ${esc(p.name)}</text>
     </g>`).join('');
-  const visitedList = MIYAKE_INFO.spots.filter(s => visited.has(s.id))
+  const visitedList = spots.filter(s => visited.has(s.id))
     .map(s => `<li><span class="ic">${s.ic}</span><span class="txt">${esc(s.name)}</span><span class="x" data-unvisit="${s.id}">✕</span></li>`).join('')
     + is.miyakePlaces.map((p,i) => `<li><span class="ic">📍</span><span class="txt">${esc(p.name)}</span><span class="x" data-delplace="${i}">✕</span></li>`).join('');
 
@@ -184,12 +199,10 @@ function mapHTML(is){
     <div class="myk-map">
       <svg id="mykMap" viewBox="0 0 100 100">
         <rect x="0" y="0" width="100" height="100" fill="#bfe0ea"/>
-        <!-- 島本体（円形） -->
-        <circle cx="50" cy="50" r="40" fill="#cfe0b8" stroke="#8aaa80" stroke-width="1.2"/>
-        <!-- 環状路 -->
-        <circle cx="50" cy="50" r="31" fill="none" stroke="#fff" stroke-width="1.4" stroke-dasharray="2 2"/>
-        <!-- 雄山カルデラ -->
-        <circle cx="50" cy="48" r="8" fill="#b79a76" stroke="#8a6f4e" stroke-width="1"/>
+        <!-- 島本体（実海岸線 / OpenStreetMap） -->
+        <polygon points="${islandPts}" fill="#cfe0b8" stroke="#8aaa80" stroke-width="0.8" stroke-linejoin="round"/>
+        <!-- 雄山カルデラ（山頂） -->
+        <circle cx="${cald.x}" cy="${cald.y}" r="6" fill="#b79a76" stroke="#8a6f4e" stroke-width="0.8"/>
         ${pins}
         ${custom}
       </svg>
@@ -213,7 +226,7 @@ function wireMap(is){
       set.has(id) ? set.delete(id) : set.add(id);
       is.miyakeVisited = [...set];
       saveIslands();
-      const s = MIYAKE_INFO.spots.find(x => x.id === id);
+      const s = mykSpots().find(x => x.id === id) || {name:id};
       toast(set.has(id) ? `「${s.name}」を記録しました` : `「${s.name}」を取消しました`);
       refresh(is);
     });
