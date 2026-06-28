@@ -195,5 +195,44 @@ window.SEED_ISLANDS = [
       "宿根木の集落と矢島・経島のたらい舟は外せない"
     ],
     logs: []
+  },
+
+  // ===== Index登録（地図ピンのみ。詳細は順次拡充） =====
+  // ---- 伊豆諸島（東京都）----
+  {
+    id: "toshima", name: "利島", region: "伊豆諸島", pref: "東京都",
+    lat: 34.52, lng: 139.28,
+    firstVisit: "2013", visits: 1, fav: false,
+    summary: "椿に覆われた小さな円錐の島。2013年訪問。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "shikinejima", name: "式根島", region: "伊豆諸島", pref: "東京都",
+    lat: 34.32, lng: 139.21,
+    firstVisit: "2004", visits: 3, fav: true,
+    summary: "新島の隣。入り組んだ海岸線と無料の海中温泉。2004年から。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "mikurajima", name: "御蔵島", region: "伊豆諸島", pref: "東京都",
+    lat: 33.88, lng: 139.60,
+    firstVisit: "2012", visits: 1, fav: false,
+    summary: "三宅島の南。イルカと原生林の険しい島。2012年訪問。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  // ---- 鹿児島の島 ----
+  {
+    id: "kikaijima", name: "喜界島", region: "鹿児島の島", pref: "鹿児島県",
+    lat: 28.32, lng: 129.94,
+    firstVisit: "2017", visits: 1, fav: false,
+    summary: "隆起サンゴ礁の平らな島。サトウキビと白ゴマ。2017年訪問。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "tokunoshima", name: "徳之島", region: "鹿児島の島", pref: "鹿児島県",
+    lat: 27.80, lng: 128.93,
+    firstVisit: "2018", visits: 1, fav: false,
+    summary: "闘牛とトライアスロンの島。世界自然遺産。2018年訪問。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
   }
 ];

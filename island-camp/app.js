@@ -306,7 +306,7 @@ async function openIsland(id){
     await renderBody(is);
   }
   $('#panel').classList.add('open');
-  renderMap();
+  focusIsland(is);
 }
 
 async function renderBody(is){
@@ -467,6 +467,19 @@ function clampView(){
   v.ty = Math.min(0, Math.max(minTy, v.ty));
 }
 function resetView(){ STATE.view = {scale:1, tx:0, ty:0}; applyView(); }
+
+// 島を選んだとき、その島へ地図をズーム＆センタリング（index↔地図の連携）
+function focusIsland(is, targetScale=3.6){
+  if(!is) return;
+  const p = project(is.lat, is.lng);
+  const ns = Math.min(6, Math.max(1, targetScale));
+  const v = STATE.view;
+  // 表示領域の中心(VW/2,VH/2)に島が来るように平行移動
+  v.scale = ns;
+  v.tx = VW/2 - p.x * ns;
+  v.ty = VH/2 - p.y * ns;
+  clampView(); applyView();
+}
 
 // ドラッグでパン
 let drag = null;
