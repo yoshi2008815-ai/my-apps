@@ -98,6 +98,12 @@ const ISLAND_SHAPE_DATA = {
     [34.20,139.23],[34.11,139.20],[34.09,139.13],
     [34.11,139.06],[34.20,139.03]
   ],
+  'miyakejima': [
+    // 三宅島: ほぼ円形の火山島。実寸×1.8。神津島/八丈島と離れて配置
+    [34.17,139.50],[34.18,139.55],[34.15,139.60],
+    [34.10,139.63],[34.04,139.62],[33.99,139.57],
+    [33.99,139.51],[34.02,139.46],[34.08,139.44],[34.13,139.46]
+  ],
   'hachijojima': [
     // 八丈島: 八の字（N=八丈富士、S=三原山系）実寸×1.8
     [33.23,139.72],[33.25,139.79],[33.22,139.86],
@@ -294,7 +300,11 @@ async function openIsland(id){
      <span>🔁 訪問 ${is.visits||0} 回</span>
      <span>📷 写真 ${is.photos.length} 枚</span>`;
   $('#pSummary').textContent = is.summary || '';
-  await renderBody(is);
+  if (is.special === 'miyake' && window.renderMiyakeBody){
+    await window.renderMiyakeBody(is);
+  } else {
+    await renderBody(is);
+  }
   $('#panel').classList.add('open');
   renderMap();
 }

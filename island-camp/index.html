@@ -153,6 +153,68 @@
   .card input,.card textarea,.card select{width:100%; background:var(--bg); color:var(--ink);
     border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:.86rem; font-family:inherit}
   .card .actions{display:flex; gap:8px; margin-top:18px; justify-content:flex-end}
+
+  /* ===== 三宅島スペシャル ===== */
+  .myk-help{font-size:.76rem; color:var(--sub); line-height:1.5; margin:2px 0 12px}
+  .myk-h{font-size:.84rem; color:var(--accent2); margin:18px 0 10px; font-weight:700}
+  /* ヒーロー（横顔パララックス） */
+  .myk-hero{--p:0; position:relative; height:240px; margin:-2px -18px 6px; overflow:hidden;
+    border-bottom:1px solid var(--line); background:linear-gradient(#173a48,#0f2a33)}
+  .myk-sky{position:absolute; inset:0;
+    background:linear-gradient(180deg,#2a6c84 0%, #5fa9c0 45%, #bfe0ea 100%);
+    opacity:calc(.25 + var(--p)*.75); transition:opacity .1s linear}
+  .myk-stage{position:absolute; inset:0; perspective:600px}
+  /* 上から見た円盤：スクロール0で正面、進むと寝て消える */
+  .myk-top{position:absolute; left:50%; top:46%; width:190px; height:190px;
+    transform:translate(-50%,-50%) rotateX(calc(var(--p)*78deg)) scale(calc(1 - var(--p)*.25));
+    opacity:calc(1 - var(--p)*1.6); transition:transform .1s linear, opacity .1s linear}
+  /* 横から見た火山：スクロールで立ち上がる */
+  .myk-side{position:absolute; left:50%; bottom:6px; width:340px; max-width:96%; height:auto;
+    transform:translate(-50%, calc(40px - var(--p)*40px)) rotateX(calc(70deg - var(--p)*70deg));
+    transform-origin:bottom center;
+    opacity:calc(var(--p)*1.5); transition:transform .1s linear, opacity .1s linear}
+  .myk-sea{position:absolute; left:0; right:0; bottom:0; height:34px;
+    background:linear-gradient(180deg, rgba(95,169,192,.0), #3f7e92);
+    transform:translateY(calc(20px - var(--p)*20px))}
+  .myk-smoke{opacity:calc(var(--p)*.9)}
+  .myk-hero-cap{position:absolute; left:12px; bottom:10px; z-index:2;
+    font-size:.72rem; color:#eaf6f8; background:rgba(0,0,0,.34); padding:4px 10px; border-radius:999px;
+    backdrop-filter:blur(3px)}
+  .myk-hero-cap b{color:var(--accent)}
+  /* タブ */
+  .myk-tabs{position:sticky; top:0; z-index:6; display:flex; gap:6px; padding:10px 0 8px;
+    background:linear-gradient(var(--panel) 70%, rgba(17,40,48,0)); flex-wrap:wrap}
+  .myk-tabs button{flex:1 1 0; min-width:64px; background:var(--panel2); color:var(--sub);
+    border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:.78rem; font-weight:700; cursor:pointer}
+  .myk-tabs button.on{background:var(--accent); color:#22324b; border-color:transparent}
+  .myk-panel{padding-top:6px}
+  /* 地図 */
+  .myk-map{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#bfe0ea}
+  .myk-map svg{width:100%; height:auto; display:block; cursor:crosshair; touch-action:manipulation}
+  .myk-pin{cursor:pointer}
+  .myk-pin:hover circle{stroke-width:1.8}
+  /* カード（キャンプ場） */
+  .myk-card{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px 14px; margin-bottom:12px}
+  .myk-card-h{font-weight:700; font-size:.92rem; margin-bottom:4px}
+  .myk-card-area{font-size:.76rem; color:var(--sub); margin-bottom:8px}
+  .myk-fac{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px}
+  .myk-chip{font-size:.68rem; background:var(--bg); border:1px solid var(--line); color:var(--accent2);
+    padding:3px 8px; border-radius:999px}
+  .myk-chip.mini{flex:none; min-width:42px; text-align:center; color:var(--accent)}
+  .myk-card-note{font-size:.8rem; color:#cfe8ec; line-height:1.55; margin:0 0 8px}
+  .myk-tel{display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:var(--accent2);
+    font-size:.82rem; font-weight:700; background:var(--bg); border:1px solid var(--line);
+    border-radius:9px; padding:8px 12px}
+  .myk-tel.row{display:flex; width:100%; margin-bottom:8px}
+  .myk-tel-l{flex:1; color:var(--ink); font-weight:600}
+  .myk-tel-n{color:var(--accent2)}
+  /* バス */
+  .myk-bus{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px}
+  .myk-bus-r{font-weight:700; font-size:.84rem; margin-bottom:8px}
+  .myk-bus-t{display:flex; flex-wrap:wrap; gap:6px}
+  .myk-bus-t span{font-size:.82rem; background:var(--bg); border:1px solid var(--line); color:var(--accent);
+    font-weight:700; padding:5px 10px; border-radius:8px; font-variant-numeric:tabular-nums}
+  .myk-phones{display:flex; flex-direction:column}
 </style>
 </head>
 <body>
@@ -227,6 +289,7 @@
 
 <script src="./data.js"></script>
 <script src="./app.js"></script>
+<script src="./miyake.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
