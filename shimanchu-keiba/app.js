@@ -317,6 +317,7 @@ function environmentRows(detail) {
   if (detail.surface) rows.push({ label: `同じ${detail.surface}`, runs: detail.surfaceRuns ?? 0, score: detail.surfaceScore });
   if (detail.trackCondition) rows.push({ label: `馬場 ${detail.trackCondition}`, runs: detail.conditionRuns ?? 0, score: detail.conditionScore });
   if (detail.weather) rows.push({ label: `天気 ${detail.weather}`, runs: detail.weatherRuns ?? 0, score: detail.weatherScore });
+  if (detail.wet && (detail.jockeyWetRuns ?? 0) > 0) rows.push({ label: `騎手 道悪`, runs: detail.jockeyWetRuns, score: detail.jockeyWetScore });
   return rows;
 }
 
@@ -411,7 +412,7 @@ function openPop(horse, focus) {
       ${section("place", "着順力 = " + f2(comp.placeScore), "各レースの着順スコア =（頭数−着順）÷（頭数−1）。1着=1.00 最下位=0.00。その平均が着順力。", `過去${comp.runs}走の平均 = <b>${f2(comp.placeScore)}</b>（勝率${pct(comp.winRate)}% / 複勝率${pct(comp.top3Rate)}%）`, placeHist)}
       ${section("jockey", "騎手力 = " + f2(comp.jockeyScore), "騎手の複勝率（3着内に入った割合）。", `${entry.jockey}：${comp.jockeyStat.top3}/${comp.jockeyStat.runs}走 → 複勝率 <b>${pct(comp.jockeyScore)}%</b>`)}
       ${section("time", "タイム力 = " + f2(comp.timeScore), "各レース内での相対速度 z =（レース平均タイム−自分のタイム）÷標準偏差。速いほど大。平均zを0〜1に正規化(z+2)/4。", `平均z = ${comp.avgZ >= 0 ? "+" : ""}${comp.avgZ.toFixed(2)} → 正規化 <b>${f2(comp.timeScore)}</b>`, timeHist)}
-      ${section("environment", "環境力 = " + f2(comp.environmentScore ?? 0.5), "同じ芝/ダートを最重視し、馬場状態があれば中位、天気があれば補助として使います。同条件での着順スコア平均を重み付きで合成しています。", environmentValue(comp.environmentDetail, comp.environmentScore), environmentHist(comp.environmentDetail))}
+      ${section("environment", "環境力 = " + f2(comp.environmentScore ?? 0.5), "同じ芝/ダートを基本に、雨・道悪のレースでは馬場状態と天気の比重を上げ、騎手の道悪での複勝率も加味します（良馬場・晴では芝/ダート適性を主に評価）。", environmentValue(comp.environmentDetail, comp.environmentScore), environmentHist(comp.environmentDetail))}
       ${section("parent", "親力 = " + (comp.parentScore != null ? f2(comp.parentScore) : "–"), "父・母の産駒平均を太く、祖父母の系統値を補助的に使って血統スコア化しています。近い血統ほど比重を高くしています。", entry.parent ? `父 ${entry.parent.sire || "–"}（産駒スコア: ${entry.parent.sireScore != null ? f2(entry.parent.sireScore) : "–"}）<br>母 ${entry.parent.dam || "–"}（産駒スコア: ${entry.parent.damScore != null ? f2(entry.parent.damScore) : "–"}）<br>→ 親力 <b>${comp.parentScore != null ? f2(comp.parentScore) : "データなし"}</b>${grandParentLines(entry.parent)}` : "血統データなし（スクレイピング未取得または未登録）")}
     </div>`;
   $("popx").addEventListener("click", closePop);
