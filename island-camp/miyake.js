@@ -173,10 +173,19 @@ function mapHTML(is){
   const spots = mykSpots();
   const visited = new Set(is.miyakeVisited);
   // 実海岸線ポリゴン
-  const islandPts = proj ? proj.ring.map(([la,ln])=>{const q=proj(la,ln);return `${q.x},${q.y}`;}).join(' ') : '';
+  const pts = proj ? proj.ring.map(([la,ln])=>proj(la,ln)) : [];
+  const islandPts = pts.map(p=>`${p.x},${p.y}`).join(' ');
+  // 重心（等高線・地形グラデーションの基準点）
+  let gcx=50, gcy=50;
+  if (pts.length){
+    gcx = pts.reduce((s,p)=>s+p.x,0)/pts.length;
+    gcy = pts.reduce((s,p)=>s+p.y,0)/pts.length;
+  }
   // 雄山カルデラ（山頂位置）
   const oy = spots.find(s=>s.id==='oyama');
-  const cald = (oy && proj) ? proj(oy.lat,oy.lng) : {x:50,y:50};
+  const cald = (oy && proj) ? proj(oy.lat,oy.lng) : {x:gcx,y:gcy};
+  // 等高線（重心→外周へ段階的に縮小した輪郭で立体感を出す）
+  const contour = (k) => pts.map(p=>`${(cald.x+(p.x-cald.x)*k).toFixed(2)},${(cald.y+(p.y-cald.y)*k).toFixed(2)}`).join(' ');
   const pins = spots.map(s => {
     const q = proj ? proj(s.lat,s.lng) : {x:50,y:50};
     const on = visited.has(s.id);
@@ -198,11 +207,30 @@ function mapHTML(is){
     <p class="myk-help">スポットをタップで「行った！」記録。地図の海をタップすると自由な場所を追加できます。</p>
     <div class="myk-map">
       <svg id="mykMap" viewBox="0 0 100 100">
-        <rect x="0" y="0" width="100" height="100" fill="#bfe0ea"/>
-        <!-- 島本体（実海岸線 / OpenStreetMap） -->
-        <polygon points="${islandPts}" fill="#cfe0b8" stroke="#8aaa80" stroke-width="0.8" stroke-linejoin="round"/>
-        <!-- 雄山カルデラ（山頂） -->
-        <circle cx="${cald.x}" cy="${cald.y}" r="6" fill="#b79a76" stroke="#8a6f4e" stroke-width="0.8"/>
+        <defs>
+          <radialGradient id="mykTerrain" cx="${cald.x}" cy="${cald.y}" r="55" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"  stop-color="#8a7350"/>
+            <stop offset="30%" stop-color="#74995a"/>
+            <stop offset="70%" stop-color="#a8cd86"/>
+            <stop offset="100%" stop-color="#d6e7bd"/>
+          </radialGradient>
+          <radialGradient id="mykSea" cx="50%" cy="35%" r="75%">
+            <stop offset="0%"  stop-color="#e9f7fa"/>
+            <stop offset="100%" stop-color="#bfe0ea"/>
+          </radialGradient>
+        </defs>
+        <rect x="0" y="0" width="100" height="100" fill="url(#mykSea)"/>
+        <!-- 砂浜（実海岸線をわずかに拡大して縁取り） -->
+        <polygon points="${contour(1.035)}" fill="#ecdfb0" opacity="0.9"/>
+        <!-- 島本体（実海岸線 / OpenStreetMap・地形グラデーション） -->
+        <polygon points="${islandPts}" fill="url(#mykTerrain)" stroke="#5f7e46" stroke-width="0.8" stroke-linejoin="round"/>
+        <!-- 等高線（立体感） -->
+        <polygon points="${contour(0.74)}" fill="none" stroke="#5f7e46" stroke-width="0.35" opacity="0.5" stroke-linejoin="round"/>
+        <polygon points="${contour(0.46)}" fill="none" stroke="#43603a" stroke-width="0.35" opacity="0.55" stroke-linejoin="round"/>
+        <polygon points="${contour(0.22)}" fill="none" stroke="#37502f" stroke-width="0.35" opacity="0.6" stroke-linejoin="round"/>
+        <!-- 雄山カルデラ（山頂・噴火口） -->
+        <circle cx="${cald.x}" cy="${cald.y}" r="6.4" fill="#9c8262" stroke="#705a3e" stroke-width="0.7"/>
+        <circle cx="${cald.x}" cy="${cald.y}" r="3.6" fill="#5f4a30" stroke="#43321f" stroke-width="0.6"/>
         ${pins}
         ${custom}
       </svg>
