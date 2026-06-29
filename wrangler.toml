@@ -1,0 +1,7 @@
+# Cloudflare Workers (Static Assets) — 静的サイトをそのまま配信する設定
+name = "my-apps"
+compatibility_date = "2025-06-01"
+
+# リポジトリのルートにある全ファイルを静的アセットとして配信する
+[assets]
+directory = "./"
