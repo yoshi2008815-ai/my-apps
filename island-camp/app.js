@@ -15,11 +15,18 @@ function project(lat, lng){
 const LS_KEY = 'island-camp/islands-v1';
 
 function loadIslands(){
+  let list;
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e){}
-  return deepClone(window.SEED_ISLANDS || []);
+    list = raw ? JSON.parse(raw) : null;
+  } catch(e){ list = null; }
+  if (!list) return deepClone(window.SEED_ISLANDS || []);
+  // 保存済みデータに無い「シードの島（新規ロスター等）」を補完（ユーザー編集は維持）
+  const have = new Set(list.map(i => i.id));
+  for (const seed of (window.SEED_ISLANDS || [])){
+    if (!have.has(seed.id)) list.push(deepClone(seed));
+  }
+  return list;
 }
 function saveIslands(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(STATE.islands)); }
@@ -60,29 +67,26 @@ const $ = sel => document.querySelector(sel);
 const svg = $('#map');
 const SVGNS = 'http://www.w3.org/2000/svg';
 
-/* ---------- 地図データ（実海岸線: geo.js / OpenStreetMap ODbL） ---------- */
+/* ---------- 地図データ（陸地は実海岸線: geo.js / OpenStreetMap ODbL） ---------- */
 const GEO = window.GEO || { islands:{}, land:{}, refs:{}, miyakeDetail:[], miyakeSpots:[] };
-const REF_NAMES = { okinawa:'沖縄本島', miyako:'宮古島', tanegashima:'種子島', tsushima:'対馬' };
+const REF_NAMES = { tsushima:'対馬' }; // 諸島ロスターに昇格した島は island 側で描く
+const PROMOTED_REFS = new Set(['tanegashima','miyako','okinawa']); // ref描画から除外
 
-// 島を重心まわりに拡大して視認性を確保（輪郭の形は実物のまま）
-function enlargeRing(ring, factor){
-  const n = ring.length; let clat=0, clng=0;
-  for(const p of ring){ clat+=p[0]; clng+=p[1]; }
-  clat/=n; clng/=n;
-  return ring.map(p => [clat+(p[0]-clat)*factor, clng+(p[1]-clng)*factor]);
-}
-// 緯度方向の広がりを基準に、小島ほど大きく拡大（大きい島は実寸維持）
-const TARGET_SPAN = 0.17, FACTOR_CAP = 7;
-function islandFactor(ring){
-  let mn=Infinity, mx=-Infinity;
-  for(const p of ring){ if(p[0]<mn)mn=p[0]; if(p[0]>mx)mx=p[0]; }
-  const span = (mx-mn) || 0.01;
-  return Math.max(1, Math.min(FACTOR_CAP, TARGET_SPAN/span));
-}
-// 訪問島の形状（実海岸線を視認性のため拡大）。[lat,lng] の配列。
-const ISLAND_SHAPE_DATA = {};
-for(const [id, ring] of Object.entries(GEO.islands)){
-  ISLAND_SHAPE_DATA[id] = enlargeRing(ring, islandFactor(ring));
+/* ---------- 島の見た目（可愛い立体イラスト） ---------- */
+// kind: 火山(cone) / 丸い丘(dome) / 平らな隆起サンゴ＋ヤシ(flat) / ふたこぶ(twin) / 深い森(forest)
+const ISLAND_KIND = {
+  'izu-oshima':'cone','toshima':'cone','niijima':'dome','shikinejima':'flat',
+  'kozushima':'dome','miyakejima':'cone','mikurajima':'dome','hachijojima':'twin','aogashima':'cone',
+  'yakushima':'forest','tanegashima':'flat','amami-oshima':'forest','kikaijima':'flat','tokunoshima':'dome',
+  'okinoerabu':'flat','yoron':'flat','okinawa-hontou':'dome','miyako':'flat','kumejima':'dome',
+  'ishigaki':'dome','iriomote':'forest','yonaguni':'dome','hateruma':'flat'
+};
+function islandKind(is){ return ISLAND_KIND[is.id] || 'dome'; }
+// 島の基本サイズ（viewBox単位・画面固定）。訪問が多いほど大きく、未訪問は小さめ。
+function islandRadius(is){
+  const v = is.visits||0;
+  if(!v) return 11;
+  return 13 + Math.min(10, v*0.7);
 }
 
 /* ---------- 描画ユーティリティ ---------- */
@@ -101,8 +105,9 @@ function drawBase(){
   // グリッド（薄く）
   for(let lat=24;lat<=46;lat+=2){const y=project(lat,0).y; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}">`+'</line>';}
   for(let lng=124;lng<=144;lng+=4){const x=project(0,lng).x; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}">`+'</line>';}
-  // 参考地形（沖縄本島・宮古島・種子島・対馬：実海岸線。位置の手がかりに薄く）
+  // 参考地形（対馬のみ：実海岸線。位置の手がかりに薄く。他は島イラストで描く）
   for(const [key, rings] of Object.entries(GEO.refs)){
+    if (PROMOTED_REFS.has(key)) continue;
     for(const ring of rings){
       g+=`<polygon points="${polyPoints(ring)}" fill="#e4e0d4" stroke="#c0bab0" stroke-width="1" stroke-linejoin="round"/>`;
     }
@@ -125,57 +130,129 @@ function drawBase(){
   return g;
 }
 
-function drawIslandShapes(){
-  // scale < 2のとき形状は描かずドットに任せる（密集した伊豆諸島の重なりを防ぐ）
-  const useShapes = STATE.view.scale >= 2;
-  return STATE.islands.map(is => {
-    const coords = ISLAND_SHAPE_DATA[is.id];
-    if (!coords || !useShapes) return '';
-    const active = is.id === STATE.activeId;
-    const fill   = active ? '#9ec4e0' : is.fav ? '#e0d07a' : '#bdd4a6';
-    const stroke = active ? '#1e6eb8' : is.fav ? '#a09640' : '#7a9e70';
-    const sw     = active ? 2.5 : 1.2;
-    const c = centroid(coords);
-    // グループscaleとviewBox表示倍率の両方を逆補正して画面上の文字サイズを一定に保つ
-    // 目標: 12px CSS視覚サイズ = target / (group_scale × svgH/VH)
-    const k = STATE.view.scale * (STATE.vScale || 0.73);
-    const fs = +(12 / k).toFixed(2);
-    const visitFs = +(10 / k).toFixed(2);
-    const visits = is.visits ? `<text x="${c.x.toFixed(1)}" y="${(c.y + 14/k).toFixed(1)}" text-anchor="middle" fill="${active?'#14508a':is.fav?'#706010':'#3a6a30'}" font-size="${visitFs}" font-weight="800" opacity=".9">${is.visits}回</text>` : '';
-    const favMark = is.fav ? `<text x="${c.x.toFixed(1)}" y="${(c.y - 15/k).toFixed(1)}" text-anchor="middle" font-size="${+(13/k).toFixed(2)}">★</text>` : '';
-    return `<g class="isle-shape${active?' active':''}" data-id="${is.id}">
-      <polygon class="isle-body" points="${polyPoints(coords)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw/STATE.view.scale}" stroke-linejoin="round"/>
-      <text class="isle-lbl" x="${c.x.toFixed(1)}" y="${c.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}">${esc(is.name)}</text>
-      ${visits}${favMark}
-    </g>`;
-  }).join('');
+/* ---------- 島の描画（画面固定サイズ＋ズームで横顔に立ち上がる） ---------- */
+// 0 = 真上から、1 = 横から。ズームするほど横顔に。
+function standUp(){ return Math.max(0, Math.min(1, (STATE.view.scale - 1) / 2.2)); }
+// 島の中心を画面（viewBox）座標へ。陸地グループと同じ tx + px*scale。
+function islandScreen(is){
+  const p = project(is.lat, is.lng);
+  return { x: STATE.view.tx + p.x*STATE.view.scale, y: STATE.view.ty + p.y*STATE.view.scale };
 }
-
-function drawDotPins(){
-  // シェイプがある島はscale<2のときのみドット表示。シェイプのない島は常にドット
-  return STATE.islands.map(is => {
-    const hasShape = !!ISLAND_SHAPE_DATA[is.id];
-    if (hasShape && STATE.view.scale >= 2) return ''; // 形状表示中はドット不要
-    const p = project(is.lat, is.lng);
-    const active = is.id === STATE.activeId;
-    const fill   = is.fav ? '#d8c870' : '#e06040';
-    return `<g class="pin${is.fav?' fav':''}${active?' active':''}" data-id="${is.id}" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})">
-      ${active ? `<circle class="ring" r="16" fill="none" stroke="#2a7ec8" stroke-width="2" opacity=".8"/>` : ''}
-      <circle class="dot" r="${active?10:8}" fill="${fill}" stroke="#fff" stroke-width="1.5"/>
-      <text y="3" text-anchor="middle" fill="#fff" font-size="8" font-weight="800" pointer-events="none">${is.visits||''}</text>
-      <text x="12" y="4" fill="#2a2520" font-size="11" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="3px" pointer-events="none">${esc(is.name)}</text>
-    </g>`;
-  }).join('');
+function drawIslands(){
+  const t = standUp();
+  // 南（緯度小）の島ほど手前＝後に描画して、立ち上がり時に手前が前面へ（重なり対策）
+  const order = [...STATE.islands].sort((a,b) => b.lat - a.lat);
+  return order.map(is => islandGlyph(is, t)).join('');
+}
+function islandGlyph(is, t){
+  const { x:sx, y:sy } = islandScreen(is);
+  if (sx < -80 || sx > VW+80 || sy < -80 || sy > VH+140) return ''; // 画面外は省略
+  const active  = is.id === STATE.activeId;
+  const visited = (is.visits||0) > 0;
+  const r  = islandRadius(is) * (active ? 1.12 : 1);
+  const op = visited ? 1 : 0.5;                       // 未訪問は薄く
+  const sand  = is.fav ? '#f3d98a' : visited ? '#efe0b0' : '#dcd8c8';
+  const grass = active ? '#7fc97a' : is.fav ? '#8ec862' : visited ? '#74b65c' : '#a6bd9f';
+  const grassD= active ? '#3f8e47' : visited ? '#4f9a44' : '#7e9579';
+  const H  = r * (0.55 + 1.30*t);                    // 立ち上がり高さ
+  const ry = r * (0.52 - 0.20*t);                    // 海面楕円の縦（立つほど薄く）
+  const shadow = `<ellipse cx="${sx}" cy="${(sy+ry*0.55).toFixed(1)}" rx="${(r*1.06).toFixed(1)}" ry="${(ry*0.7).toFixed(1)}" fill="rgba(20,40,60,.16)"/>`;
+  const beach  = `<ellipse cx="${sx}" cy="${sy}" rx="${r.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${sand}" stroke="#d9c587" stroke-width="1"/>`;
+  const land   = landShape(is, sx, sy, r, H, grass, grassD);
+  const ring   = active ? `<ellipse cx="${sx}" cy="${sy}" rx="${(r+5).toFixed(1)}" ry="${(ry+3).toFixed(1)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
+  const showLabel = STATE.view.scale >= 1.45 || is.fav || active;
+  const ly = +(sy + ry + 12).toFixed(1);
+  const fav = is.fav ? `<text x="${sx}" y="${(sy - H - 6).toFixed(1)}" text-anchor="middle" font-size="13">★</text>` : '';
+  const visitsB = (visited && showLabel) ? `<text x="${sx}" y="${(ly+12).toFixed(1)}" text-anchor="middle" fill="#3a6a30" font-size="9.5" font-weight="800">${is.visits}回</text>` : '';
+  const label = showLabel ? `<text class="isle-lbl" x="${sx}" y="${ly}" text-anchor="middle" font-size="11.5" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
+  return `<g class="isle${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}" style="opacity:${op}">${shadow}${beach}${land}${ring}${fav}${label}</g>`;
+}
+// 種類ごとの陸地シルエット。sx,sy=海面中心、Hだけ上へ立ち上がる。
+function landShape(is, sx, sy, r, H, grass, grassD){
+  const kind = islandKind(is);
+  const w = r*0.84, peak = sy - H;
+  const fillPath = (d, f) => `<path d="${d}" fill="${f}" stroke="${grassD}" stroke-width="0.8" stroke-linejoin="round"/>`;
+  const n = v => (+v).toFixed(1);
+  if (kind === 'cone' || kind === 'forest'){
+    const body  = `M ${n(sx-w)} ${n(sy)} Q ${n(sx-w*0.55)} ${n(sy-H*0.5)} ${n(sx)} ${n(peak)} Q ${n(sx+w*0.55)} ${n(sy-H*0.5)} ${n(sx+w)} ${n(sy)} Z`;
+    const shade = `M ${n(sx)} ${n(peak)} Q ${n(sx+w*0.55)} ${n(sy-H*0.5)} ${n(sx+w)} ${n(sy)} L ${n(sx)} ${n(sy)} Z`;
+    let extra = '';
+    if (kind === 'cone'){ // 火口のくぼみ
+      extra = `<path d="M ${n(sx-w*0.2)} ${n(peak+2)} Q ${n(sx)} ${n(peak+6)} ${n(sx+w*0.2)} ${n(peak+2)}" fill="none" stroke="${grassD}" stroke-width="1"/>`;
+    } else { // 森のもこもこ
+      extra = `<circle cx="${n(sx-w*0.3)}" cy="${n(peak+H*0.3)}" r="${n(r*0.17)}" fill="${grassD}" opacity=".55"/><circle cx="${n(sx+w*0.26)}" cy="${n(peak+H*0.2)}" r="${n(r*0.19)}" fill="${grassD}" opacity=".55"/>`;
+    }
+    return fillPath(body, grass) + `<path d="${shade}" fill="rgba(0,40,10,.12)"/>` + extra;
+  }
+  if (kind === 'twin'){ // ふたこぶ（八丈島）
+    const h2 = H*0.8, w2 = w*0.6;
+    const right = `M ${n(sx-w*0.05)} ${n(sy)} Q ${n(sx+w*0.45)} ${n(sy-H)} ${n(sx+w)} ${n(sy)} Z`;
+    const left  = `M ${n(sx-w)} ${n(sy)} Q ${n(sx-w*0.55)} ${n(sy-h2)} ${n(sx-w*0.1)} ${n(sy)} Z`;
+    return fillPath(right, grass) + fillPath(left, grass) +
+      `<path d="${right}" fill="rgba(0,40,10,.10)"/>`;
+  }
+  if (kind === 'flat'){ // 平らな隆起サンゴ＋ヤシ
+    const fh = H*0.45, pw = w, cr = r*0.16;
+    const body = `M ${n(sx-pw)} ${n(sy)} L ${n(sx-pw)} ${n(sy-fh+cr)} Q ${n(sx-pw)} ${n(sy-fh)} ${n(sx-pw+cr)} ${n(sy-fh)} L ${n(sx+pw-cr)} ${n(sy-fh)} Q ${n(sx+pw)} ${n(sy-fh)} ${n(sx+pw)} ${n(sy-fh+cr)} L ${n(sx+pw)} ${n(sy)} Z`;
+    const px = sx+w*0.15, py = sy-fh, th = H*0.75;
+    const palm = `<path d="M ${n(px)} ${n(py)} q ${n(r*0.06)} ${n(-th*0.6)} 0 ${n(-th)}" stroke="#9a7b4f" stroke-width="1.4" fill="none"/>`+
+      `<g fill="#5fae54" stroke="${grassD}" stroke-width="0.4">`+
+      `<ellipse cx="${n(px-r*0.2)}" cy="${n(py-th)}" rx="${n(r*0.24)}" ry="${n(r*0.09)}" transform="rotate(-20 ${n(px-r*0.2)} ${n(py-th)})"/>`+
+      `<ellipse cx="${n(px+r*0.2)}" cy="${n(py-th)}" rx="${n(r*0.24)}" ry="${n(r*0.09)}" transform="rotate(20 ${n(px+r*0.2)} ${n(py-th)})"/>`+
+      `<ellipse cx="${n(px)}" cy="${n(py-th-r*0.08)}" rx="${n(r*0.09)}" ry="${n(r*0.24)}"/></g>`;
+    return fillPath(body, grass) + palm;
+  }
+  // dome（丸い丘・既定）
+  const body  = `M ${n(sx-w)} ${n(sy)} Q ${n(sx)} ${n(sy-H*1.5)} ${n(sx+w)} ${n(sy)} Z`;
+  const shade = `M ${n(sx)} ${n(sy-H*1.12)} Q ${n(sx+w*0.7)} ${n(sy-H*0.5)} ${n(sx+w)} ${n(sy)} L ${n(sx)} ${n(sy)} Z`;
+  return fillPath(body, grass) + `<path d="${shade}" fill="rgba(0,40,10,.10)"/>`;
 }
 
 function renderMap(){
   const { scale, tx, ty } = STATE.view;
-  // viewBox/viewport比率をキャッシュ（drawIslandShapes内で使用）
   const svgH = svg.getBoundingClientRect().height;
   STATE.vScale = svgH > 0 ? svgH / VH : 0.73;
-  svg.innerHTML = `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}${drawIslandShapes()}${drawDotPins()}</g>`;
-  svg.querySelectorAll('.isle-shape, .pin').forEach(el => {
+  // 陸地は拡大グループ内、島イラストは画面固定サイズで上に重ねる
+  svg.innerHTML =
+    `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}</g>` +
+    `<g class="isles">${drawIslands()}</g>`;
+  svg.querySelectorAll('.isle').forEach(el => {
     el.addEventListener('click', ev => { ev.stopPropagation(); openIsland(el.dataset.id); });
+  });
+}
+
+/* ---------- 左ペイン：年次別インデックス ---------- */
+function idxItemHTML(is){
+  const active  = is.id === STATE.activeId;
+  const visited = (is.visits||0) > 0;
+  const ic = is.fav ? '★' : (visited ? '🏝' : '○');
+  return `<button class="idx-item${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}">
+    <span class="ic">${ic}</span><span class="nm">${esc(is.name)}</span>
+    <span class="vc">${visited ? is.visits+'回' : '未訪問'}</span>
+  </button>`;
+}
+function renderIndexPanel(){
+  const body = $('#idxBody');
+  if (!body) return;
+  const withYear = STATE.islands.filter(i => i.firstVisit);
+  const noYear   = STATE.islands.filter(i => !i.firstVisit);
+  const years = [...new Set(withYear.map(i => i.firstVisit))].sort((a,b) => +a - +b);
+  let html = '';
+  for (const y of years){
+    const items = withYear.filter(i => i.firstVisit === y);
+    html += `<div class="idx-year"><div class="idx-year-h"><span class="y">${esc(y)}年</span><span class="n">${items.length}島</span></div>
+      <div class="idx-list">${items.map(idxItemHTML).join('')}</div></div>`;
+  }
+  if (noYear.length){
+    html += `<div class="idx-year"><div class="idx-year-h"><span class="y">🗺 まだ行ったことのない島</span><span class="n">${noYear.length}島</span></div>
+      <div class="idx-list">${noYear.map(idxItemHTML).join('')}</div></div>`;
+  }
+  body.innerHTML = html;
+  body.querySelectorAll('.idx-item').forEach(el => {
+    el.addEventListener('click', () => {
+      openIsland(el.dataset.id);
+      if (window.matchMedia('(max-width:760px)').matches) $('#idxPanel').classList.remove('open');
+    });
   });
 }
 
@@ -186,6 +263,7 @@ async function openIsland(id){
   const is = islandById(id);
   if (!is) return;
   STATE.activeId = id;
+  renderIndexPanel();
   $('#hint').classList.add('hidden');
   $('#pBadge').textContent = is.region + ' / ' + is.pref;
   $('#pTitle').textContent = is.name;
@@ -341,7 +419,7 @@ function addIsland(){
       lat:+v.lat, lng:+v.lng, firstVisit:String(new Date().getFullYear()), visits:1, fav:false,
       summary:v.summary||'', photos:[], shops:[], knowledge:[], tips:[], logs:[]
     });
-    saveIslands(); renderMap(); openIsland(id); toast('島を追加しました');
+    saveIslands(); renderMap(); renderIndexPanel(); openIsland(id); toast('島を追加しました');
   });
 }
 
@@ -417,7 +495,7 @@ function touchDist(e){ const a=e.touches[0],b=e.touches[1]; return Math.hypot(a.
 /* ---------- お気に入りトグル ---------- */
 $('#pFav').addEventListener('click', () => {
   const is = islandById(STATE.activeId); if(!is) return;
-  is.fav = !is.fav; saveIslands(); openIsland(is.id);
+  is.fav = !is.fav; saveIslands(); renderIndexPanel(); openIsland(is.id);
 });
 
 /* ---------- データ入出力 ---------- */
@@ -441,7 +519,7 @@ async function importData(file){
     STATE.islands = p.islands;
     saveIslands();
     if(p.photos){ for(const [k,durl] of Object.entries(p.photos)){ await PhotoDB.put(k, dataURLtoBlob(durl)); } }
-    renderMap(); $('#dataModal').classList.remove('open'); toast('読み込み完了');
+    renderMap(); renderIndexPanel(); $('#dataModal').classList.remove('open'); toast('読み込み完了');
   } catch(e){ toast('読み込みに失敗しました'); }
 }
 function blobToDataURL(blob){ return new Promise(res=>{const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob);}); }
@@ -461,9 +539,12 @@ $('#importFile').onchange = e => e.target.files[0] && importData(e.target.files[
 $('#resetBtn').onclick = () => {
   if(confirm('追加・編集した内容をすべて消して初期データに戻します。よろしいですか？')){
     localStorage.removeItem(LS_KEY); STATE.islands = deepClone(window.SEED_ISLANDS);
-    saveIslands(); $('#dataModal').classList.remove('open'); $('#panel').classList.remove('open'); renderMap(); toast('初期データに戻しました');
+    saveIslands(); $('#dataModal').classList.remove('open'); $('#panel').classList.remove('open');
+    renderMap(); renderIndexPanel(); toast('初期データに戻しました');
   }
 };
+$('#idxBtn').onclick = () => $('#idxPanel').classList.toggle('open');
+$('#idxClose').onclick = () => $('#idxPanel').classList.remove('open');
 $('#dataModal').addEventListener('click', e => { if(e.target.id==='dataModal') e.currentTarget.classList.remove('open'); });
 $('#formModal').addEventListener('click', e => { if(e.target.id==='formModal') e.currentTarget.classList.remove('open'); });
 
@@ -474,3 +555,4 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 
 /* ---------- 起動 ---------- */
 renderMap();
+renderIndexPanel();

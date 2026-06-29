@@ -234,5 +234,64 @@ window.SEED_ISLANDS = [
     firstVisit: "2018", visits: 1, fav: false,
     summary: "闘牛とトライアスロンの島。世界自然遺産。2018年訪問。",
     photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+
+  // ===== 主要島ロスター（未訪問。各諸島を正確に網羅。薄く表示） =====
+  // ---- 伊豆諸島（東京都）----
+  {
+    id: "aogashima", name: "青ヶ島", region: "伊豆諸島", pref: "東京都",
+    lat: 32.457, lng: 139.766, firstVisit: "", visits: 0, fav: false,
+    summary: "二重カルデラの絶海の孤島。日本一人口の少ない村。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  // ---- 鹿児島の島 ----
+  {
+    id: "tanegashima", name: "種子島", region: "鹿児島の島", pref: "鹿児島県",
+    lat: 30.60, lng: 130.95, firstVisit: "", visits: 0, fav: false,
+    summary: "鉄砲伝来とロケット発射場。南北に長い平らな島。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "okinoerabu", name: "沖永良部島", region: "鹿児島の島", pref: "鹿児島県",
+    lat: 27.37, lng: 128.57, firstVisit: "", visits: 0, fav: false,
+    summary: "隆起サンゴ礁の花の島。鍾乳洞とケイビング。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "yoron", name: "与論島", region: "鹿児島の島", pref: "鹿児島県",
+    lat: 27.04, lng: 128.42, firstVisit: "", visits: 0, fav: false,
+    summary: "百合ヶ浜の白砂。鹿児島最南端、沖縄のすぐ北。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  // ---- 沖縄の島 ----
+  {
+    id: "okinawa-hontou", name: "沖縄本島", region: "沖縄の島", pref: "沖縄県",
+    lat: 26.50, lng: 127.95, firstVisit: "", visits: 0, fav: false,
+    summary: "沖縄の中心。首里城と美ら海。離島めぐりの拠点。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "miyako", name: "宮古島", region: "沖縄の島", pref: "沖縄県",
+    lat: 24.79, lng: 125.30, firstVisit: "", visits: 0, fav: false,
+    summary: "宮古ブルーの海と前浜ビーチ。橋でつながる離島群。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "kumejima", name: "久米島", region: "沖縄の島", pref: "沖縄県",
+    lat: 26.35, lng: 126.80, firstVisit: "", visits: 0, fav: false,
+    summary: "はての浜の砂州と久米島紬。琉球一の美しさと讃えられた島。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "yonaguni", name: "与那国島", region: "沖縄の島", pref: "沖縄県",
+    lat: 24.46, lng: 123.00, firstVisit: "", visits: 0, fav: false,
+    summary: "日本最西端。海底遺跡とDr.コトー診療所のロケ地。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
+  },
+  {
+    id: "hateruma", name: "波照間島", region: "沖縄の島", pref: "沖縄県",
+    lat: 24.06, lng: 123.78, firstVisit: "", visits: 0, fav: false,
+    summary: "日本最南端の有人島。南十字星とニシ浜の青。",
+    photos: [], shops: [], knowledge: [], tips: [], logs: []
   }
 ];

@@ -33,9 +33,17 @@
     transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:30;
   }
   .panel.open{transform:translateX(0)}
+  /* 左ペイン：年次別インデックス */
+  .idxpanel{
+    width:300px; max-width:82vw; background:var(--panel); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; transform:translateX(-100%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:31;
+  }
+  .idxpanel.open{transform:translateX(0)}
   @media (max-width:760px){
     .app{flex-direction:column}
     .panel{position:fixed; top:0; right:0; height:100dvh; height:100vh; box-shadow:-8px 0 40px rgba(0,0,0,.5)}
+    .idxpanel{position:fixed; top:0; left:0; height:100dvh; height:100vh; box-shadow:8px 0 40px rgba(0,0,0,.5)}
   }
   /* ===== ヘッダー ===== */
   .topbar{
@@ -59,14 +67,14 @@
   /* ===== 地図 ===== */
   svg.map{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
   svg.map.dragging{cursor:grabbing}
-  /* 島シェイプ */
-  .isle-shape{cursor:pointer; transition:opacity .15s}
-  .isle-shape:hover .isle-body{filter:brightness(0.92)}
-  .isle-shape.active .isle-body{stroke:#2a7ec8; stroke-width:3}
-  .isle-shape .isle-lbl{
-    font-weight:700; fill:var(--map-text);
-    paint-order:stroke; stroke:#fff; stroke-width:3px; pointer-events:none;
+  /* 島イラスト（ぷっくり立体） */
+  .isles{pointer-events:none}
+  .isle{cursor:pointer; pointer-events:auto; transition:opacity .2s}
+  .isle:hover{filter:brightness(1.05) drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+  .isle .isle-lbl{
+    fill:var(--map-text); paint-order:stroke; stroke:#fff; stroke-width:3px; pointer-events:none;
   }
+  .isle.unseen .isle-lbl{fill:#5d6f65}
   /* ドット型ピン（シェイプデータのない島） */
   .pin{cursor:pointer}
   .pin .dot{fill:var(--pin); stroke:#fff; stroke-width:2; transition:r .15s}
@@ -215,12 +223,44 @@
   .myk-bus-t span{font-size:.82rem; background:var(--bg); border:1px solid var(--line); color:var(--accent);
     font-weight:700; padding:5px 10px; border-radius:8px; font-variant-numeric:tabular-nums}
   .myk-phones{display:flex; flex-direction:column}
+
+  /* ===== 左ペイン：年次別インデックス ===== */
+  .idx-head{padding:16px 16px 10px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
+  .idx-head h2{margin:0; font-size:1rem; flex:1}
+  .idx-body{flex:1; overflow-y:auto; padding:6px 12px 24px}
+  .idx-year{margin-top:18px}
+  .idx-year:first-child{margin-top:10px}
+  .idx-year-h{display:flex; align-items:baseline; gap:8px; margin:0 2px 8px; color:var(--accent2)}
+  .idx-year-h .y{font-size:1.1rem; font-weight:800}
+  .idx-year-h .n{font-size:.72rem; color:var(--sub)}
+  .idx-year-h::after{content:''; flex:1; height:1px; background:var(--line); margin-left:4px}
+  .idx-list{display:flex; flex-direction:column; gap:6px}
+  .idx-item{display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:10px; padding:9px 10px; cursor:pointer; text-align:left; font-size:.84rem; color:var(--ink);
+    width:100%; font-family:inherit}
+  .idx-item:hover{border-color:var(--accent2)}
+  .idx-item.active{border-color:var(--accent); background:#1c3f4d}
+  .idx-item .ic{font-size:1rem; flex:none}
+  .idx-item .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .idx-item .vc{font-size:.7rem; color:var(--sub); flex:none}
+  .idx-item.unseen{opacity:.6}
+  .idx-item.unseen .nm{color:var(--sub)}
 </style>
 </head>
 <body>
 <div class="app">
+  <!-- 左ペイン：年次別インデックス -->
+  <aside class="idxpanel" id="idxPanel">
+    <div class="idx-head">
+      <h2>📅 島めぐりインデックス</h2>
+      <button class="btn ghost" id="idxClose">✕</button>
+    </div>
+    <div class="idx-body" id="idxBody"></div>
+  </aside>
+
   <div class="mapwrap">
     <div class="topbar">
+      <button class="btn ghost" id="idxBtn" title="年次インデックス">📅 一覧</button>
       <div class="title">
         <h1>🏝 島キャンプ思い出マップ</h1>
         <p>20年分の島旅を地図でふりかえる</p>
