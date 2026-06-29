@@ -3,75 +3,380 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>今日のおみくじ</title>
+  <title>IORINガチャ占い</title>
   <style>
-    * { box-sizing: border-box; margin: 0; }
+    * { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
     body {
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(160deg, #fef3c7, #fde68a);
-      color: #422006;
-      padding: 24px;
+      font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", system-ui, sans-serif;
+      background: linear-gradient(170deg, #ffe9f3 0%, #fff6ea 60%, #eafaff 100%);
+      color: #5a3d4a; padding: 14px;
     }
-    .card {
-      background: #fff;
-      border-radius: 20px;
-      padding: 40px 28px;
-      width: 100%;
-      max-width: 360px;
-      text-align: center;
-      box-shadow: 0 8px 30px rgba(120, 80, 0, .15);
+    h1 { font-size: 1.35rem; text-align: center; color: #e8629a; }
+    .lead { text-align: center; font-size: .82rem; color: #b98aa2; margin: 2px 0 12px; }
+    .date { text-align: center; font-size: .82rem; color: #b98aa2; margin-bottom: 10px; }
+
+    .wrap { display: flex; gap: 14px; max-width: 740px; margin: 0 auto; align-items: flex-start; }
+
+    /* 左ペイン：タイプえらび */
+    .side { width: 158px; flex: 0 0 158px; background: #fff; border-radius: 16px; padding: 12px 10px; box-shadow: 0 4px 16px rgba(232,98,154,.12); }
+    .side h2 { font-size: .82rem; color: #e8629a; margin-bottom: 8px; text-align: center; }
+    .list { display: flex; flex-direction: column; gap: 6px; }
+    .type-btn { width: 100%; text-align: left; padding: 8px 10px; border-radius: 10px; border: 2px solid #ffe0ec; background: #fff7fb; font-size: .9rem; font-weight: 700; color: #c25a85; cursor: pointer; font-family: inherit; }
+    .type-btn.sel { background: linear-gradient(135deg,#ff8fc0,#ff6aa6); color: #fff; border-color: #ff6aa6; }
+
+    /* メイン */
+    .main { flex: 1; min-width: 0; text-align: center; }
+
+    .stage { position: relative; display: flex; align-items: flex-end; justify-content: center; gap: 2px; margin: 4px 0; }
+    .iorin { width: 124px; flex: 0 0 auto; transform-origin: bottom center; }
+    .iorin.active { animation: bob .32s ease-in-out 5; }
+    @keyframes bob { 50% { transform: translateY(-7px) rotate(-2deg); } }
+    .machine { width: 138px; flex: 0 0 auto; }
+    .machine.shake { animation: shake .25s linear 6; }
+    @keyframes shake { 20% { transform: translateX(-4px) rotate(-1.5deg); } 40% { transform: translateX(4px) rotate(1.5deg); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+    .handle { transform-box: fill-box; transform-origin: center; }
+    .handle.spinning { animation: spin 1.3s cubic-bezier(.25,.1,.2,1); }
+    @keyframes spin { to { transform: rotate(1260deg); } }
+
+    .bubble { position: relative; background: #fff; border: 3px solid #ffd0e4; border-radius: 18px; padding: 12px 14px; font-size: .98rem; font-weight: 700; color: #e8629a; margin: 4px auto 12px; min-height: 44px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 0 #ffe0ec; }
+    .bubble::after { content: ""; position: absolute; bottom: -13px; left: 30px; border: 7px solid transparent; border-top-color: #ffd0e4; }
+
+    .intro { background: #fff; border-radius: 16px; padding: 14px; margin-bottom: 12px; box-shadow: 0 4px 14px rgba(232,98,154,.12); display: none; }
+    .intro.show { display: block; animation: pop .4s ease; }
+    .intro .ttl { font-size: 1.15rem; font-weight: 800; margin-bottom: 6px; }
+    .intro .body { font-size: .98rem; line-height: 1.7; color: #6b4a58; }
+
+    .result { min-height: 60px; display: flex; align-items: center; justify-content: center; }
+    .hint { color: #c79ab0; font-size: .95rem; padding: 14px; }
+
+    .capsule { width: 92px; height: 92px; position: relative; }
+    .capsule.dropping { animation: drop .8s cubic-bezier(.3,.6,.4,1); }
+    @keyframes drop { 0%{transform:translateY(-120px) scale(.5);opacity:0} 55%{transform:translateY(8px) scale(1);opacity:1} 72%{transform:translateY(-12px)} 86%{transform:translateY(5px)} 100%{transform:translateY(0)} }
+    .capsule.shaking { animation: capshake .5s ease-in-out; }
+    @keyframes capshake { 20%{transform:rotate(-10deg)} 40%{transform:rotate(10deg)} 60%{transform:rotate(-7deg)} 80%{transform:rotate(5deg)} }
+    .cap-half { position: absolute; left: 0; width: 92px; height: 46px; overflow: hidden; }
+    .cap-top { top: 0; } .cap-bot { bottom: 0; }
+    .ball { width: 92px; height: 92px; position: absolute; left: 0; }
+    .cap-top .ball { border-radius: 92px 92px 0 0; }
+    .cap-bot .ball { border-radius: 0 0 92px 92px; background: #fff !important; bottom: 0; }
+    .cap-seam { position: absolute; top: 43px; left: 0; width: 92px; height: 6px; background: rgba(0,0,0,.12); border-radius: 3px; }
+    .cap-shine { position: absolute; top: 15px; left: 19px; width: 20px; height: 13px; background: rgba(255,255,255,.7); border-radius: 50%; transform: rotate(-20deg); }
+    .capsule.opening .cap-top { transform: translateY(-44px) rotate(-14deg); opacity: 0; transition: .45s ease; }
+    .capsule.opening .cap-bot { transform: translateY(44px) rotate(12deg); opacity: 0; transition: .45s ease; }
+
+    .card { background: #fff; border-radius: 20px; padding: 18px 16px; box-shadow: 0 8px 24px rgba(232,98,154,.18); animation: pop .45s cubic-bezier(.2,1.35,.5,1); width: 100%; }
+    @keyframes pop { from { transform: scale(.7); opacity: 0; } }
+    .r-emoji { font-size: 2.6rem; line-height: 1; }
+    .r-name { font-size: 1.3rem; font-weight: 800; margin: 4px 0; }
+    .stars { font-size: 1.25rem; letter-spacing: 2px; margin-bottom: 10px; color: #f5a623; }
+    .lucky { display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .lucky span { background: #eafaff; color: #3aa0c4; font-size: .85rem; font-weight: 700; padding: 6px 12px; border-radius: 999px; }
+    .block { border-radius: 14px; padding: 12px; margin-bottom: 10px; text-align: left; line-height: 1.6; }
+    .block .lbl { display: block; font-size: .74rem; font-weight: 800; margin-bottom: 4px; }
+    .proverb { background: #f1f7e8; color: #5a7a2a; }
+    .proverb .lbl { color: #7fa83a; }
+    .proverb b { font-size: 1.05rem; }
+    .proverb small { color: #88996a; }
+    .english { background: #eaf3ff; color: #3a6ea5; font-weight: 700; }
+    .english .lbl { color: #5a8fce; }
+    .english .en { font-size: 1.05rem; }
+    .care { background: linear-gradient(135deg,#fff0c4,#ffe1ec); color: #d87a2a; font-weight: 700; }
+    .care .lbl { color: #c79a6a; }
+
+    button.go { margin-top: 6px; font-size: 1.12rem; font-weight: 800; padding: 14px 0; width: 100%; border: none; border-radius: 999px; background: linear-gradient(135deg,#ff8fc0,#ff6aa6); color: #fff; cursor: pointer; box-shadow: 0 5px 0 #e8508f; }
+    button.go:active { transform: translateY(3px); box-shadow: 0 2px 0 #e8508f; }
+    button.go:disabled { opacity: .5; box-shadow: 0 5px 0 #e8508f; cursor: default; }
+
+    .sound-toggle {
+      position: absolute; top: 14px; right: 14px;
+      width: 40px; height: 40px; border-radius: 50%; border: 2px solid #ffd0e4;
+      background: #fff; font-size: 1.2rem; cursor: pointer; line-height: 1;
     }
-    h1 { font-size: 1.3rem; margin-bottom: 4px; }
-    .sub { color: #92722a; font-size: .85rem; margin-bottom: 28px; }
-    .result { min-height: 120px; display: grid; place-items: center; }
-    .fortune { font-size: 2.6rem; font-weight: 800; margin-bottom: 8px; }
-    .message { font-size: .95rem; color: #555; line-height: 1.6; }
-    .placeholder { font-size: 3rem; opacity: .35; }
-    button {
-      margin-top: 28px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      padding: 0.9rem 2.4rem;
-      border: none;
-      border-radius: 999px;
-      background: #d97706;
-      color: #fff;
-      cursor: pointer;
+    .sound-toggle.off { opacity: .5; }
+
+    @media (max-width: 600px) {
+      .wrap { flex-direction: column; }
+      .side { width: 100%; flex: none; }
+      .list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .type-btn { text-align: center; font-size: .84rem; padding: 9px 6px; }
     }
-    button:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>🎴 今日のおみくじ</h1>
-    <p class="sub">ボタンを引いて運勢をたしかめよう</p>
+  <button class="sound-toggle" id="soundToggle" title="おとのON/OFF">🔊</button>
+  <h1>🔮 IORINガチャ占い</h1>
+  <div class="lead">① じぶんのタイプをえらぶ → ② 「占う」ボタンを押す</div>
+  <div class="date" id="date"></div>
 
-    <div class="result" id="result">
-      <div class="placeholder">？</div>
-    </div>
+  <div class="wrap">
+    <!-- 左ペイン -->
+    <aside class="side">
+      <h2>あなたのタイプは？</h2>
+      <div class="list" id="typeList"></div>
+    </aside>
 
-    <button id="draw">おみくじを引く</button>
+    <!-- メイン -->
+    <main class="main">
+      <div class="stage">
+        <svg class="iorin" id="iorin" viewBox="0 0 140 166" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="70" cy="72" rx="50" ry="48" fill="#ffe1ee"/>
+          <ellipse cx="70" cy="72" rx="50" ry="48" fill="none" stroke="#ffc4dd" stroke-width="3"/>
+          <path d="M44 158 Q70 108 96 158 Z" fill="#ffd98a"/>
+          <path d="M52 120 Q70 132 88 120 L88 128 Q70 140 52 128 Z" fill="#fff4d6"/>
+          <circle cx="70" cy="126" r="3" fill="#ffb84d"/>
+          <path d="M92 124 Q114 122 126 134" stroke="#ffe6d6" stroke-width="10" stroke-linecap="round" fill="none"/>
+          <circle cx="126" cy="134" r="6" fill="#ffe6d6"/>
+          <circle cx="70" cy="74" r="40" fill="#ffe6d6"/>
+          <path d="M32 70 Q30 34 70 32 Q110 34 108 70 Q104 52 92 50 Q96 60 88 60 Q86 50 78 50 Q80 60 72 60 Q70 50 62 51 Q64 61 56 60 Q56 50 48 52 Q40 54 32 70 Z" fill="#ff8fc0"/>
+          <path d="M68 33 Q66 18 78 16 Q90 16 86 27 Q83 20 76 23 Q72 27 74 33 Z" fill="#ff8fc0"/>
+          <circle cx="46" cy="84" r="9.5" fill="#ffadc4" opacity=".8"/>
+          <circle cx="94" cy="84" r="9.5" fill="#ffadc4" opacity=".8"/>
+          <circle cx="56" cy="78" r="10" fill="#fff"/>
+          <circle cx="84" cy="78" r="10" fill="#fff"/>
+          <circle cx="57" cy="79" r="7.5" fill="#5a3a44"/>
+          <circle cx="85" cy="79" r="7.5" fill="#5a3a44"/>
+          <circle cx="54" cy="76" r="3" fill="#fff"/>
+          <circle cx="82" cy="76" r="3" fill="#fff"/>
+          <circle cx="60" cy="82" r="1.6" fill="#fff" opacity=".8"/>
+          <circle cx="88" cy="82" r="1.6" fill="#fff" opacity=".8"/>
+          <path d="M64 94 Q70 101 76 94" stroke="#e06a90" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <ellipse cx="70" cy="96" rx="5" ry="3.5" fill="#ff7fa8"/>
+          <path d="M100 50 l11 -7 0 15 z" fill="#ff5a9e"/>
+          <path d="M120 50 l-11 -7 0 15 z" fill="#ff5a9e"/>
+          <circle cx="110" cy="50" r="4.5" fill="#ff7eb3"/>
+        </svg>
+        <svg class="machine" id="machine" viewBox="0 0 150 200" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="92" width="110" height="100" rx="14" fill="#ff7eb3"/>
+          <rect x="20" y="92" width="110" height="100" rx="14" fill="none" stroke="#e85d97" stroke-width="3"/>
+          <path d="M22 96 A53 53 0 0 1 128 96 Z" fill="#d8f3ff" opacity=".9"/>
+          <path d="M22 96 A53 53 0 0 1 128 96" fill="none" stroke="#9fdcf2" stroke-width="3"/>
+          <circle cx="55" cy="70" r="12" fill="#ffd24d"/>
+          <circle cx="82" cy="60" r="12" fill="#7ed0ff"/>
+          <circle cx="100" cy="78" r="11" fill="#ff8fae"/>
+          <circle cx="62" cy="86" r="10" fill="#a6e887"/>
+          <circle cx="40" cy="84" r="9" fill="#c79bff"/>
+          <rect x="55" y="150" width="40" height="26" rx="7" fill="#5a3d4a"/>
+          <g class="handle" id="handle">
+            <circle cx="75" cy="128" r="15" fill="#fff0c4"/>
+            <circle cx="75" cy="128" r="15" fill="none" stroke="#e8b84d" stroke-width="3"/>
+            <rect x="72" y="113" width="6" height="30" rx="3" fill="#e8b84d"/>
+            <circle cx="75" cy="128" r="4" fill="#e8b84d"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="bubble" id="bubble">まず、左から じぶんのタイプを えらんでね♪</div>
+
+      <div class="intro" id="intro">
+        <div class="ttl" id="introTtl"></div>
+        <div class="body" id="introBody"></div>
+      </div>
+
+      <div class="result" id="result">
+        <div class="hint">タイプをえらんで「占う」を押してね</div>
+      </div>
+
+      <button class="go" id="go" disabled>占う 🔮</button>
+    </main>
   </div>
 
   <script>
-    const fortunes = [
-      { name: "大吉", emoji: "🌟", msg: "最高の一日。思いきった挑戦が吉。" },
-      { name: "中吉", emoji: "✨", msg: "良い流れ。丁寧な準備が実を結ぶ。" },
-      { name: "小吉", emoji: "🍀", msg: "穏やかな運気。小さな親切が運を呼ぶ。" },
-      { name: "吉",   emoji: "🌿", msg: "平穏な一日。焦らずマイペースで。" },
-      { name: "末吉", emoji: "🌤", msg: "後半に運気上昇。あきらめずに。" },
-      { name: "凶",   emoji: "☁️", msg: "今日は守りの日。無理せず休もう。" },
+    const types = [
+      { name:"金の羅針盤", read:"きんのらしんばん", emoji:"🧭", you:"まじめで礼儀正しい、しっかり者タイプ。きちんと計画を立てると、力を発揮できるよ。" },
+      { name:"銀の羅針盤", read:"ぎんのらしんばん", emoji:"🧭", you:"上品でやさしい、努力家タイプ。こまったら人にたよると、もっと輝けるよ。" },
+      { name:"金のインディアン", read:"きんのいんでぃあん", emoji:"🪶", you:"好奇心いっぱいの、自由なタイプ。気になったことに、どんどん挑戦してみよう。" },
+      { name:"銀のインディアン", read:"ぎんのいんでぃあん", emoji:"🪶", you:"マイペースで、みんなの人気者タイプ。ひとりの時間で、元気をチャージできるよ。" },
+      { name:"金の鳳凰", read:"きんのほうおう", emoji:"🔥", you:"ひとつのことに集中できる、職人タイプ。コツコツ続けたことが、実を結ぶよ。" },
+      { name:"銀の鳳凰", read:"ぎんのほうおう", emoji:"🔥", you:"がまん強くて、しっかり者タイプ。これまでの努力が、ちゃんと認められるよ。" },
+      { name:"金の時計", read:"きんのとけい", emoji:"⏰", you:"面倒見がよくて、みんなの人気者タイプ。友だちが、しあわせを運んでくれるよ。" },
+      { name:"銀の時計", read:"ぎんのとけい", emoji:"⏰", you:"心がやさしい、がんばり屋タイプ。やさしくした分、ちゃんと返ってくるよ。" },
+      { name:"金のカメレオン", read:"きんのかめれおん", emoji:"🦎", you:"器用で、なんでもできるタイプ。新しいことを学ぶと、強い武器になるよ。" },
+      { name:"銀のカメレオン", read:"ぎんのかめれおん", emoji:"🦎", you:"慎重で、もの知りタイプ。迷ったら基本にもどると、うまくいくよ。" },
+      { name:"金のイルカ", read:"きんのいるか", emoji:"🐬", you:"負けず嫌いの、元気っ子タイプ。新しい挑戦が、運気をアップさせるよ。" },
+      { name:"銀のイルカ", read:"ぎんのいるか", emoji:"🐬", you:"おしゃれ大好きな、がんばり屋タイプ。自分にごほうびをあげると、元気が出るよ。" },
     ];
+    const colors = ["あか","あお","きいろ","みどり","ピンク","みずいろ","むらさき","オレンジ","しろ","きんいろ"];
+    const items  = ["ハンカチ","えんぴつ","シール","リボン","おまもり","ヘアゴム","けしゴム","すいとう","ぼうし","おりがみ"];
+    const proverbs = [
+      { t:"七転び八起き", r:"ななころびやおき", m:"何度しっぱいしても、あきらめずに立ち上がること。" },
+      { t:"ちりも積もれば山となる", r:"ちりもつもればやまとなる", m:"小さなことも、つづければ大きくなる。" },
+      { t:"石の上にも三年", r:"いしのうえにもさんねん", m:"がまん強くつづければ、いつかうまくいく。" },
+      { t:"善は急げ", r:"ぜんはいそげ", m:"いいと思ったことは、すぐにやろう。" },
+      { t:"早起きは三文の徳", r:"はやおきはさんもんのとく", m:"早く起きると、いいことがあるよ。" },
+      { t:"笑う門には福来る", r:"わらうかどにはふくきたる", m:"よく笑う人には、しあわせがやってくる。" },
+      { t:"千里の道も一歩から", r:"せんりのみちもいっぽから", m:"大きなことも、はじめの一歩から。" },
+      { t:"急がば回れ", r:"いそがばまわれ", m:"あせらず、たしかな方をえらぼう。" },
+      { t:"継続は力なり", r:"けいぞくはちからなり", m:"つづけることが、力になる。" },
+      { t:"失敗は成功のもと", r:"しっぱいはせいこうのもと", m:"しっぱいから学べば、せいこうにつながる。" },
+      { t:"好きこそ物の上手なれ", r:"すきこそもののじょうずなれ", m:"好きなことは、じょうずになりやすい。" },
+      { t:"花より団子", r:"はなよりだんご", m:"見た目より、なかみや役に立つほうが大事。" },
+    ];
+    const english = [
+      { en:"Good morning!", ja:"きょうもいい日になりますように☀️" },
+      { en:"You can do it!", ja:"きみなら できる！" },
+      { en:"Have a nice day!", ja:"すてきな一日を！" },
+      { en:"Smile, please!", ja:"えがおで いこう😊" },
+      { en:"Let's go to school!", ja:"いってらっしゃい！" },
+      { en:"Have fun today!", ja:"きょうも たのしんでね！" },
+      { en:"Be kind!", ja:"やさしく いこうね！" },
+      { en:"You are great!", ja:"きみは すごい！" },
+      { en:"Don't give up!", ja:"あきらめないで！" },
+      { en:"See you!", ja:"いってきます！" },
+      { en:"Take care!", ja:"きを つけてね！" },
+      { en:"Nice try!", ja:"よく がんばったね！" },
+    ];
+    const cares = [
+      "わすれものはない？ ランドセル、もう一度チェック！",
+      "宿題は ちゃんとやったかな？ えらいぞ〜♪",
+      "朝はねむいよね…でも、きょうもファイト！💪",
+      "ハンカチとティッシュ、もったかな？",
+      "すいとう、わすれてない？ のどかわくからね〜",
+      "朝ごはん、食べた？ 元気のもとだよ！🍙",
+      "うわばきや 給食セット、だいじょうぶ？",
+      "いってらっしゃい！ 車に気をつけてね♪",
+      "きょうも学校、がんばって えらいね！🌸",
+      "時間は だいじょうぶ？ あわてず いってらっしゃい！",
+      "空を見てみて。かさは いるかな〜？☂️",
+      "えがおで「おはよう」、言えるといいな♪",
+    ];
+    const capColors = ["#ffd24d","#7ed0ff","#ff8fae","#a6e887","#c79bff","#ffb060"];
+    const pick = a => a[Math.floor(Math.random() * a.length)];
 
-    const resultEl = document.getElementById("result");
-    document.getElementById("draw").addEventListener("click", () => {
-      const f = fortunes[Math.floor(Math.random() * fortunes.length)];
-      resultEl.innerHTML =
-        `<div><div class="fortune">${f.emoji} ${f.name}</div>` +
-        `<div class="message">${f.msg}</div></div>`;
+    // --- おんせい（読み上げ） ---
+    let soundOn = true;
+    const soundToggle = document.getElementById("soundToggle");
+    let jaVoice = null, enVoice = null;
+    function pickVoices() {
+      const vs = speechSynthesis.getVoices();
+      jaVoice = vs.find(v => v.lang === "ja-JP") || vs.find(v => v.lang && v.lang.startsWith("ja"));
+      enVoice = vs.find(v => v.lang === "en-US") || vs.find(v => v.lang && v.lang.startsWith("en"));
+    }
+    pickVoices();
+    if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = pickVoices;
+
+    function speak(text, lang) {
+      if (!soundOn || !("speechSynthesis" in window) || !text) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang;
+      u.rate = 0.95;
+      if (lang === "ja-JP" && jaVoice) u.voice = jaVoice;
+      if (lang === "en-US" && enVoice) u.voice = enVoice;
+      speechSynthesis.speak(u);
+    }
+    function speakLines(lines) {
+      if (!soundOn || !("speechSynthesis" in window)) return;
+      speechSynthesis.cancel();
+      lines.forEach(([text, lang]) => speak(text, lang));
+    }
+
+    soundToggle.addEventListener("click", () => {
+      soundOn = !soundOn;
+      soundToggle.textContent = soundOn ? "🔊" : "🔇";
+      soundToggle.classList.toggle("off", !soundOn);
+      if (!soundOn && "speechSynthesis" in window) speechSynthesis.cancel();
+    });
+
+    const now = new Date();
+    const days = ["日","月","火","水","木","金","土"];
+    document.getElementById("date").textContent = `きょうは ${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+
+    const listEl = document.getElementById("typeList");
+    const bubble = document.getElementById("bubble");
+    const intro = document.getElementById("intro");
+    const introTtl = document.getElementById("introTtl");
+    const introBody = document.getElementById("introBody");
+    const result = document.getElementById("result");
+    const go = document.getElementById("go");
+    const handle = document.getElementById("handle");
+    const machine = document.getElementById("machine");
+    const iorin = document.getElementById("iorin");
+
+    let selected = null;
+
+    // 左ペインのボタンを作る
+    types.forEach((t, i) => {
+      const b = document.createElement("button");
+      b.className = "type-btn";
+      b.textContent = `${t.emoji} ${t.name}`;
+      b.addEventListener("click", () => selectType(i, b));
+      listEl.appendChild(b);
+    });
+
+    function selectType(i, btn) {
+      selected = types[i];
+      document.querySelectorAll(".type-btn").forEach(x => x.classList.remove("sel"));
+      btn.classList.add("sel");
+      introTtl.textContent = `${selected.emoji} ${selected.name}（${selected.read}）`;
+      introBody.textContent = `${selected.name}のあなたは、${selected.you}`;
+      intro.classList.add("show");
+      bubble.textContent = `「${selected.name}」だね！「占う」ボタンを押してみて♪ Let's go!`;
+      result.innerHTML = '<div class="hint">「占う」ボタンを押してね 🔮</div>';
+      go.disabled = false;
+      speakLines([
+        [`${selected.name}のあなたは、${selected.you}`, "ja-JP"],
+      ]);
+    }
+
+    function retrigger(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+    go.addEventListener("click", () => {
+      if (!selected) return;
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      go.disabled = true;
+      bubble.textContent = "ガチャガチャ〜♪ きょうの運勢は…？";
+      result.innerHTML = '<div class="hint">🎶 ハンドルくるくる…</div>';
+      retrigger(handle, "spinning");
+      retrigger(machine, "shake");
+      retrigger(iorin, "active");
+
+      const capColor = pick(capColors);
+      setTimeout(() => {
+        bubble.textContent = "カプセル、でてきた〜！";
+        result.innerHTML = `
+          <div class="capsule dropping" id="capsule">
+            <div class="cap-half cap-top"><div class="ball" style="background:${capColor}"></div></div>
+            <div class="cap-half cap-bot"><div class="ball"></div></div>
+            <div class="cap-seam"></div><div class="cap-shine"></div>
+          </div>`;
+      }, 1150);
+      setTimeout(() => { const c = document.getElementById("capsule"); if (c) retrigger(c, "shaking"); bubble.textContent = "なにかな、なにかな…？"; }, 2050);
+      setTimeout(() => { const c = document.getElementById("capsule"); if (c) c.classList.add("opening"); }, 2650);
+
+      setTimeout(() => {
+        const stars = Math.floor(Math.random() * 3) + 3;
+        const starStr = "★".repeat(stars) + "☆".repeat(5 - stars);
+        const pv = pick(proverbs);
+        const en = pick(english);
+        const care = pick(cares);
+        const luckyColor = pick(colors);
+        const luckyItem = pick(items);
+        bubble.textContent = `きょうの「${selected.name}」さんの運勢だよ！`;
+        result.innerHTML = `
+          <div class="card">
+            <div class="r-emoji">${selected.emoji}</div>
+            <div class="r-name">${selected.name}</div>
+            <div class="stars">きょうの運勢 ${starStr}</div>
+            <div class="lucky">
+              <span>🎨 ラッキーカラー：${luckyColor}</span>
+              <span>✨ ラッキーアイテム：${luckyItem}</span>
+            </div>
+            <div class="block proverb"><span class="lbl">📜 きょうの ことわざ</span><b>${pv.t}</b>（${pv.r}）<br><small>${pv.m}</small></div>
+            <div class="block english"><span class="lbl">🗣 IORINの えいご</span><span class="en">${en.en}</span> ${en.ja}</div>
+            <div class="block care"><span class="lbl">🎒 IORINからの ひとこと</span>${care}</div>
+          </div>`;
+        go.disabled = false;
+        go.textContent = "もう一度 占う 🔮";
+
+        speakLines([
+          [`きょうの${selected.name}さんのうんせいは、ほしいつつ中${stars}こ！`, "ja-JP"],
+          [`ラッキーカラーは${luckyColor}、ラッキーアイテムは${luckyItem}だよ。`, "ja-JP"],
+          [`きょうのことわざは、「${pv.t}」。${pv.m}`, "ja-JP"],
+          [en.en, "en-US"],
+          [en.ja, "ja-JP"],
+          [care, "ja-JP"],
+        ]);
+      }, 3050);
     });
   </script>
 </body>
