@@ -84,8 +84,18 @@ commit → push まで行います。
 ```sh
 sessions/session.sh sync   # my-apps を push した後、Obsidian vault にもミラー＆push
 ```
-- vault の場所は自動検出（`my-apps` の兄弟で `.obsidian/` を持つディレクトリ）。
-  明示するなら `OBSIDIAN_VAULT=/path/to/vault`。
+**初回だけ**、その端末（ローカルPC）で vault のパスを登録します（`sessions/.obsidian-path`
+に保存。git では共有されない端末ローカル設定）:
+```sh
+# Git Bash の場合
+sessions/session.sh set-vault "/c/Users/user/Documents/Obsidian Vault"
+# WSL の場合
+sessions/session.sh set-vault "/mnt/c/Users/user/Documents/Obsidian Vault"
+```
+以降は `sync` / `mirror` が自動でこの vault（git: `yoshi2008815-ai/vault`）へバックアップします。
+
+- vault の解決順: `OBSIDIAN_VAULT`（環境変数） → `sessions/.obsidian-path`（登録済み）
+  → 既知の既定パス（`~/Documents/Obsidian Vault` など） → `my-apps` の兄弟で `.obsidian/` を持つ repo。
 - 保存先サブフォルダは `OBSIDIAN_SUBDIR`（既定 `my-apps-sessions`）で変更可。
 - vault を push したくない端末は `OBSIDIAN_PUSH=no`（コピーのみ）。
 - **vault が存在しない端末（携帯・クラウド上のエージェント）では自動でスキップ**されます。

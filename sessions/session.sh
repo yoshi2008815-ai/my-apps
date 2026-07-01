@@ -14,6 +14,7 @@
 #   sessions/session.sh summary "要約"      現在セッションの「引き継ぎサマリ」を更新
 #   sessions/session.sh end   "まとめ"      現在のセッションを締める（任意。締めなくても記録は残る）
 #   sessions/session.sh today [YYYY-MM-DD] 指定日（既定は今日）の日次ダイジェストを表示
+#   sessions/session.sh set-vault "パス"    この端末の Obsidian vault パスを保存（初回のみ）
 #   sessions/session.sh mirror             Obsidian vault へバックアップ（あれば）
 #   sessions/session.sh sync               pull → commit → push（＋ Obsidian へミラー）
 #
@@ -299,13 +300,54 @@ cmd_today() {
 }
 
 # --- Obsidian ミラー ---------------------------------------------------------
+VAULT_CFG="${SESSIONS_DIR}/.obsidian-path"   # この端末での vault パス（git管理外）
+
+# vault パスの候補を1行1件で出力（優先順）
+vault_candidates() {
+  [ -n "${OBSIDIAN_VAULT:-}" ] && printf '%s\n' "${OBSIDIAN_VAULT}"
+  [ -f "${VAULT_CFG}" ] && grep -v '^[[:space:]]*$' "${VAULT_CFG}"
+  # 既知の既定パス（Windows: Git Bash / WSL / 汎用）
+  printf '%s\n' "${HOME:-}/Documents/Obsidian Vault"
+  printf '%s\n' "/c/Users/user/Documents/Obsidian Vault"
+  printf '%s\n' "/mnt/c/Users/user/Documents/Obsidian Vault"
+  printf '%s\n' "/c/Users/${USER:-user}/Documents/Obsidian Vault"
+  printf '%s\n' "/mnt/c/Users/${USER:-user}/Documents/Obsidian Vault"
+}
+
 resolve_vault() {
-  if [ -n "${OBSIDIAN_VAULT:-}" ]; then [ -d "${OBSIDIAN_VAULT}" ] && printf '%s' "${OBSIDIAN_VAULT}"; return; fi
+  candidates=$(vault_candidates)
+  oldifs=$IFS; IFS='
+'
+  for c in ${candidates}; do
+    IFS=${oldifs}
+    [ -n "${c}" ] && [ -d "${c}" ] && { printf '%s' "${c}"; return 0; }
+    IFS='
+'
+  done
+  IFS=${oldifs}
+  # 最後に「兄弟に .obsidian を持つ repo」を探す
   parent=$(dirname "${ROOT}")
   for d in "${parent}"/*/; do
     [ "${d%/}" = "${ROOT}" ] && continue
-    if [ -d "${d}.obsidian" ]; then printf '%s' "${d%/}"; return; fi
+    [ -d "${d}.obsidian" ] && { printf '%s' "${d%/}"; return 0; }
   done
+  return 1
+}
+
+cmd_set_vault() {
+  p=${1:-}
+  if [ -z "${p}" ]; then
+    if p=$(resolve_vault); then :; else
+      echo "vault を自動検出できませんでした。パスを渡してください:" >&2
+      echo "  sessions/session.sh set-vault \"/c/Users/user/Documents/Obsidian Vault\"  (Git Bash)" >&2
+      echo "  sessions/session.sh set-vault \"/mnt/c/Users/user/Documents/Obsidian Vault\"  (WSL)" >&2
+      exit 1
+    fi
+  fi
+  [ -d "${p}" ] || { echo "ディレクトリが存在しません: ${p}" >&2; exit 1; }
+  printf '%s\n' "${p}" > "${VAULT_CFG}"
+  echo "Obsidian vault のパスを保存しました（この端末のみ・git非共有）:"
+  echo "  ${p}"
 }
 
 cmd_mirror() {
@@ -368,6 +410,7 @@ case "${sub}" in
   summary) cmd_summary "$@" ;;
   end)     cmd_end "$@" ;;
   today)   cmd_today "$@" ;;
+  set-vault|vault) cmd_set_vault "$@" ;;
   mirror)  cmd_mirror "$@" ;;
   sync)    cmd_sync "$@" ;;
   help|-h|--help) usage ;;

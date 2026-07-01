@@ -1,2 +1,4 @@
 # セッションの進行中ポインタ（端末ローカル・共有しない）
 sessions/.active
+# この端末の Obsidian vault パス（端末ローカル・共有しない）
+sessions/.obsidian-path
