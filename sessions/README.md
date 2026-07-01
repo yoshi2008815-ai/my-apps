@@ -30,7 +30,23 @@ Codex も、結局はこの **同じ git リポジトリ** を操作します。
 
 どちらで書いても `STATE.md` / `log/` / `daily/` は同一フォーマット（UTF-8・BOM無し）なので、
 端末やシェルが違っても混在して問題ありません。以下の例は `.sh` 表記ですが、PowerShell では
-`sessions\session.ps1 <同じ引数>` に読み替えてください。
+`.\sessions\session.ps1 <同じ引数>` に読み替えてください。
+
+### Windows PowerShell での実行（初回に必ず読む）
+PowerShell 特有の作法が2つあります。つまずいたらここを確認:
+1. **リポジトリのフォルダへ `cd` してから実行する**（スクリプトは my-apps 内にある）。
+2. **`.\` を付ける**。`sessions\session.ps1 …` はエラー（"モジュール 'sessions' を読み込めません"）。
+   正しくは `.\sessions\session.ps1 …`。
+3. 初回だけ**実行ポリシー**を許可（管理者不要・CurrentUser のみ）。
+```powershell
+cd C:\path\to\my-apps                                   # クローン先へ移動
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned     # 初回だけ
+.\sessions\session.ps1 show
+```
+ポリシーを変えたくない時は、その場限りで:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\sessions\session.ps1 show
+```
 
 ## 使い方（どの経路でも同じ）
 ```sh
