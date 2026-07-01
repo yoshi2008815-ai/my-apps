@@ -5,6 +5,7 @@
 // 日本の島々が収まる範囲
 const BOUNDS = { latN: 46, latS: 23.5, lngW: 122, lngE: 146 };
 const VW = 800, VH = 1000;
+const MAX_SCALE = 18; // 地図の最大拡大率（大きいほどぐっと寄れる）
 function project(lat, lng){
   const x = (lng - BOUNDS.lngW) / (BOUNDS.lngE - BOUNDS.lngW) * VW;
   const y = (BOUNDS.latN - lat) / (BOUNDS.latN - BOUNDS.latS) * VH;
@@ -89,6 +90,20 @@ function islandRadius(is){
   return 13 + Math.min(10, v*0.7);
 }
 
+/* ---------- 「行った島」マーク（シュノーケル＝ロゴのモチーフ） ---------- */
+// 訪問済みの島に付ける小さなシュノーケルマスクのバッジ。cx,cy=中心、k=大きさ倍率。
+function snorkelBadge(cx, cy, k=1){
+  const t = `translate(${(+cx).toFixed(1)},${(+cy).toFixed(1)}) scale(${k})`;
+  return `<g class="snorkel-badge" transform="${t}" style="pointer-events:none">
+    <ellipse cx="0" cy="1" rx="12" ry="10.5" fill="#fff" opacity=".95" stroke="#bcd3d8" stroke-width="1"/>
+    <path d="M-8 -6 q-4.5 0 -4.5 4.5 l0 7.5" fill="none" stroke="#ff7a59" stroke-width="2.6" stroke-linecap="round"/>
+    <circle cx="-12.5" cy="6.2" r="1.7" fill="#ff7a59"/>
+    <rect x="-8" y="-5" width="16" height="9" rx="4.2" fill="#0d3340" stroke="#06222b" stroke-width="1"/>
+    <rect x="-6.6" y="-3.4" width="5.6" height="6" rx="2.6" fill="#4fd1c5"/>
+    <rect x="1" y="-3.4" width="5.6" height="6" rx="2.6" fill="#4fd1c5"/>
+  </g>`;
+}
+
 /* ---------- 描画ユーティリティ ---------- */
 function polyPoints(coords){
   return coords.map(([la,ln])=>{const p=project(la,ln);return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;}).join(' ');
@@ -162,10 +177,15 @@ function islandGlyph(is, t){
   const ring   = active ? `<ellipse cx="${sx}" cy="${sy}" rx="${(r+5).toFixed(1)}" ry="${(ry+3).toFixed(1)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
   const showLabel = STATE.view.scale >= 1.45 || is.fav || active;
   const ly = +(sy + ry + 12).toFixed(1);
-  const fav = is.fav ? `<text x="${sx}" y="${(sy - H - 6).toFixed(1)}" text-anchor="middle" font-size="13">★</text>` : '';
+  // 「行った島」マーク＝シュノーケルのバッジ。お気に入りは★を右肩に重ねる。
+  const badgeY = +(sy - H - 13).toFixed(1);
+  const mark = visited ? snorkelBadge(sx, badgeY, 0.6 + (active?0.08:0)) : '';
+  const fav = is.fav
+    ? `<text x="${(sx + (visited?9:0)).toFixed(1)}" y="${(badgeY - (visited?7:-2)).toFixed(1)}" text-anchor="middle" font-size="13">★</text>`
+    : '';
   const visitsB = (visited && showLabel) ? `<text x="${sx}" y="${(ly+12).toFixed(1)}" text-anchor="middle" fill="#3a6a30" font-size="9.5" font-weight="800">${is.visits}回</text>` : '';
   const label = showLabel ? `<text class="isle-lbl" x="${sx}" y="${ly}" text-anchor="middle" font-size="11.5" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
-  return `<g class="isle${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}" style="opacity:${op}">${shadow}${beach}${land}${ring}${fav}${label}</g>`;
+  return `<g class="isle${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}" style="opacity:${op}">${shadow}${beach}${land}${ring}${mark}${fav}${label}</g>`;
 }
 // 種類ごとの陸地シルエット。sx,sy=海面中心、Hだけ上へ立ち上がる。
 function landShape(is, sx, sy, r, H, grass, grassD){
@@ -225,7 +245,7 @@ function renderMap(){
 function idxItemHTML(is){
   const active  = is.id === STATE.activeId;
   const visited = (is.visits||0) > 0;
-  const ic = is.fav ? '★' : (visited ? '🏝' : '○');
+  const ic = is.fav ? '★' : (visited ? '🤿' : '○');
   return `<button class="idx-item${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}">
     <span class="ic">${ic}</span><span class="nm">${esc(is.name)}</span>
     <span class="vc">${visited ? is.visits+'回' : '未訪問'}</span>
@@ -366,8 +386,8 @@ function modalForm(title, fields, onSubmit){
   const card = $('#formCard');
   card.innerHTML = `<h3>${title}</h3>` + fields.map(f =>
     `<label>${f.label}</label>` + (f.type==='textarea'
-      ? `<textarea data-f="${f.name}" rows="3" placeholder="${f.ph||''}"></textarea>`
-      : `<input data-f="${f.name}" type="${f.type||'text'}" placeholder="${f.ph||''}" value="${f.value||''}">`)
+      ? `<textarea data-f="${f.name}" rows="3" placeholder="${f.ph||''}">${esc(f.value||'')}</textarea>`
+      : `<input data-f="${f.name}" type="${f.type||'text'}" placeholder="${f.ph||''}" value="${esc(f.value||'')}">`)
   ).join('') +
   `<div class="actions"><button class="btn ghost" id="fCancel">キャンセル</button><button class="btn accent" id="fOk">保存</button></div>`;
   $('#formModal').classList.add('open');
@@ -427,7 +447,7 @@ function addIsland(){
 function applyView(){ renderMap(); }
 function zoomBy(factor, cx=VW/2, cy=VH/2){
   const v = STATE.view;
-  const ns = Math.min(6, Math.max(1, v.scale*factor));
+  const ns = Math.min(MAX_SCALE, Math.max(1, v.scale*factor));
   // 中心を保つ
   v.tx = cx - (cx - v.tx) * (ns/v.scale);
   v.ty = cy - (cy - v.ty) * (ns/v.scale);
@@ -446,7 +466,7 @@ function resetView(){ STATE.view = {scale:1, tx:0, ty:0}; applyView(); }
 function focusIsland(is, targetScale=3.6){
   if(!is) return;
   const p = project(is.lat, is.lng);
-  const ns = Math.min(6, Math.max(1, targetScale));
+  const ns = Math.min(MAX_SCALE, Math.max(1, targetScale));
   const v = STATE.view;
   // 表示領域の中心(VW/2,VH/2)に島が来るように平行移動
   v.scale = ns;

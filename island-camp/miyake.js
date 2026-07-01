@@ -63,8 +63,13 @@ function mykProject(){
 
 /* ---------- メイン描画 ---------- */
 window.renderMiyakeBody = async function(is){
-  if (!Array.isArray(is.miyakeVisited)) is.miyakeVisited = [];
-  if (!Array.isArray(is.miyakePlaces)) is.miyakePlaces = [];
+  if (!Array.isArray(is.miyakeVisited)) is.miyakeVisited = [];   // 足あと（行った）
+  if (!Array.isArray(is.miyakeFav))     is.miyakeFav = [];       // お気に入り
+  if (!is.miyakeMemo || typeof is.miyakeMemo !== 'object') is.miyakeMemo = {}; // スポット別メモ
+  if (!Array.isArray(is.miyakePlaces))  is.miyakePlaces = [];
+  // 自作スポットに安定したIDを付与（削除で添字がずれてもメモ等が追従できるように）
+  is.miyakePlaces.forEach(p => { if (!p.id) p.id = 'c_' + Math.random().toString(36).slice(2,8); });
+  if (!is._mykView) is._mykView = { scale: 1, tx: 0, ty: 0 };    // 地図のズーム状態
   const body = document.querySelector('#pBody');
   const tab = is._mykTab || 'map';
 
@@ -172,6 +177,8 @@ function mapHTML(is){
   const proj = mykProject();
   const spots = mykSpots();
   const visited = new Set(is.miyakeVisited);
+  const favSet  = new Set(is.miyakeFav);
+  const v = is._mykView || { scale:1, tx:0, ty:0 };
   // 実海岸線ポリゴン
   const pts = proj ? proj.ring.map(([la,ln])=>proj(la,ln)) : [];
   const islandPts = pts.map(p=>`${p.x},${p.y}`).join(' ');
@@ -186,25 +193,23 @@ function mapHTML(is){
   const cald = (oy && proj) ? proj(oy.lat,oy.lng) : {x:gcx,y:gcy};
   // 等高線（重心→外周へ段階的に縮小した輪郭で立体感を出す）
   const contour = (k) => pts.map(p=>`${(cald.x+(p.x-cald.x)*k).toFixed(2)},${(cald.y+(p.y-cald.y)*k).toFixed(2)}`).join(' ');
+  const pin = (x,y,on,fav,ic,name,attr) =>
+    `<g class="myk-pin${on?' on':''}${fav?' fav':''}" ${attr} transform="translate(${x},${y})">
+      ${fav?`<circle r="3.5" fill="none" stroke="#ffb020" stroke-width="0.8"/>`:''}
+      <circle r="2.4" fill="${on?'#ffcc4d':'#fff'}" stroke="${on?'#b8860b':'#2e5238'}" stroke-width="0.9"/>
+      ${fav?`<text x="0" y="1.2" font-size="3" text-anchor="middle">★</text>`:''}
+      <text x="3.2" y="1.5" font-size="3.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="0.9px">${esc(ic)} ${esc(name)}</text>
+    </g>`;
   const pins = spots.map(s => {
     const q = proj ? proj(s.lat,s.lng) : {x:50,y:50};
-    const on = visited.has(s.id);
-    return `<g class="myk-pin${on?' on':''}" data-spot="${s.id}" transform="translate(${q.x},${q.y})">
-      <circle r="2.4" fill="${on?'#ffcc4d':'#fff'}" stroke="${on?'#b8860b':'#2e5238'}" stroke-width="0.9"/>
-      <text x="3.2" y="1.5" font-size="3.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="0.9px">${esc(s.ic)} ${esc(s.name)}</text>
-    </g>`;
+    return pin(q.x, q.y, visited.has(s.id), favSet.has(s.id), s.ic, s.name, `data-spot="${s.id}"`);
   }).join('');
   const custom = is.miyakePlaces.map((p,i) =>
-    `<g class="myk-pin on custom" data-custom="${i}" transform="translate(${p.x},${p.y})">
-      <circle r="2.4" fill="#4fd1c5" stroke="#1b6b63" stroke-width="0.9"/>
-      <text x="3.2" y="1.5" font-size="3.4" fill="#22324b" font-weight="700" paint-order="stroke" stroke="#fff" stroke-width="0.9px">📍 ${esc(p.name)}</text>
-    </g>`).join('');
-  const visitedList = spots.filter(s => visited.has(s.id))
-    .map(s => `<li><span class="ic">${s.ic}</span><span class="txt">${esc(s.name)}</span><span class="x" data-unvisit="${s.id}">✕</span></li>`).join('')
-    + is.miyakePlaces.map((p,i) => `<li><span class="ic">📍</span><span class="txt">${esc(p.name)}</span><span class="x" data-delplace="${i}">✕</span></li>`).join('');
+    pin(p.x, p.y, true, !!p.fav, '📍', p.name, `data-custom="${i}"`)).join('');
 
+  const count = visited.size + is.miyakePlaces.length;
   return `
-    <p class="myk-help">スポットをタップで「行った！」記録。地図の海をタップすると自由な場所を追加できます。</p>
+    <p class="myk-help">スポットをタップで<b>足あと👣</b>を記録。海をタップすると自由な場所を追加できます。下のリストで⭐お気に入りや📝メモも残せます。ピンチ／ボタンで地図を拡大。</p>
     <div class="myk-map">
       <svg id="mykMap" viewBox="0 0 100 100">
         <defs>
@@ -220,70 +225,223 @@ function mapHTML(is){
           </radialGradient>
         </defs>
         <rect x="0" y="0" width="100" height="100" fill="url(#mykSea)"/>
-        <!-- 砂浜（実海岸線をわずかに拡大して縁取り） -->
-        <polygon points="${contour(1.035)}" fill="#ecdfb0" opacity="0.9"/>
-        <!-- 島本体（実海岸線 / OpenStreetMap・地形グラデーション） -->
-        <polygon points="${islandPts}" fill="url(#mykTerrain)" stroke="#5f7e46" stroke-width="0.8" stroke-linejoin="round"/>
-        <!-- 等高線（立体感） -->
-        <polygon points="${contour(0.74)}" fill="none" stroke="#5f7e46" stroke-width="0.35" opacity="0.5" stroke-linejoin="round"/>
-        <polygon points="${contour(0.46)}" fill="none" stroke="#43603a" stroke-width="0.35" opacity="0.55" stroke-linejoin="round"/>
-        <polygon points="${contour(0.22)}" fill="none" stroke="#37502f" stroke-width="0.35" opacity="0.6" stroke-linejoin="round"/>
-        <!-- 雄山カルデラ（山頂・噴火口） -->
-        <circle cx="${cald.x}" cy="${cald.y}" r="6.4" fill="#9c8262" stroke="#705a3e" stroke-width="0.7"/>
-        <circle cx="${cald.x}" cy="${cald.y}" r="3.6" fill="#5f4a30" stroke="#43321f" stroke-width="0.6"/>
-        ${pins}
-        ${custom}
+        <g id="mykZoomG" transform="translate(${v.tx},${v.ty}) scale(${v.scale})">
+          <!-- 砂浜（実海岸線をわずかに拡大して縁取り） -->
+          <polygon points="${contour(1.035)}" fill="#ecdfb0" opacity="0.9"/>
+          <!-- 島本体（実海岸線 / OpenStreetMap・地形グラデーション） -->
+          <polygon points="${islandPts}" fill="url(#mykTerrain)" stroke="#5f7e46" stroke-width="0.8" stroke-linejoin="round"/>
+          <!-- 等高線（立体感） -->
+          <polygon points="${contour(0.74)}" fill="none" stroke="#5f7e46" stroke-width="0.35" opacity="0.5" stroke-linejoin="round"/>
+          <polygon points="${contour(0.46)}" fill="none" stroke="#43603a" stroke-width="0.35" opacity="0.55" stroke-linejoin="round"/>
+          <polygon points="${contour(0.22)}" fill="none" stroke="#37502f" stroke-width="0.35" opacity="0.6" stroke-linejoin="round"/>
+          <!-- 雄山カルデラ（山頂・噴火口） -->
+          <circle cx="${cald.x}" cy="${cald.y}" r="6.4" fill="#9c8262" stroke="#705a3e" stroke-width="0.7"/>
+          <circle cx="${cald.x}" cy="${cald.y}" r="3.6" fill="#5f4a30" stroke="#43321f" stroke-width="0.6"/>
+          ${pins}
+          ${custom}
+        </g>
       </svg>
+      <div class="myk-zoom">
+        <button data-mz="in">＋</button>
+        <button data-mz="out">－</button>
+        <button data-mz="reset" title="全体表示">⤢</button>
+      </div>
     </div>
-    <h3 class="myk-h">✅ 行った場所（${visited.size + is.miyakePlaces.length}）</h3>
-    ${(visited.size + is.miyakePlaces.length)
-      ? `<ul class="list myk-list">${visitedList}</ul>`
-      : `<p class="empty">まだ記録がありません。地図のスポットをタップ！</p>`}
+    <h3 class="myk-h">🗺 名所・スポット（足あと ${count}）</h3>
+    <ul class="list myk-splist">${spotRows(is)}</ul>
   `;
+}
+
+/* スポット一覧：各行に 足あと👣 / お気に入り⭐ / メモ📝 のボタン */
+function spotRows(is){
+  const visited = new Set(is.miyakeVisited);
+  const favSet  = new Set(is.miyakeFav);
+  const row = (id, ic, name, on, fav, memo, del) => `
+    <li class="myk-sprow${on?' on':''}">
+      <div class="myk-sprow-top">
+        <span class="ic">${esc(ic)}</span>
+        <span class="txt">${esc(name)}</span>
+        <button class="myk-b foot${on?' act':''}" data-foot="${id}" title="足あと">👣</button>
+        <button class="myk-b fav${fav?' act':''}"  data-fav="${id}"  title="お気に入り">${fav?'★':'☆'}</button>
+        <button class="myk-b memo${memo?' act':''}" data-memo="${id}" title="メモ">📝</button>
+        ${del?`<button class="myk-b del" data-del="${id}" title="削除">✕</button>`:''}
+      </div>
+      ${memo?`<p class="myk-sprow-memo">${esc(memo)}</p>`:''}
+    </li>`;
+  const known = mykSpots().map(s =>
+    row(s.id, s.ic, s.name, visited.has(s.id), favSet.has(s.id), is.miyakeMemo[s.id]||'', false)).join('');
+  const custom = is.miyakePlaces.map(p =>
+    row(p.id, '📍', p.name, true, !!p.fav, p.memo||'', true)).join('');
+  return known + custom;
+}
+
+function isKnownSpot(id){ return mykSpots().some(s => s.id === id); }
+function toggleFoot(is, id){
+  if (!isKnownSpot(id)) return; // 自作スポットは常に足あと済み
+  const set = new Set(is.miyakeVisited);
+  set.has(id) ? set.delete(id) : set.add(id);
+  is.miyakeVisited = [...set];
+  const s = mykSpots().find(x => x.id === id) || {name:id};
+  toast(set.has(id) ? `「${s.name}」に足あと👣` : `「${s.name}」の足あとを取消`);
+  saveIslands();
+}
+function toggleFav(is, id){
+  if (isKnownSpot(id)){
+    const set = new Set(is.miyakeFav);
+    set.has(id) ? set.delete(id) : set.add(id);
+    is.miyakeFav = [...set];
+  } else {
+    const p = is.miyakePlaces.find(x => x.id === id);
+    if (p) p.fav = !p.fav;
+  }
+  saveIslands();
+}
+function editMemo(is, id, name){
+  const cur = isKnownSpot(id) ? (is.miyakeMemo[id]||'')
+                              : ((is.miyakePlaces.find(x=>x.id===id)||{}).memo||'');
+  modalForm(`📝 ${name} のメモ`, [
+    { name:'memo', label:'メモ（思い出・行き方・持ち物など）', type:'textarea', value:cur, ph:'自由に記録…' }
+  ], v => {
+    if (isKnownSpot(id)){
+      if (v.memo) is.miyakeMemo[id] = v.memo; else delete is.miyakeMemo[id];
+    } else {
+      const p = is.miyakePlaces.find(x => x.id === id); if (p) p.memo = v.memo;
+    }
+    saveIslands(); refresh(is);
+  });
 }
 
 function wireMap(is){
   const svg = document.querySelector('#mykMap');
   if (!svg) return;
-  // スポットのトグル
+
+  wireMapZoom(is, svg);
+
+  // 地図ピン（スポット）タップ → 足あとトグル
   svg.querySelectorAll('.myk-pin[data-spot]').forEach(g => {
     g.addEventListener('click', ev => {
       ev.stopPropagation();
-      const id = g.dataset.spot;
-      const set = new Set(is.miyakeVisited);
-      set.has(id) ? set.delete(id) : set.add(id);
-      is.miyakeVisited = [...set];
-      saveIslands();
-      const s = mykSpots().find(x => x.id === id) || {name:id};
-      toast(set.has(id) ? `「${s.name}」を記録しました` : `「${s.name}」を取消しました`);
+      if (svg._mykDidPan) return; // パン操作直後はタップ無効
+      toggleFoot(is, g.dataset.spot);
       refresh(is);
     });
   });
-  // 海（地図の空き）をタップ → 自由スポット追加
+
+  // 海（地図の空き）をタップ → 自由スポット追加（ズームを考慮して座標を逆算）
   svg.addEventListener('click', ev => {
     if (ev.target.closest('.myk-pin')) return;
+    if (svg._mykDidPan) return;
     const r = svg.getBoundingClientRect();
-    const x = +(( (ev.clientX - r.left) / r.width ) * 100).toFixed(1);
-    const y = +(( (ev.clientY - r.top ) / r.height) * 100).toFixed(1);
+    const ux = (ev.clientX - r.left) / r.width  * 100;
+    const uy = (ev.clientY - r.top ) / r.height * 100;
+    const v = is._mykView || { scale:1, tx:0, ty:0 };
+    const x = +(((ux - v.tx) / v.scale)).toFixed(1);
+    const y = +(((uy - v.ty) / v.scale)).toFixed(1);
     modalForm('行った場所を追加', [
       { name:'name', label:'場所の名前', ph:'例：温泉、ビーチ、展望台…' }
-    ], v => {
-      if (!v.name) return false;
-      is.miyakePlaces.push({ name:v.name, x, y });
+    ], val => {
+      if (!val.name) return false;
+      is.miyakePlaces.push({ id:'c_'+Math.random().toString(36).slice(2,8), name:val.name, x, y });
       saveIslands(); toast('場所を追加しました'); refresh(is);
     });
   });
-  // 削除
-  document.querySelectorAll('#mykPanel [data-unvisit]').forEach(b =>
+
+  // スポット一覧の各ボタン
+  document.querySelectorAll('#mykPanel [data-foot]').forEach(b =>
+    b.addEventListener('click', () => { toggleFoot(is, b.dataset.foot); refresh(is); }));
+  document.querySelectorAll('#mykPanel [data-fav]').forEach(b =>
+    b.addEventListener('click', () => { toggleFav(is, b.dataset.fav); refresh(is); }));
+  document.querySelectorAll('#mykPanel [data-memo]').forEach(b =>
     b.addEventListener('click', () => {
-      is.miyakeVisited = is.miyakeVisited.filter(id => id !== b.dataset.unvisit);
+      const name = b.closest('.myk-sprow')?.querySelector('.txt')?.textContent || 'スポット';
+      editMemo(is, b.dataset.memo, name);
+    }));
+  document.querySelectorAll('#mykPanel [data-del]').forEach(b =>
+    b.addEventListener('click', () => {
+      is.miyakePlaces = is.miyakePlaces.filter(p => p.id !== b.dataset.del);
       saveIslands(); refresh(is);
     }));
-  document.querySelectorAll('#mykPanel [data-delplace]').forEach(b =>
-    b.addEventListener('click', () => {
-      is.miyakePlaces.splice(+b.dataset.delplace, 1);
-      saveIslands(); refresh(is);
+}
+
+/* ---------- 三宅島地図のズーム／パン ---------- */
+function wireMapZoom(is, svg){
+  const g = svg.querySelector('#mykZoomG');
+  const MAXZ = 6;
+  const apply = () => {
+    const v = is._mykView;
+    // 島が枠外に流れ切らないよう軽くクランプ
+    const min = 100 - 100*v.scale;
+    v.tx = Math.min(0, Math.max(min, v.tx));
+    v.ty = Math.min(0, Math.max(min, v.ty));
+    if (g) g.setAttribute('transform', `translate(${v.tx.toFixed(2)},${v.ty.toFixed(2)}) scale(${v.scale.toFixed(3)})`);
+  };
+  const zoomAt = (factor, cx, cy) => {
+    const v = is._mykView;
+    const ns = Math.min(MAXZ, Math.max(1, v.scale*factor));
+    v.tx = cx - (cx - v.tx) * (ns/v.scale);
+    v.ty = cy - (cy - v.ty) * (ns/v.scale);
+    v.scale = ns; apply();
+  };
+  const svgXY = (clientX, clientY) => {
+    const r = svg.getBoundingClientRect();
+    return { x:(clientX-r.left)/r.width*100, y:(clientY-r.top)/r.height*100 };
+  };
+  // ボタン
+  document.querySelectorAll('#mykPanel [data-mz]').forEach(b =>
+    b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const a = b.dataset.mz;
+      if (a==='reset'){ is._mykView = {scale:1,tx:0,ty:0}; apply(); }
+      else zoomAt(a==='in'?1.4:0.72, 50, 50);
     }));
+  // ホイール
+  svg.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    const p = svgXY(ev.clientX, ev.clientY);
+    zoomAt(ev.deltaY<0?1.15:0.87, p.x, p.y);
+  }, {passive:false});
+  // ドラッグでパン（move/upはドラッグ中だけ購読して蓄積を防ぐ）
+  let drag=null;
+  const onMove = ev => {
+    if(!drag) return;
+    const p=svgXY(ev.clientX,ev.clientY);
+    if(Math.hypot(p.x-drag.x,p.y-drag.y)>0.6) drag.moved=true;
+    is._mykView.tx = drag.tx + (p.x-drag.x);
+    is._mykView.ty = drag.ty + (p.y-drag.y);
+    apply();
+  };
+  const onUp = () => {
+    if(drag){ svg._mykDidPan=drag.moved; setTimeout(()=>{svg._mykDidPan=false;},0); }
+    drag=null;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+  };
+  svg.addEventListener('mousedown', ev => {
+    const p=svgXY(ev.clientX,ev.clientY);
+    drag={x:p.x,y:p.y,tx:is._mykView.tx,ty:is._mykView.ty,moved:false};
+    svg._mykDidPan=false;
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+  // タッチ（パン＋ピンチ）
+  let tdrag=null, pinch=null;
+  const tdist=e=>Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+  const tmid =e=>svgXY((e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);
+  svg.addEventListener('touchstart', e => {
+    if(e.touches.length===1){ const p=svgXY(e.touches[0].clientX,e.touches[0].clientY); tdrag={x:p.x,y:p.y,tx:is._mykView.tx,ty:is._mykView.ty,moved:false}; }
+    else if(e.touches.length===2){ tdrag=null; pinch={d:tdist(e)}; }
+    svg._mykDidPan=false;
+  }, {passive:true});
+  svg.addEventListener('touchmove', e => {
+    if(e.touches.length===1 && tdrag){
+      const p=svgXY(e.touches[0].clientX,e.touches[0].clientY);
+      if(Math.hypot(p.x-tdrag.x,p.y-tdrag.y)>0.6){ tdrag.moved=true; svg._mykDidPan=true; }
+      is._mykView.tx=tdrag.tx+(p.x-tdrag.x); is._mykView.ty=tdrag.ty+(p.y-tdrag.y); apply();
+    } else if(e.touches.length===2 && pinch){
+      const d=tdist(e), m=tmid(e); zoomAt(d/pinch.d, m.x, m.y); pinch.d=d; svg._mykDidPan=true;
+    }
+  }, {passive:true});
+  svg.addEventListener('touchend', () => { tdrag=null; pinch=null; setTimeout(()=>{svg._mykDidPan=false;},0); });
 }
 
 /* ---------- ② キャンプ場 ---------- */

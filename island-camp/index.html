@@ -197,10 +197,34 @@
   .myk-tabs button.on{background:var(--accent); color:#22324b; border-color:transparent}
   .myk-panel{padding-top:6px}
   /* 地図 */
-  .myk-map{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#bfe0ea}
-  .myk-map svg{width:100%; height:auto; display:block; cursor:crosshair; touch-action:manipulation}
+  .myk-map{position:relative; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#bfe0ea}
+  .myk-map svg{width:100%; height:auto; min-height:300px; display:block; cursor:grab; touch-action:none}
+  .myk-map svg:active{cursor:grabbing}
   .myk-pin{cursor:pointer}
   .myk-pin:hover circle{stroke-width:1.8}
+  .myk-pin.fav text{paint-order:stroke}
+  /* 地図のズームボタン */
+  .myk-zoom{position:absolute; right:8px; bottom:8px; display:flex; flex-direction:column; gap:5px}
+  .myk-zoom button{width:32px; height:32px; border-radius:9px; border:1px solid var(--line);
+    background:rgba(255,255,255,.92); color:var(--ink); font-size:1rem; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .myk-zoom button:hover{background:#fff; border-color:var(--accent2)}
+  /* スポット一覧（足あと・お気に入り・メモ） */
+  .myk-splist li.myk-sprow{flex-direction:column; align-items:stretch; gap:6px}
+  .myk-sprow.on{border-color:#e6c266; background:#fffaf0}
+  .myk-sprow-top{display:flex; align-items:center; gap:8px}
+  .myk-sprow-top .ic{flex:none}
+  .myk-sprow-top .txt{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .myk-b{flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+    background:var(--bg); cursor:pointer; font-size:.92rem; line-height:1; padding:0}
+  .myk-b:hover{border-color:var(--accent2)}
+  .myk-b.foot.act{background:#fff0d9; border-color:#e6b34d}
+  .myk-b.fav.act{background:#fff6d6; border-color:#eccb4d; color:#c99700}
+  .myk-b.memo.act{background:#e5f5f2; border-color:#79c8bd}
+  .myk-b.del{color:var(--sub)}
+  .myk-b.del:hover{color:var(--pin); border-color:var(--pin)}
+  .myk-sprow-memo{margin:0; padding:8px 10px; background:#fff; border:1px dashed var(--line);
+    border-radius:8px; font-size:.8rem; line-height:1.5; color:var(--ink); white-space:pre-wrap; word-break:break-word}
   /* カード（キャンプ場） */
   .myk-card{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px 14px; margin-bottom:12px}
   .myk-card-h{font-weight:700; font-size:.92rem; margin-bottom:4px}
