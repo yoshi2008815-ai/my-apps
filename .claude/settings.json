@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"$CLAUDE_PROJECT_DIR/sessions/session.sh\" show 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
