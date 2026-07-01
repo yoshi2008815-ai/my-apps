@@ -22,6 +22,9 @@
 これにより、複数セッションの並行・スマホ↔PCの引き継ぎ・別エージェント(Codex)からの再開でも
 文脈が途切れません。セッションIDは「日付+名前」。コマンド詳細は `sessions/README.md`。
 
+> シェル別スクリプト: macOS/Linux/Git Bash/WSL は `sessions/session.sh`、
+> **Windows PowerShell は `sessions/session.ps1`**（引数は同じ、読み書きするファイルも同一）。
+
 ## その他
 - 秘匿情報は書かない（`sessions/` 配下も公開配信され得ます）。
 - ローカル確認: `.claude/launch.json` の静的サーブ設定、または `npx -y serve -l 8742 .`。

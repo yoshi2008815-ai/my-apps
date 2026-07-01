@@ -22,6 +22,16 @@ Codex も、結局はこの **同じ git リポジトリ** を操作します。
 | `session.sh` | 全経路で共通のCLI（下記）。 |
 | `.active` | このチェックアウトが指す「現在のセッション」への一時ポインタ（git管理外・端末ローカル）。 |
 
+## スクリプトは2種（同じファイルを読み書き＝相互運用可）
+| 環境 | 使うスクリプト |
+|------|----------------|
+| macOS / Linux / Git Bash / WSL | `sessions/session.sh` |
+| **Windows PowerShell** | `sessions/session.ps1`（`.sh` と同じ挙動・同じファイル） |
+
+どちらで書いても `STATE.md` / `log/` / `daily/` は同一フォーマット（UTF-8・BOM無し）なので、
+端末やシェルが違っても混在して問題ありません。以下の例は `.sh` 表記ですが、PowerShell では
+`sessions\session.ps1 <同じ引数>` に読み替えてください。
+
 ## 使い方（どの経路でも同じ）
 ```sh
 sessions/session.sh show               # 状態・現在セッションの要約・今日の流れを表示（開始時にまず実行）
@@ -85,17 +95,22 @@ commit → push まで行います。
 sessions/session.sh sync   # my-apps を push した後、Obsidian vault にもミラー＆push
 ```
 **初回だけ**、その端末（ローカルPC）で vault のパスを登録します（`sessions/.obsidian-path`
-に保存。git では共有されない端末ローカル設定）:
+に保存。git では共有されない端末ローカル設定）。**Windows PowerShell** なら Windows の
+ネイティブパスでOK:
+```powershell
+sessions\session.ps1 set-vault "C:\Users\user\Documents\Obsidian Vault"
+```
+Git Bash / WSL の場合はそれぞれ:
 ```sh
-# Git Bash の場合
-sessions/session.sh set-vault "/c/Users/user/Documents/Obsidian Vault"
-# WSL の場合
-sessions/session.sh set-vault "/mnt/c/Users/user/Documents/Obsidian Vault"
+sessions/session.sh set-vault "/c/Users/user/Documents/Obsidian Vault"      # Git Bash
+sessions/session.sh set-vault "/mnt/c/Users/user/Documents/Obsidian Vault"  # WSL
 ```
 以降は `sync` / `mirror` が自動でこの vault（git: `yoshi2008815-ai/vault`）へバックアップします。
+（PowerShell 版は `C:\Users\<あなた>\Documents\Obsidian Vault` を既定候補にしているので、
+標準的な場所なら `set-vault` なしでも自動検出されます。）
 
 - vault の解決順: `OBSIDIAN_VAULT`（環境変数） → `sessions/.obsidian-path`（登録済み）
-  → 既知の既定パス（`~/Documents/Obsidian Vault` など） → `my-apps` の兄弟で `.obsidian/` を持つ repo。
+  → 既知の既定パス（`~/Documents/Obsidian Vault` 等） → `my-apps` の兄弟で `.obsidian/` を持つ repo。
 - 保存先サブフォルダは `OBSIDIAN_SUBDIR`（既定 `my-apps-sessions`）で変更可。
 - vault を push したくない端末は `OBSIDIAN_PUSH=no`（コピーのみ）。
 - **vault が存在しない端末（携帯・クラウド上のエージェント）では自動でスキップ**されます。
