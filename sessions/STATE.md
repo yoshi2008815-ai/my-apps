@@ -10,15 +10,17 @@
 最終更新: 2026-07-01 / claude-code
 
 ## 現在の焦点
-- クロス端末・クロスエージェントのセッション管理の仕組みを新設したところ。
+- クロス端末・クロスエージェントのセッション管理の仕組みを整備（複数セッション選択・日次記憶・端末跨ぎ引き継ぎに対応）。
 
 ## 次の一手
-- 各端末（携帯 / PC / ターミナル）と Codex から `sessions/session.sh show` が動くか確認する。
+- 各端末（携帯 / PC / ターミナル）と Codex から `sessions/session.sh show / list / resume` が動くか実運用で確認する。
 - 実運用に合わせて STATE.md の見出しを調整する。
 
 ## 決定事項 / メモ
 - セッション状態はリポジトリ内 `sessions/` に置き、git で全端末・全エージェントへ同期する。
 - 起動時: `sessions/session.sh show` で状態を読む（Claude Code は SessionStart フックで自動表示）。
+- 複数セッションは `list` / `resume` で選択・切替。`end` は任意で、締めなくても `daily/` に1日分が残る。
+- 端末をまたぐ続きは、別端末で `git pull` → `resume` して同じセッションに合流する。
 - 終了時: STATE.md を更新し `sessions/session.sh sync` で共有する。
 
 ## 進行中の課題（TODO）

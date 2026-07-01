@@ -2,14 +2,21 @@
 # session.sh - クロス端末・クロスエージェントのセッション状態を扱う共通CLI
 #
 # 携帯 / PCアプリ / ターミナル / Codex のどこから使っても、この1本のスクリプトで
-# 同じ「作業の文脈（STATE.md とログ）」を読み書きできます。同期の実体は git です。
+# 同じ「作業の文脈（STATE.md・各セッションのログ・日次ダイジェスト）」を読み書き
+# できます。同期の実体は git です。
 #
 # 使い方:
-#   sessions/session.sh show            現在の共有状態と直近ログを表示
-#   sessions/session.sh start "見出し"   新しいセッションを開始（ログを1件作成）
-#   sessions/session.sh log   "メモ"     進行中セッションに追記
-#   sessions/session.sh end   "まとめ"   セッションを締めて STATE.md 更新を促す
-#   sessions/session.sh sync            pull → （変更あれば）commit → push
+#   sessions/session.sh show               現在の状態・進行中セッション・今日の流れを表示
+#   sessions/session.sh start "見出し"      新しいセッションを開始（このチェックアウトの現在にする）
+#   sessions/session.sh list               セッション一覧（進行中/完了）を番号付きで表示
+#   sessions/session.sh resume [選択子]     既存セッションに合流（端末をまたぐ引き継ぎ）
+#   sessions/session.sh log   "メモ"        現在のセッションに追記（日次にも自動記録）
+#   sessions/session.sh end   "まとめ"      現在のセッションを締める（任意。締めなくても記録は残る）
+#   sessions/session.sh today [YYYY-MM-DD] 指定日（既定は今日）の日次ダイジェストを表示
+#   sessions/session.sh sync               pull → （変更あれば）commit → push
+#
+# resume の「選択子」は 一覧の番号 / セッションIDの一部 / 見出しの一部 のいずれか。
+# 省略かつ対話端末なら一覧から番号で選べます。
 #
 # 記録する「誰が」の情報は環境変数で上書きできます:
 #   SESSION_AGENT   例) claude-code / codex / human   （未指定なら自動判定）
@@ -21,16 +28,16 @@ set -eu
 # --- 位置の解決 --------------------------------------------------------------
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if [ -z "${ROOT}" ]; then
-  # git 管理外から呼ばれた場合はスクリプト位置の親を基準にする
   SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
   ROOT=$(dirname -- "${SCRIPT_DIR}")
 fi
 SESSIONS_DIR="${ROOT}/sessions"
 STATE="${SESSIONS_DIR}/STATE.md"
 LOG_DIR="${SESSIONS_DIR}/log"
-ACTIVE="${SESSIONS_DIR}/.active"   # このチェックアウトでの「進行中ログ」への相対パス（git管理外）
+DAILY_DIR="${SESSIONS_DIR}/daily"
+ACTIVE="${SESSIONS_DIR}/.active"   # このチェックアウトでの「現在のセッション」への相対パス（git管理外）
 
-mkdir -p "${LOG_DIR}"
+mkdir -p "${LOG_DIR}" "${DAILY_DIR}"
 
 # --- 誰が / どの端末 / どのエージェント --------------------------------------
 detect_agent() {
@@ -43,7 +50,36 @@ AGENT=$(detect_agent)
 DEVICE="${SESSION_DEVICE:-$(hostname 2>/dev/null || printf 'unknown')}"
 WHO="${SESSION_USER:-$(git -C "${ROOT}" config user.name 2>/dev/null || printf 'unknown')}"
 NOW() { date '+%Y-%m-%d %H:%M:%S %z'; }
+HM()  { date '+%H:%M'; }
+TODAY() { date '+%Y-%m-%d'; }
 STAMP() { date '+%Y-%m-%d-%H%M%S'; }
+
+# --- 小道具 ------------------------------------------------------------------
+list_files() { ls -1t "${LOG_DIR}"/*.md 2>/dev/null || true; }
+title_of()  { sed -n '1s/^# //p' "$1" 2>/dev/null; }
+id_of()     { b=$(basename "$1"); printf '%s' "${b%.md}"; }
+is_closed() { grep -q '^## まとめ' "$1" 2>/dev/null; }
+status_of() { if is_closed "$1"; then printf '完了'; else printf '進行中'; fi; }
+
+daily_append() {  # $1: 行本文
+  day_file="${DAILY_DIR}/$(TODAY).md"
+  if [ ! -f "${day_file}" ]; then
+    printf '# %s の作業ダイジェスト\n\n' "$(TODAY)" > "${day_file}"
+  fi
+  printf -- '- [%s] %s\n' "$(HM)" "$1" >> "${day_file}"
+}
+
+active_file() {
+  if [ -f "${ACTIVE}" ]; then
+    rel=$(cat "${ACTIVE}")
+    if [ -f "${SESSIONS_DIR}/${rel}" ]; then printf '%s' "${SESSIONS_DIR}/${rel}"; return 0; fi
+  fi
+  return 1
+}
+
+set_active() {  # $1: セッションファイルの絶対パス
+  printf 'log/%s\n' "$(basename "$1")" > "${ACTIVE}"
+}
 
 # --- コマンド ----------------------------------------------------------------
 cmd_show() {
@@ -53,17 +89,54 @@ cmd_show() {
   else
     echo "(STATE.md がまだありません。'session.sh start' で開始してください)"
   fi
-  latest=$(ls -1t "${LOG_DIR}"/*.md 2>/dev/null | head -n 1 || true)
-  if [ -n "${latest:-}" ]; then
+
+  if af=$(active_file); then
     echo
-    echo "================ 直近ログ ($(basename "${latest}")) ================"
-    cat "${latest}"
+    echo "================ このチェックアウトの現在セッション ($(id_of "${af}")) ================"
+    cat "${af}"
+  else
+    # 進行中セッションがあれば引き継ぎ候補として案内（端末をまたぐ合流用）
+    open=$(for f in $(list_files); do is_closed "$f" || echo "$f"; done)
+    if [ -n "${open}" ]; then
+      echo
+      echo "================ 進行中セッション（resume で合流できます） ================"
+      i=0
+      for f in ${open}; do
+        i=$((i+1))
+        printf '  %d) [%s] %s  (%s)\n' "$i" "$(status_of "$f")" "$(title_of "$f")" "$(id_of "$f")"
+      done
+      echo "  → 続きをやるなら: sessions/session.sh resume <番号/ID/見出しの一部>"
+    fi
+  fi
+
+  day_file="${DAILY_DIR}/$(TODAY).md"
+  if [ -f "${day_file}" ]; then
+    echo
+    echo "================ 今日の流れ ($(TODAY)) ================"
+    cat "${day_file}"
+  fi
+}
+
+cmd_list() {
+  files=$(list_files)
+  if [ -z "${files}" ]; then echo "(セッションはまだありません)"; return; fi
+  echo "セッション一覧（新しい順）:"
+  i=0
+  for f in ${files}; do
+    i=$((i+1))
+    printf '  %d) [%s] %s\n        ID: %s\n' "$i" "$(status_of "$f")" "$(title_of "$f")" "$(id_of "$f")"
+  done
+  if af=$(active_file); then
+    echo
+    echo "現在このチェックアウトが指しているセッション: $(id_of "${af}")"
   fi
 }
 
 cmd_start() {
   title=${1:-作業}
   file="${LOG_DIR}/$(STAMP)-${AGENT}.md"
+  # 同一秒の多重startでもファイル名が衝突しないようにする
+  if [ -e "${file}" ]; then n=2; while [ -e "${LOG_DIR}/$(STAMP)-${AGENT}-${n}.md" ]; do n=$((n+1)); done; file="${LOG_DIR}/$(STAMP)-${AGENT}-${n}.md"; fi
   {
     echo "# ${title}"
     echo
@@ -73,38 +146,87 @@ cmd_start() {
     echo "## 経過"
     echo
   } > "${file}"
-  # このチェックアウト内での相対パスを進行中として記録（git管理外）
-  printf 'log/%s\n' "$(basename "${file}")" > "${ACTIVE}"
+  set_active "${file}"
+  daily_append "▶ 開始: ${title}  ($(id_of "${file}") / ${DEVICE}・${AGENT})"
   echo "セッション開始: ${file}"
-  echo "（メモ追記は 'sessions/session.sh log \"...\"'、締めは 'end'）"
+  echo "（メモ追記は 'session.sh log \"...\"'、締めは任意で 'end'。締めなくても日次に残ります）"
 }
 
-active_file() {
-  if [ -f "${ACTIVE}" ]; then
-    rel=$(cat "${ACTIVE}")
-    if [ -f "${SESSIONS_DIR}/${rel}" ]; then printf '%s' "${SESSIONS_DIR}/${rel}"; return 0; fi
+# 選択子 → セッションファイル絶対パスを解決（0=見つからず, 2=複数該当）
+resolve_selector() {
+  sel=$1
+  files=$(list_files)
+  # 番号指定
+  case "${sel}" in
+    ''|*[!0-9]*) : ;;  # 数値でない
+    *)
+      i=0
+      for f in ${files}; do i=$((i+1)); [ "$i" = "${sel}" ] && { printf '%s' "$f"; return 0; }; done
+      return 1 ;;
+  esac
+  # ID / 見出し 部分一致
+  matches=""
+  for f in ${files}; do
+    if id_of "$f" | grep -qi -- "${sel}" || title_of "$f" | grep -qi -- "${sel}"; then
+      matches="${matches}${f}
+"
+    fi
+  done
+  n=$(printf '%s' "${matches}" | grep -c . || true)
+  if [ "${n}" -eq 1 ]; then printf '%s' "$(printf '%s' "${matches}" | sed -n '1p')"; return 0; fi
+  if [ "${n}" -gt 1 ]; then
+    echo "複数該当しました。番号かより具体的な語で指定してください:" >&2
+    printf '%s' "${matches}" | while IFS= read -r f; do [ -n "$f" ] && printf '  - %s  (%s)\n' "$(title_of "$f")" "$(id_of "$f")" >&2; done
+    return 2
   fi
-  # フォールバック: 直近のログファイル
-  ls -1t "${LOG_DIR}"/*.md 2>/dev/null | head -n 1
+  return 1
+}
+
+cmd_resume() {
+  sel=${1:-}
+  if [ -z "${sel}" ]; then
+    files=$(list_files)
+    if [ -z "${files}" ]; then echo "合流できるセッションがありません。'start' で開始してください。"; return; fi
+    if [ -t 0 ]; then
+      cmd_list
+      printf 'どのセッションに合流しますか？番号: '
+      read -r sel || return 1
+    else
+      echo "合流先を指定してください: session.sh resume <番号/ID/見出しの一部>"
+      cmd_list
+      return 1
+    fi
+  fi
+  if target=$(resolve_selector "${sel}"); then
+    set_active "${target}"
+    daily_append "↳ 合流: $(title_of "${target}")  ($(id_of "${target}") / ${DEVICE}・${AGENT})"
+    echo "このチェックアウトの現在セッションを合流先に切り替えました:"
+    echo "  $(title_of "${target}")  ($(id_of "${target}"))"
+    echo "  以降の 'log'/'end' はこのセッションに追記されます。"
+  else
+    rc=$?
+    [ "${rc}" = "1" ] && echo "該当するセッションが見つかりませんでした: ${sel}" >&2
+    return 1
+  fi
 }
 
 cmd_log() {
   msg=${1:-}
   if [ -z "${msg}" ]; then echo "追記する内容を渡してください: session.sh log \"...\"" >&2; exit 1; fi
-  file=$(active_file)
-  if [ -z "${file:-}" ]; then
-    echo "進行中セッションがありません。先に 'session.sh start' を実行してください。" >&2
+  if ! file=$(active_file); then
+    echo "現在のセッションがありません。'start' で開始するか 'resume' で合流してください。" >&2
+    cmd_list >&2 || true
     exit 1
   fi
   printf -- '- [%s] %s\n' "$(NOW)" "${msg}" >> "${file}"
-  echo "追記しました → $(basename "${file}")"
+  daily_append "${msg}  (→ $(title_of "${file}"))"
+  echo "追記しました → $(id_of "${file}")"
 }
 
 cmd_end() {
   summary=${1:-}
-  file=$(active_file)
-  if [ -z "${file:-}" ]; then
-    echo "進行中セッションがありません。" >&2
+  if ! file=$(active_file); then
+    echo "現在のセッションがありません。" >&2
     exit 1
   fi
   {
@@ -113,16 +235,23 @@ cmd_end() {
     echo "- 終了: $(NOW)"
     [ -n "${summary}" ] && printf -- '- %s\n' "${summary}"
   } >> "${file}"
+  daily_append "■ 完了: $(title_of "${file}")${summary:+ — ${summary}}  ($(id_of "${file}"))"
   [ -f "${ACTIVE}" ] && rm -f "${ACTIVE}"
-  echo "セッションを締めました → $(basename "${file}")"
+  echo "セッションを締めました → $(id_of "${file}")"
   echo
-  echo "▶ 次に sessions/STATE.md の「現在の焦点 / 次の一手 / 決定事項」を更新し、"
-  echo "  'sessions/session.sh sync' で全端末へ共有してください。"
+  echo "▶ 必要なら sessions/STATE.md を更新し、'session.sh sync' で全端末へ共有してください。"
+}
+
+cmd_today() {
+  day=${1:-$(TODAY)}
+  day_file="${DAILY_DIR}/${day}.md"
+  if [ -f "${day_file}" ]; then cat "${day_file}"; else echo "(${day} のダイジェストはありません)"; fi
 }
 
 cmd_sync() {
-  echo "→ pull (origin $(git -C "${ROOT}" rev-parse --abbrev-ref HEAD))"
-  git -C "${ROOT}" pull --rebase --autostash origin "$(git -C "${ROOT}" rev-parse --abbrev-ref HEAD)" || true
+  branch=$(git -C "${ROOT}" rev-parse --abbrev-ref HEAD)
+  echo "→ pull (origin ${branch})"
+  git -C "${ROOT}" pull --rebase --autostash origin "${branch}" || true
   if [ -n "$(git -C "${ROOT}" status --porcelain -- sessions 2>/dev/null)" ]; then
     git -C "${ROOT}" add sessions
     git -C "${ROOT}" commit -m "sessions: update shared state (${AGENT}/${DEVICE})" >/dev/null
@@ -130,22 +259,23 @@ cmd_sync() {
   else
     echo "→ commit なし（sessions に変更なし）"
   fi
-  git -C "${ROOT}" push -u origin "$(git -C "${ROOT}" rev-parse --abbrev-ref HEAD)"
+  git -C "${ROOT}" push -u origin "${branch}"
   echo "→ push 完了"
 }
 
-usage() {
-  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
-}
+usage() { sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; }
 
 sub=${1:-show}
 [ $# -gt 0 ] && shift || true
 case "${sub}" in
-  show)  cmd_show "$@" ;;
-  start) cmd_start "$@" ;;
-  log)   cmd_log "$@" ;;
-  end)   cmd_end "$@" ;;
-  sync)  cmd_sync "$@" ;;
+  show)   cmd_show "$@" ;;
+  list|ls) cmd_list "$@" ;;
+  start)  cmd_start "$@" ;;
+  resume|switch|attach) cmd_resume "$@" ;;
+  log)    cmd_log "$@" ;;
+  end)    cmd_end "$@" ;;
+  today)  cmd_today "$@" ;;
+  sync)   cmd_sync "$@" ;;
   help|-h|--help) usage ;;
   *) echo "不明なコマンド: ${sub}" >&2; usage; exit 1 ;;
 esac
