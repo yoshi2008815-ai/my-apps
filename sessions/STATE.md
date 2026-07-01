@@ -19,8 +19,10 @@
 ## 決定事項 / メモ
 - セッション状態はリポジトリ内 `sessions/` に置き、git で全端末・全エージェントへ同期する。
 - 起動時: `sessions/session.sh show` で状態を読む（Claude Code は SessionStart フックで自動表示）。
+- セッションIDは「日付+名前」（例 `2026-07-01-競馬アプリ調整`）。同日同名は `-2` が付く。
 - 複数セッションは `list` / `resume` で選択・切替。`end` は任意で、締めなくても `daily/` に1日分が残る。
-- 端末をまたぐ続きは、別端末で `git pull` → `resume` して同じセッションに合流する。
+- 端末をまたぐ続きは、別端末で `git pull` → `resume`。`resume`/`show` は「引き継ぎサマリ＋直近5件」だけ出す（コンテキスト節約）。区切り前に `summary` を更新する運用。
+- Obsidian バックアップ: `sync`/`mirror` で兄弟の vault(git repo) の `my-apps-sessions/` にミラー＆push。vault が無い端末では自動スキップ。
 - 終了時: STATE.md を更新し `sessions/session.sh sync` で共有する。
 
 ## 進行中の課題（TODO）
