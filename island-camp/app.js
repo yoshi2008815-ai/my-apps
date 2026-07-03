@@ -158,6 +158,9 @@ function drawBase(){
 /* ---------- 島の描画（画面固定サイズ＋ズームで横顔に立ち上がる） ---------- */
 // 0 = 真上から、1 = 横から。ズームするほど横顔に。
 function standUp(){ return Math.max(0, Math.min(1, (STATE.view.scale - 1) / 2.2)); }
+// ズームに応じて島イラスト自体を拡大する倍率（体感重視・上限あり）。
+// 拡大すると島がしっかり大きくなり、近づくほど見応えが出る。
+function islandViewK(){ return Math.min(7, Math.max(1, Math.pow(STATE.view.scale, 0.82))); }
 // 島の中心を画面（viewBox）座標へ。陸地グループと同じ tx + px*scale。
 function islandScreen(is){
   const p = project(is.lat, is.lng);
@@ -172,10 +175,12 @@ function drawIslands(){
 function islandGlyph(is, t){
   const { x:sx, y:sy } = islandScreen(is);
   const vb = STATE.vb || {ox:0, oy:0, vbW:VW, vbH:VH};
-  if (sx < vb.ox-80 || sx > vb.ox+vb.vbW+80 || sy < vb.oy-80 || sy > vb.oy+vb.vbH+140) return ''; // 画面外は省略
+  const m = 90 + islandRadius(is)*islandViewK()*1.4; // 拡大時に大きくなった島が縁で欠けないよう余裕を持たせる
+  if (sx < vb.ox-m || sx > vb.ox+vb.vbW+m || sy < vb.oy-m || sy > vb.oy+vb.vbH+m) return ''; // 画面外は省略
   const active  = is.id === STATE.activeId;
   const visited = (is.visits||0) > 0;
-  const r  = islandRadius(is) * (active ? 1.12 : 1);
+  const zk = islandViewK();
+  const r  = islandRadius(is) * zk * (active ? 1.12 : 1);
   const op = visited ? 1 : 0.5;                       // 未訪問は薄く
   const sand  = is.fav ? '#f3d98a' : visited ? '#efe0b0' : '#dcd8c8';
   const grass = active ? '#7fc97a' : is.fav ? '#8ec862' : visited ? '#74b65c' : '#a6bd9f';
@@ -187,15 +192,17 @@ function islandGlyph(is, t){
   const land   = landShape(is, sx, sy, r, H, grass, grassD);
   const ring   = active ? `<ellipse cx="${sx}" cy="${sy}" rx="${(r+5).toFixed(1)}" ry="${(ry+3).toFixed(1)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
   const showLabel = STATE.view.scale >= 1.45 || is.fav || active;
-  const ly = +(sy + ry + 12).toFixed(1);
-  // 「行った島」マーク＝シュノーケルのバッジ。お気に入りは★を右肩に重ねる。
-  const badgeY = +(sy - H - 16).toFixed(1);
-  const mark = visited ? snorkelBadge(sx, badgeY, 0.62 + (active?0.1:0)) : '';
+  const lblK = Math.min(2.2, Math.sqrt(zk));           // ラベル類も少しだけ拡大
+  const ly = +(sy + ry + 12*lblK).toFixed(1);
+  // 「行った島」マーク＝シュノーケルのバッジ。島の拡大に合わせて大きく。お気に入りは★を右肩に。
+  const bk = (0.62 + (active?0.1:0)) * Math.min(2.8, zk);
+  const badgeY = +(sy - H - 14*bk).toFixed(1);
+  const mark = visited ? snorkelBadge(sx, badgeY, bk) : '';
   const fav = is.fav
-    ? `<text x="${(sx + (visited?15:0)).toFixed(1)}" y="${(badgeY - (visited?9:-2)).toFixed(1)}" text-anchor="middle" font-size="14">★</text>`
+    ? `<text x="${(sx + (visited?18*bk:0)).toFixed(1)}" y="${(badgeY - (visited?8*bk:-2*lblK)).toFixed(1)}" text-anchor="middle" font-size="${(14*lblK).toFixed(1)}">★</text>`
     : '';
-  const visitsB = (visited && showLabel) ? `<text x="${sx}" y="${(ly+12).toFixed(1)}" text-anchor="middle" fill="#3a6a30" font-size="9.5" font-weight="800">${is.visits}回</text>` : '';
-  const label = showLabel ? `<text class="isle-lbl" x="${sx}" y="${ly}" text-anchor="middle" font-size="11.5" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
+  const visitsB = (visited && showLabel) ? `<text x="${sx}" y="${(ly+12*lblK).toFixed(1)}" text-anchor="middle" fill="#3a6a30" font-size="${(9.5*lblK).toFixed(1)}" font-weight="800">${is.visits}回</text>` : '';
+  const label = showLabel ? `<text class="isle-lbl" x="${sx}" y="${ly}" text-anchor="middle" font-size="${(11.5*lblK).toFixed(1)}" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
   return `<g class="isle${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}" style="opacity:${op}">${shadow}${beach}${land}${ring}${mark}${fav}${label}</g>`;
 }
 // 種類ごとの陸地シルエット。sx,sy=海面中心、Hだけ上へ立ち上がる。
