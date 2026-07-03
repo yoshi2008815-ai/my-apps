@@ -117,17 +117,20 @@ function snorkelBadge(cx, cy, k=1){
 // ローカル座標は水面付近が y≈0、山頂が上（負）。s=r/18 でスケール。
 function logoGlyph(sx, sy, r, visited, fav, active){
   const s = (r/18).toFixed(3);
-  const ink   = visited ? '#123642' : '#93a29e';                                  // 輪郭（濃紺 or 灰）
-  const land  = active ? '#eafbe6' : fav ? '#fdeec4' : visited ? '#eef4e2' : '#e8ebe6'; // 島の地色
+  const ink   = visited ? '#123642' : '#93a29e';                                  // マスク輪郭（濃紺 or 灰）
+  const green = active ? '#6fc266' : fav ? '#7fc357' : visited ? '#57a84b' : '#a9c0a2'; // テント（島）の色＝緑
+  const greenD= visited ? '#2f6b32' : '#7e9579';                                  // テントの輪郭・影
   const lens  = visited ? '#5fd0c4' : '#c6d6d3';                                  // マスクのレンズ
   const wave  = visited ? '#2f92c9' : '#a9c8d7';                                  // 波
   const snork = visited ? '#ff7a59' : '#c9b8ad';                                  // シュノーケル管
   return `<g transform="translate(${sx.toFixed(1)},${sy.toFixed(1)}) scale(${s})">
-    <!-- 島本体（二つの峰・右へなだらかに） -->
-    <path d="M-19 3.5 L-11.5 -6.5 L-4.5 0.5 L5 -18 L15 1.5 L24.5 3.5 Q27.5 4 24.5 6 L-19 6 Z"
-          fill="${land}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>
-    <!-- 山頂の小三角 -->
-    <path d="M5 -18 L1.5 -11 L8.5 -11 Z" fill="${ink}"/>
+    <!-- 島＝キャンプのテント（緑） -->
+    <path d="M-14 6 Q-4 2 3 -16 Q10 2 20 6 Z" fill="${green}" stroke="${greenD}" stroke-width="2" stroke-linejoin="round"/>
+    <!-- テントの入口フラップ -->
+    <path d="M-0.5 6 Q2.2 -1 3 -5 Q3.8 -1 6.5 6 Z" fill="${greenD}" opacity=".5"/>
+    <!-- ポール先端 -->
+    <path d="M3 -16 l0 -4.5" stroke="${greenD}" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="3" cy="-21" r="1.6" fill="${greenD}"/>
     <!-- 波（海面） -->
     <path d="M-25 9 q4 -3 8 0 t8 0 t8 0 t8 0 t9 0" fill="none" stroke="${wave}" stroke-width="2.2" stroke-linecap="round"/>
     <path d="M-23 13.5 q4 -3 8 0 t8 0 t8 0 t8 0" fill="none" stroke="${wave}" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
