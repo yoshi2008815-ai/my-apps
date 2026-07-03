@@ -112,6 +112,37 @@ function snorkelBadge(cx, cy, k=1){
   </g>`;
 }
 
+/* ---------- 島そのものをロゴ意匠で描く（シュノーケル＋二峰の島＋波） ---------- */
+// sx,sy=島の中心（海面あたり）、r=大きさ。訪問状態で色を変える。
+// ローカル座標は水面付近が y≈0、山頂が上（負）。s=r/18 でスケール。
+function logoGlyph(sx, sy, r, visited, fav, active){
+  const s = (r/18).toFixed(3);
+  const ink   = visited ? '#123642' : '#93a29e';                                  // 輪郭（濃紺 or 灰）
+  const land  = active ? '#eafbe6' : fav ? '#fdeec4' : visited ? '#eef4e2' : '#e8ebe6'; // 島の地色
+  const lens  = visited ? '#5fd0c4' : '#c6d6d3';                                  // マスクのレンズ
+  const wave  = visited ? '#2f92c9' : '#a9c8d7';                                  // 波
+  const snork = visited ? '#ff7a59' : '#c9b8ad';                                  // シュノーケル管
+  return `<g transform="translate(${sx.toFixed(1)},${sy.toFixed(1)}) scale(${s})">
+    <!-- 島本体（二つの峰・右へなだらかに） -->
+    <path d="M-19 3.5 L-11.5 -6.5 L-4.5 0.5 L5 -18 L15 1.5 L24.5 3.5 Q27.5 4 24.5 6 L-19 6 Z"
+          fill="${land}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>
+    <!-- 山頂の小三角 -->
+    <path d="M5 -18 L1.5 -11 L8.5 -11 Z" fill="${ink}"/>
+    <!-- 波（海面） -->
+    <path d="M-25 9 q4 -3 8 0 t8 0 t8 0 t8 0 t9 0" fill="none" stroke="${wave}" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M-23 13.5 q4 -3 8 0 t8 0 t8 0 t8 0" fill="none" stroke="${wave}" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
+    <!-- シュノーケルの管 -->
+    <path d="M-18.5 2.5 q-5.5 -0.5 -5.5 -6.5 q0 -5 4 -7" fill="none" stroke="${snork}" stroke-width="2.7" stroke-linecap="round"/>
+    <circle cx="-18.5" cy="3.4" r="1.5" fill="${snork}"/>
+    <!-- ダイビングマスク -->
+    <g transform="rotate(-7 -13 3)">
+      <rect x="-22.5" y="-2.4" width="18" height="10.8" rx="5.4" fill="#ffffff" stroke="${ink}" stroke-width="2"/>
+      <rect x="-20.7" y="-0.7" width="14.4" height="7.4" rx="3.7" fill="${lens}"/>
+      <rect x="-19.5" y="0.2" width="4.6" height="2.4" rx="1.2" fill="#eafffb" opacity=".9"/>
+    </g>
+  </g>`;
+}
+
 /* ---------- 描画ユーティリティ ---------- */
 function polyPoints(coords){
   return coords.map(([la,ln])=>{const p=project(la,ln);return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;}).join(' ');
@@ -182,28 +213,20 @@ function islandGlyph(is, t){
   const zk = islandViewK();
   const r  = islandRadius(is) * zk * (active ? 1.12 : 1);
   const op = visited ? 1 : 0.5;                       // 未訪問は薄く
-  const sand  = is.fav ? '#f3d98a' : visited ? '#efe0b0' : '#dcd8c8';
-  const grass = active ? '#7fc97a' : is.fav ? '#8ec862' : visited ? '#74b65c' : '#a6bd9f';
-  const grassD= active ? '#3f8e47' : visited ? '#4f9a44' : '#7e9579';
-  const H  = r * (0.55 + 1.30*t);                    // 立ち上がり高さ
-  const ry = r * (0.52 - 0.20*t);                    // 海面楕円の縦（立つほど薄く）
-  const shadow = `<ellipse cx="${sx}" cy="${(sy+ry*0.55).toFixed(1)}" rx="${(r*1.06).toFixed(1)}" ry="${(ry*0.7).toFixed(1)}" fill="rgba(20,40,60,.16)"/>`;
-  const beach  = `<ellipse cx="${sx}" cy="${sy}" rx="${r.toFixed(1)}" ry="${ry.toFixed(1)}" fill="${sand}" stroke="#d9c587" stroke-width="1"/>`;
-  const land   = landShape(is, sx, sy, r, H, grass, grassD);
-  const ring   = active ? `<ellipse cx="${sx}" cy="${sy}" rx="${(r+5).toFixed(1)}" ry="${(ry+3).toFixed(1)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
+  // 島そのものをロゴ意匠（シュノーケル＋二峰の島＋波）で描く
+  const shadow = `<ellipse cx="${sx}" cy="${(sy+r*0.42).toFixed(1)}" rx="${(r*1.2).toFixed(1)}" ry="${(r*0.3).toFixed(1)}" fill="rgba(20,40,60,.12)"/>`;
+  const ring   = active ? `<ellipse cx="${sx}" cy="${(sy+r*0.15).toFixed(1)}" rx="${(r*1.7).toFixed(1)}" ry="${(r*1.05).toFixed(1)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
+  const glyph  = logoGlyph(sx, sy, r, visited, is.fav, active);
   const showLabel = STATE.view.scale >= 1.45 || is.fav || active;
   const lblK = Math.min(2.2, Math.sqrt(zk));           // ラベル類も少しだけ拡大
-  const ly = +(sy + ry + 12*lblK).toFixed(1);
-  // 「行った島」マーク＝シュノーケルのバッジ。島の拡大に合わせて大きく。お気に入りは★を右肩に。
-  const bk = (0.62 + (active?0.1:0)) * Math.min(2.8, zk);
-  const badgeY = +(sy - H - 14*bk).toFixed(1);
-  const mark = visited ? snorkelBadge(sx, badgeY, bk) : '';
+  const ly = +(sy + r*0.78 + 11*lblK).toFixed(1);
+  // お気に入りは★を山頂の上に
   const fav = is.fav
-    ? `<text x="${(sx + (visited?18*bk:0)).toFixed(1)}" y="${(badgeY - (visited?8*bk:-2*lblK)).toFixed(1)}" text-anchor="middle" font-size="${(14*lblK).toFixed(1)}">★</text>`
+    ? `<text x="${sx}" y="${(sy - r - 3*lblK).toFixed(1)}" text-anchor="middle" font-size="${(14*lblK).toFixed(1)}">★</text>`
     : '';
   const visitsB = (visited && showLabel) ? `<text x="${sx}" y="${(ly+12*lblK).toFixed(1)}" text-anchor="middle" fill="#3a6a30" font-size="${(9.5*lblK).toFixed(1)}" font-weight="800">${is.visits}回</text>` : '';
   const label = showLabel ? `<text class="isle-lbl" x="${sx}" y="${ly}" text-anchor="middle" font-size="${(11.5*lblK).toFixed(1)}" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
-  return `<g class="isle${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}" style="opacity:${op}">${shadow}${beach}${land}${ring}${mark}${fav}${label}</g>`;
+  return `<g class="isle${visited?'':' unseen'}${active?' active':''}" data-id="${is.id}" style="opacity:${op}">${shadow}${ring}${glyph}${fav}${label}</g>`;
 }
 // 種類ごとの陸地シルエット。sx,sy=海面中心、Hだけ上へ立ち上がる。
 function landShape(is, sx, sy, r, H, grass, grassD){
