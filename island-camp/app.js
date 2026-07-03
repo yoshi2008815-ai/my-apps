@@ -5,7 +5,7 @@
 // 日本の島々が収まる範囲
 const BOUNDS = { latN: 46, latS: 23.5, lngW: 122, lngE: 146 };
 const VW = 800, VH = 1000;
-const MAX_SCALE = 18; // 地図の最大拡大率（大きいほどぐっと寄れる）
+const MAX_SCALE = 180; // 地図の最大拡大率（大きいほどぐっと寄れる）
 function project(lat, lng){
   const x = (lng - BOUNDS.lngW) / (BOUNDS.lngE - BOUNDS.lngW) * VW;
   const y = (BOUNDS.latN - lat) / (BOUNDS.latN - BOUNDS.latS) * VH;
@@ -91,16 +91,24 @@ function islandRadius(is){
 }
 
 /* ---------- 「行った島」マーク（シュノーケル＝ロゴのモチーフ） ---------- */
-// 訪問済みの島に付ける小さなシュノーケルマスクのバッジ。cx,cy=中心、k=大きさ倍率。
+// 訪問済みの島に付けるシュノーケルマスクのバッジ（ロゴと同じ意匠）。
+// cx,cy=中心、k=大きさ倍率。ローカル座標は約 -20..20。
 function snorkelBadge(cx, cy, k=1){
   const t = `translate(${(+cx).toFixed(1)},${(+cy).toFixed(1)}) scale(${k})`;
   return `<g class="snorkel-badge" transform="${t}" style="pointer-events:none">
-    <ellipse cx="0" cy="1" rx="12" ry="10.5" fill="#fff" opacity=".95" stroke="#bcd3d8" stroke-width="1"/>
-    <path d="M-8 -6 q-4.5 0 -4.5 4.5 l0 7.5" fill="none" stroke="#ff7a59" stroke-width="2.6" stroke-linecap="round"/>
-    <circle cx="-12.5" cy="6.2" r="1.7" fill="#ff7a59"/>
-    <rect x="-8" y="-5" width="16" height="9" rx="4.2" fill="#0d3340" stroke="#06222b" stroke-width="1"/>
-    <rect x="-6.6" y="-3.4" width="5.6" height="6" rx="2.6" fill="#4fd1c5"/>
-    <rect x="1" y="-3.4" width="5.6" height="6" rx="2.6" fill="#4fd1c5"/>
+    <!-- 視認性のための白いふち -->
+    <rect x="-19" y="-11" width="34" height="22" rx="11" fill="#fff" opacity=".92"/>
+    <!-- シュノーケル管（コーラル） -->
+    <path d="M10 -8 q7 0 7 7 l0 8" fill="none" stroke="#ff7a59" stroke-width="3.6" stroke-linecap="round"/>
+    <rect x="14.6" y="6.5" width="5.4" height="4.6" rx="1.8" fill="#ff7a59"/>
+    <!-- マスク枠 -->
+    <rect x="-16" y="-7.5" width="30" height="15.5" rx="7" fill="#0d3340" stroke="#06222b" stroke-width="1.6"/>
+    <!-- レンズ -->
+    <rect x="-13" y="-4.6" width="24" height="10" rx="5" fill="#4fd1c5"/>
+    <!-- レンズのハイライト -->
+    <rect x="-10.5" y="-2.8" width="8" height="3.4" rx="1.7" fill="#c8f3ee" opacity=".95"/>
+    <!-- ストラップ -->
+    <path d="M-16 -1 q-4 0 -4 3" fill="none" stroke="#0d3340" stroke-width="2.2" stroke-linecap="round"/>
   </g>`;
 }
 
@@ -115,11 +123,13 @@ function centroid(coords){
 
 /* ---------- 地図描画 ---------- */
 function drawBase(){
-  // 海の背景
-  let g = `<rect width="${VW}" height="${VH}" fill="#c0d8e8"/>`;
-  // グリッド（薄く）
-  for(let lat=24;lat<=46;lat+=2){const y=project(lat,0).y; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}">`+'</line>';}
-  for(let lng=124;lng<=144;lng+=4){const x=project(0,lng).x; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}">`+'</line>';}
+  const vb = STATE.vb || {ox:0, oy:0, vbW:VW, vbH:VH};
+  const gx0 = vb.ox.toFixed(1), gx1 = (vb.ox+vb.vbW).toFixed(1);
+  const gy0 = vb.oy.toFixed(1), gy1 = (vb.oy+vb.vbH).toFixed(1);
+  // グリッド（薄く／表示領域いっぱいに伸ばす）
+  let g = '';
+  for(let lat=24;lat<=46;lat+=2){const y=project(lat,0).y; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="${gx0}" y1="${y.toFixed(1)}" x2="${gx1}" y2="${y.toFixed(1)}">`+'</line>';}
+  for(let lng=124;lng<=144;lng+=4){const x=project(0,lng).x; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="${x.toFixed(1)}" y1="${gy0}" x2="${x.toFixed(1)}" y2="${gy1}">`+'</line>';}
   // 参考地形（対馬のみ：実海岸線。位置の手がかりに薄く。他は島イラストで描く）
   for(const [key, rings] of Object.entries(GEO.refs)){
     if (PROMOTED_REFS.has(key)) continue;
@@ -161,7 +171,8 @@ function drawIslands(){
 }
 function islandGlyph(is, t){
   const { x:sx, y:sy } = islandScreen(is);
-  if (sx < -80 || sx > VW+80 || sy < -80 || sy > VH+140) return ''; // 画面外は省略
+  const vb = STATE.vb || {ox:0, oy:0, vbW:VW, vbH:VH};
+  if (sx < vb.ox-80 || sx > vb.ox+vb.vbW+80 || sy < vb.oy-80 || sy > vb.oy+vb.vbH+140) return ''; // 画面外は省略
   const active  = is.id === STATE.activeId;
   const visited = (is.visits||0) > 0;
   const r  = islandRadius(is) * (active ? 1.12 : 1);
@@ -178,10 +189,10 @@ function islandGlyph(is, t){
   const showLabel = STATE.view.scale >= 1.45 || is.fav || active;
   const ly = +(sy + ry + 12).toFixed(1);
   // 「行った島」マーク＝シュノーケルのバッジ。お気に入りは★を右肩に重ねる。
-  const badgeY = +(sy - H - 13).toFixed(1);
-  const mark = visited ? snorkelBadge(sx, badgeY, 0.6 + (active?0.08:0)) : '';
+  const badgeY = +(sy - H - 16).toFixed(1);
+  const mark = visited ? snorkelBadge(sx, badgeY, 0.62 + (active?0.1:0)) : '';
   const fav = is.fav
-    ? `<text x="${(sx + (visited?9:0)).toFixed(1)}" y="${(badgeY - (visited?7:-2)).toFixed(1)}" text-anchor="middle" font-size="13">★</text>`
+    ? `<text x="${(sx + (visited?15:0)).toFixed(1)}" y="${(badgeY - (visited?9:-2)).toFixed(1)}" text-anchor="middle" font-size="14">★</text>`
     : '';
   const visitsB = (visited && showLabel) ? `<text x="${sx}" y="${(ly+12).toFixed(1)}" text-anchor="middle" fill="#3a6a30" font-size="9.5" font-weight="800">${is.visits}回</text>` : '';
   const label = showLabel ? `<text class="isle-lbl" x="${sx}" y="${ly}" text-anchor="middle" font-size="11.5" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
@@ -228,12 +239,27 @@ function landShape(is, sx, sy, r, H, grass, grassD){
   return fillPath(body, grass) + `<path d="${shade}" fill="rgba(0,40,10,.10)"/>`;
 }
 
+// 画面（コンテナ）のアスペクト比に合わせて viewBox を可変にする。
+// これで PC（横長）でもスマホ（縦長）でも常に画面いっぱいに地図が広がる。
+function computeViewBox(){
+  const r = svg.getBoundingClientRect();
+  const cw = r.width || VW, ch = r.height || VH;
+  const cAspect = cw/ch, mAspect = VW/VH;
+  let vbW, vbH;
+  if (cAspect >= mAspect){ vbH = VH; vbW = VH*cAspect; }   // 横長：高さ基準で横に広げる
+  else { vbW = VW; vbH = VW/cAspect; }                     // 縦長：幅基準で縦に広げる
+  return { ox:(VW-vbW)/2, oy:(VH-vbH)/2, vbW, vbH };
+}
 function renderMap(){
   const { scale, tx, ty } = STATE.view;
+  const vb = computeViewBox();
+  STATE.vb = vb;
   const svgH = svg.getBoundingClientRect().height;
   STATE.vScale = svgH > 0 ? svgH / VH : 0.73;
-  // 陸地は拡大グループ内、島イラストは画面固定サイズで上に重ねる
+  svg.setAttribute('viewBox', `${vb.ox.toFixed(1)} ${vb.oy.toFixed(1)} ${vb.vbW.toFixed(1)} ${vb.vbH.toFixed(1)}`);
+  // 海（表示領域いっぱい・拡大の影響を受けない下地）→ 陸地は拡大グループ内 → 島イラストは画面固定サイズで上に
   svg.innerHTML =
+    `<rect x="${vb.ox.toFixed(1)}" y="${vb.oy.toFixed(1)}" width="${vb.vbW.toFixed(1)}" height="${vb.vbH.toFixed(1)}" fill="#c0d8e8"/>` +
     `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}</g>` +
     `<g class="isles">${drawIslands()}</g>`;
   svg.querySelectorAll('.isle').forEach(el => {
@@ -481,7 +507,8 @@ function svgPoint(ev){
   const r = svg.getBoundingClientRect();
   const px = (ev.touches?ev.touches[0].clientX:ev.clientX) - r.left;
   const py = (ev.touches?ev.touches[0].clientY:ev.clientY) - r.top;
-  return { x: px / r.width * VW, y: py / r.height * VH };
+  const vb = STATE.vb || {ox:0, oy:0, vbW:VW, vbH:VH};
+  return { x: vb.ox + px / r.width * vb.vbW, y: vb.oy + py / r.height * vb.vbH };
 }
 svg.addEventListener('mousedown', e => { drag = {...svgPoint(e), tx:STATE.view.tx, ty:STATE.view.ty}; svg.classList.add('dragging'); });
 window.addEventListener('mousemove', e => {
@@ -547,9 +574,15 @@ function dataURLtoBlob(durl){ const [h,b]=durl.split(','); const mime=h.match(/:
 
 /* ---------- UI 配線 ---------- */
 $('#closePanel').onclick = () => { $('#panel').classList.remove('open'); STATE.activeId=null; renderMap(); };
-$('#zin').onclick = () => zoomBy(1.3);
-$('#zout').onclick = () => zoomBy(0.77);
+$('#zin').onclick = () => zoomBy(1.5);
+$('#zout').onclick = () => zoomBy(0.67);
 $('#zreset').onclick = resetView;
+// 画面サイズ変更（回転・ウィンドウ変形）で viewBox を組み直して常にフィット
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { clampView(); renderMap(); }, 150);
+});
 $('#addIslandBtn').onclick = addIsland;
 $('#menuBtn').onclick = () => $('#dataModal').classList.add('open');
 $('#closeData').onclick = () => $('#dataModal').classList.remove('open');

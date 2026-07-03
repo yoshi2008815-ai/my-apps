@@ -25,25 +25,30 @@
     background:var(--sea); color:var(--ink); overflow:hidden;
   }
   /* ===== レイアウト ===== */
-  .app{display:flex; height:100dvh; height:100vh}
-  .mapwrap{flex:1; position:relative; min-width:0}
+  /* 地図は常に画面いっぱい。左右ペインは“上に重なる”オーバーレイなので
+     閉じているときは幅を専有せず、PCでもスマホでも地図がフル幅で広がる。 */
+  .app{display:flex; height:100dvh; height:100vh; position:relative; overflow:hidden}
+  .mapwrap{flex:1; position:relative; min-width:0; width:100%}
   .panel{
-    width:380px; max-width:88vw; background:var(--panel); border-left:1px solid var(--line);
+    width:400px; max-width:92vw; background:var(--panel); border-left:1px solid var(--line);
     display:flex; flex-direction:column; transform:translateX(100%);
-    transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:30;
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    position:absolute; top:0; right:0; height:100%; z-index:30;
+    box-shadow:-8px 0 40px rgba(0,0,0,.16);
   }
   .panel.open{transform:translateX(0)}
   /* 左ペイン：年次別インデックス */
   .idxpanel{
-    width:300px; max-width:82vw; background:var(--panel); border-right:1px solid var(--line);
+    width:320px; max-width:86vw; background:var(--panel); border-right:1px solid var(--line);
     display:flex; flex-direction:column; transform:translateX(-100%);
-    transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:31;
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    position:absolute; top:0; left:0; height:100%; z-index:31;
+    box-shadow:8px 0 40px rgba(0,0,0,.16);
   }
   .idxpanel.open{transform:translateX(0)}
   @media (max-width:760px){
-    .app{flex-direction:column}
-    .panel{position:fixed; top:0; right:0; height:100dvh; height:100vh; box-shadow:-8px 0 40px rgba(0,0,0,.5)}
-    .idxpanel{position:fixed; top:0; left:0; height:100dvh; height:100vh; box-shadow:8px 0 40px rgba(0,0,0,.5)}
+    .panel{width:400px; box-shadow:-8px 0 40px rgba(0,0,0,.5)}
+    .idxpanel{width:320px; box-shadow:8px 0 40px rgba(0,0,0,.5)}
   }
   /* ===== ヘッダー ===== */
   .topbar{
