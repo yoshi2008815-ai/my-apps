@@ -8,7 +8,7 @@ window.SEED_ISLANDS = [
   {
     id: "izu-oshima", name: "大島", region: "伊豆諸島", pref: "東京都",
     lat: 34.75, lng: 139.36,
-    firstVisit: "2005", visits: 12, fav: true,
+    firstVisit: "2013", visits: 2, years: [2013, 2025], fav: true,
     summary: "三原山と椿。伊豆諸島の玄関口。ジェット船で最短。",
     photos: [],
     shops: [
@@ -23,13 +23,13 @@ window.SEED_ISLANDS = [
       "椿シーズンは1〜3月、椿まつりで賑わう"
     ],
     logs: [
-      { date: "2005", text: "初めての島キャンプ。すべてここから始まった。" }
+      { date: "2013", text: "利島・式根島とあわせて訪問。2025年に再訪。" }
     ]
   },
   {
     id: "niijima", name: "新島", region: "伊豆諸島", pref: "東京都",
     lat: 34.37, lng: 139.27,
-    firstVisit: "2007", visits: 9, fav: true,
+    firstVisit: "2006", visits: 2, years: [2006, 2008], fav: true,
     summary: "白い砂浜とコーガ石。サーフィンと無料の天然温泉。",
     photos: [],
     shops: [],
@@ -46,7 +46,7 @@ window.SEED_ISLANDS = [
   {
     id: "kozushima", name: "神津島", region: "伊豆諸島", pref: "東京都",
     lat: 34.20, lng: 139.13,
-    firstVisit: "2009", visits: 7, fav: false,
+    firstVisit: "2005", visits: 2, years: [2005, 2024], fav: false,
     summary: "天上山と天の川。星空保護区に認定された島。",
     photos: [],
     shops: [],
@@ -64,7 +64,7 @@ window.SEED_ISLANDS = [
     id: "miyakejima", name: "三宅島", region: "伊豆諸島", pref: "東京都",
     special: "miyake",
     lat: 34.08, lng: 139.53,
-    firstVisit: "2010", visits: 1, fav: true,
+    firstVisit: "2010", visits: 1, years: [2010], fav: true,
     summary: "雄山がそびえる火山の島。2010年に訪問、2026年に再訪・キャンプ予定。スクロールで横顔（火山プロファイル）が見えます。",
     photos: [],
     shops: [],
@@ -87,7 +87,7 @@ window.SEED_ISLANDS = [
   {
     id: "hachijojima", name: "八丈島", region: "伊豆諸島", pref: "東京都",
     lat: 33.11, lng: 139.79,
-    firstVisit: "2011", visits: 5, fav: true,
+    firstVisit: "2007", visits: 3, years: [2007, 2009, 2015], fav: true,
     summary: "ひょうたん型の常春の島。八丈富士と地熱・温泉。",
     photos: [],
     shops: [
@@ -108,7 +108,7 @@ window.SEED_ISLANDS = [
   {
     id: "yakushima", name: "屋久島", region: "鹿児島の島", pref: "鹿児島県",
     lat: 30.34, lng: 130.51,
-    firstVisit: "2013", visits: 4, fav: true,
+    firstVisit: "2019", visits: 1, years: [2019], fav: true,
     summary: "縄文杉と苔の森。月のうち35日雨が降ると言われる。",
     photos: [],
     shops: [],
@@ -125,7 +125,7 @@ window.SEED_ISLANDS = [
   {
     id: "amami-oshima", name: "奄美大島", region: "鹿児島の島", pref: "鹿児島県",
     lat: 28.37, lng: 129.49,
-    firstVisit: "2015", visits: 3, fav: false,
+    firstVisit: "2016", visits: 1, years: [2016], fav: false,
     summary: "マングローブと金作原の原生林。鶏飯と黒糖焼酎。",
     photos: [],
     shops: [
@@ -146,7 +146,7 @@ window.SEED_ISLANDS = [
   {
     id: "ishigaki", name: "石垣島", region: "沖縄の島", pref: "沖縄県",
     lat: 24.40, lng: 124.16,
-    firstVisit: "2016", visits: 3, fav: true,
+    firstVisit: "2011", visits: 1, years: [2011], fav: true,
     summary: "八重山の拠点。川平湾のグラスボートと満点の星。",
     photos: [],
     shops: [],
@@ -163,7 +163,7 @@ window.SEED_ISLANDS = [
   {
     id: "iriomote", name: "西表島", region: "沖縄の島", pref: "沖縄県",
     lat: 24.35, lng: 123.80,
-    firstVisit: "2018", visits: 2, fav: true,
+    firstVisit: "", visits: 0, years: [], fav: false,
     summary: "島の9割が亜熱帯ジャングル。イリオモテヤマネコの島。",
     photos: [],
     shops: [],
@@ -182,7 +182,7 @@ window.SEED_ISLANDS = [
   {
     id: "sado", name: "佐渡島", region: "新潟の島", pref: "新潟県",
     lat: 38.05, lng: 138.40,
-    firstVisit: "2014", visits: 3, fav: false,
+    firstVisit: "2014", visits: 1, years: [2014], fav: false,
     summary: "たらい舟と金山。離島とは思えない大きさと歴史。",
     photos: [],
     shops: [],
@@ -202,21 +202,24 @@ window.SEED_ISLANDS = [
   {
     id: "toshima", name: "利島", region: "伊豆諸島", pref: "東京都",
     lat: 34.52, lng: 139.28,
-    firstVisit: "2013", visits: 1, fav: false,
+    firstVisit: "2013", visits: 1, years: [2013], fav: false,
     summary: "椿に覆われた小さな円錐の島。2013年訪問。",
     photos: [], shops: [], knowledge: [], tips: [], logs: []
   },
   {
     id: "shikinejima", name: "式根島", region: "伊豆諸島", pref: "東京都",
     lat: 34.32, lng: 139.21,
-    firstVisit: "2004", visits: 3, fav: true,
-    summary: "新島の隣。入り組んだ海岸線と無料の海中温泉。2004年から。",
-    photos: [], shops: [], knowledge: [], tips: [], logs: []
+    firstVisit: "2004", visits: 3, years: [2004, 2008, 2013], fav: true,
+    summary: "新島の隣。入り組んだ海岸線と無料の海中温泉。すべてはここから始まった。",
+    photos: [], shops: [], knowledge: [], tips: [],
+    logs: [
+      { date: "2004", text: "初めての島キャンプ。すべてここから始まった。" }
+    ]
   },
   {
     id: "mikurajima", name: "御蔵島", region: "伊豆諸島", pref: "東京都",
     lat: 33.88, lng: 139.60,
-    firstVisit: "2012", visits: 1, fav: false,
+    firstVisit: "2012", visits: 1, years: [2012], fav: false,
     summary: "三宅島の南。イルカと原生林の険しい島。2012年訪問。",
     photos: [], shops: [], knowledge: [], tips: [], logs: []
   },
@@ -224,14 +227,14 @@ window.SEED_ISLANDS = [
   {
     id: "kikaijima", name: "喜界島", region: "鹿児島の島", pref: "鹿児島県",
     lat: 28.32, lng: 129.94,
-    firstVisit: "2017", visits: 1, fav: false,
+    firstVisit: "2017", visits: 1, years: [2017], fav: false,
     summary: "隆起サンゴ礁の平らな島。サトウキビと白ゴマ。2017年訪問。",
     photos: [], shops: [], knowledge: [], tips: [], logs: []
   },
   {
     id: "tokunoshima", name: "徳之島", region: "鹿児島の島", pref: "鹿児島県",
     lat: 27.80, lng: 128.93,
-    firstVisit: "2018", visits: 1, fav: false,
+    firstVisit: "2018", visits: 1, years: [2018], fav: false,
     summary: "闘牛とトライアスロンの島。世界自然遺産。2018年訪問。",
     photos: [], shops: [], knowledge: [], tips: [], logs: []
   },

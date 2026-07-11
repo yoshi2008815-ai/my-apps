@@ -14,19 +14,48 @@ function project(lat, lng){
 /* ---------- 永続化 ---------- */
 const LS_KEY = 'island-camp/islands-v1';
 
+const STATS_KEY = 'island-camp/stats-v';
+const STATS_VERSION = 2; // v2: OneNote実記録（2004〜2025）を反映
+
 function loadIslands(){
   let list;
   try {
     const raw = localStorage.getItem(LS_KEY);
     list = raw ? JSON.parse(raw) : null;
   } catch(e){ list = null; }
-  if (!list) return deepClone(window.SEED_ISLANDS || []);
+  if (!list){
+    try { localStorage.setItem(STATS_KEY, String(STATS_VERSION)); } catch(e){}
+    return deepClone(window.SEED_ISLANDS || []);
+  }
   // 保存済みデータに無い「シードの島（新規ロスター等）」を補完（ユーザー編集は維持）
   const have = new Set(list.map(i => i.id));
   for (const seed of (window.SEED_ISLANDS || [])){
     if (!have.has(seed.id)) list.push(deepClone(seed));
   }
+  migrateStats(list);
   return list;
+}
+// 訪問統計（初訪問年・回数・訪問年・★）をシードの実記録で上書きする一回きりの移行。
+// 写真・日記・お店・ナレッジ等のユーザーデータは維持する。
+function migrateStats(list){
+  try {
+    if (+(localStorage.getItem(STATS_KEY) || 1) >= STATS_VERSION) return;
+    const seedById = new Map((window.SEED_ISLANDS || []).map(s => [s.id, s]));
+    for (const is of list){
+      const s = seedById.get(is.id);
+      if (!s) continue; // ユーザーが追加した島はそのまま
+      is.firstVisit = s.firstVisit;
+      is.visits = s.visits;
+      is.years = s.years ? [...s.years] : [];
+      is.fav = s.fav;
+      if (is.id === 'izu-oshima')
+        is.logs = (is.logs || []).filter(l => !(l.date === '2005' && /初めての島キャンプ/.test(l.text || '')));
+      if (is.id === 'shikinejima' && !(is.logs || []).some(l => /初めての島キャンプ/.test(l.text || '')))
+        (is.logs = is.logs || []).unshift({ date: '2004', text: '初めての島キャンプ。すべてここから始まった。' });
+    }
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+    localStorage.setItem(STATS_KEY, String(STATS_VERSION));
+  } catch(e){}
 }
 function saveIslands(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(STATE.islands)); }
@@ -330,14 +359,26 @@ function idxItemHTML(is){
 function renderIndexPanel(){
   const body = $('#idxBody');
   if (!body) return;
-  const withYear = STATE.islands.filter(i => i.firstVisit);
-  const noYear   = STATE.islands.filter(i => !i.firstVisit);
-  const years = [...new Set(withYear.map(i => i.firstVisit))].sort((a,b) => +a - +b);
-  let html = '';
+  // 訪問した年ごとにグループ化（同じ島が複数の年に登場する＝年表形式）
+  const byYear = new Map();
+  for (const i of STATE.islands){
+    const ys = (i.years && i.years.length) ? i.years : (i.firstVisit ? [+i.firstVisit] : []);
+    for (const y of ys){
+      if (!byYear.has(y)) byYear.set(y, []);
+      byYear.get(y).push(i);
+    }
+  }
+  const years = [...byYear.keys()].sort((a,b) => a - b);
+  const noYear = STATE.islands.filter(i => !(i.visits||0) && !i.firstVisit);
+  let html = '', prev = null;
   for (const y of years){
-    const items = withYear.filter(i => i.firstVisit === y);
-    html += `<div class="idx-year"><div class="idx-year-h"><span class="y">${esc(y)}年</span><span class="n">${items.length}島</span></div>
+    if (prev === 2019 && y >= 2024){
+      html += `<div class="idx-year"><div class="idx-year-h"><span class="y" style="font-size:.9rem">😷 2020–2023</span><span class="n">コロナでお休み</span></div></div>`;
+    }
+    const items = byYear.get(y);
+    html += `<div class="idx-year"><div class="idx-year-h"><span class="y">${y}年</span><span class="n">${items.length}島</span></div>
       <div class="idx-list">${items.map(idxItemHTML).join('')}</div></div>`;
+    prev = y;
   }
   if (noYear.length){
     html += `<div class="idx-year"><div class="idx-year-h"><span class="y">🗺 まだ行ったことのない島</span><span class="n">${noYear.length}島</span></div>
@@ -366,9 +407,10 @@ async function openIsland(id){
   $('#pFav').textContent = is.fav ? '★' : '☆';
   $('#pFav').style.color = is.fav ? 'var(--fav)' : 'var(--sub)';
   const sp = SPECIALTY[is.id];
+  const yrs = (is.years && is.years.length) ? `（${is.years.join('・')}）` : '';
   $('#pMeta').innerHTML =
     `<span>📍 初訪問 ${esc(is.firstVisit||'—')}</span>
-     <span>🔁 訪問 ${is.visits||0} 回</span>
+     <span>🔁 訪問 ${is.visits||0} 回${yrs}</span>
      <span>📷 写真 ${is.photos.length} 枚</span>` +
     (sp ? `<span>🎁 名産 ${sp.ic} ${esc(sp.name)}</span>` : '');
   $('#pSummary').textContent = is.summary || '';
