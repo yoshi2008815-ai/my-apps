@@ -1,6 +1,6 @@
 // 島キャンプ思い出マップ Service Worker
-const CACHE = 'island-camp-v13';
-const V = '13'; // index.html の <script src="...?v="> と合わせる
+const CACHE = 'island-camp-v14';
+const V = '14'; // index.html の <script src="...?v="> と合わせる
 const ASSETS = [
   './',
   './index.html',
@@ -27,10 +27,13 @@ self.addEventListener('activate', e => {
 });
 
 // ネットワーク優先：常に最新を取得しキャッシュ更新。オフライン時のみキャッシュにフォールバック。
+// ページ(HTML)は cache:'no-cache' でブラウザHTTPキャッシュを迂回し、必ずサーバーへ再確認する
+// （Cache-Controlヘッダの無いサーバーで古いHTMLが使い回される問題への対策）。
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const isNav = e.request.mode === 'navigate' || e.request.destination === 'document';
   e.respondWith(
-    fetch(e.request).then(res => {
+    fetch(e.request, isNav ? {cache: 'no-cache'} : undefined).then(res => {
       const copy = res.clone();
       caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
       return res;
