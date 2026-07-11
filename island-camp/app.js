@@ -176,7 +176,7 @@ function islandGlyph(is, t){
   const ry = r * (0.52 - 0.20*t);                    // 海面楕円の縦（立つほど薄く）
   const showLabel = STATE.view.scale >= 1.45 || is.fav || active;
   return isleArt(is, sx, sy, r, H, ry,
-    {active, visited, op: visited ? 1 : 0.55, showLabel, labelSize: 11.5});
+    {active, visited, op: visited ? 1 : 0.55, showLabel, labelSize: 13, visitsSize: 11, visitsGap: 15});
 }
 
 // 島イラスト共通パーツ（地図モード・横からビューで共用）
@@ -196,8 +196,8 @@ function isleArt(is, sx, sy, r, H, ry, o){
   const land   = landShape(is, sx, sy, r, H, `url(#${grad})`, edge);
   const ring   = o.active ? `<ellipse cx="${n(sx)}" cy="${n(sy)}" rx="${n(r+5)}" ry="${n(ry+3)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
   const ly = +(sy + ry + 12).toFixed(1);
-  const fav = is.fav ? `<text x="${n(sx)}" y="${n(sy-H-8)}" text-anchor="middle" font-size="13">⭐</text>` : '';
-  const visitsB = (o.visited && o.showLabel) ? `<text x="${n(sx)}" y="${n(ly+13)}" text-anchor="middle" fill="#3a6a30" font-size="9.5" font-weight="800">${is.visits}回</text>` : '';
+  const fav = is.fav ? `<text x="${n(sx)}" y="${n(sy-H-8)}" text-anchor="middle" font-size="${o.favSize||13}">⭐</text>` : '';
+  const visitsB = (o.visited && o.showLabel) ? `<text x="${n(sx)}" y="${n(ly+(o.visitsGap||13))}" text-anchor="middle" fill="#3a6a30" font-size="${o.visitsSize||9.5}" font-weight="800">${is.visits}回</text>` : '';
   const label = o.showLabel ? `<text class="isle-lbl" x="${n(sx)}" y="${ly}" text-anchor="middle" font-size="${o.labelSize||11.5}" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
   return `<g class="isle${o.visited?'':' unseen'}${o.active?' active':''}" data-id="${is.id}" style="opacity:${o.op}">${shadow}${foam}${beach}${land}${ring}${fav}${label}</g>`;
 }
@@ -299,18 +299,19 @@ function renderSideView(){
     const visited = (is.visits||0) > 0;
     const r = (islandRadius(is) + 15) * 1.9;
     items += isleArt(is, sx, HZ, r, r*1.3, r*0.28,
-      {active: is.id===STATE.activeId, visited, op: visited?1:0.6, showLabel:true, labelSize:15});
-    // 名産バッジ
+      {active: is.id===STATE.activeId, visited, op: visited?1:0.6, showLabel:true,
+       labelSize:19, visitsSize:14, visitsGap:21, favSize:16});
+    // 名産バッジ（島の上・ゆげより高い位置）
     const sp = SPECIALTY[is.id];
     if (sp){
-      const spY = HZ + r*0.28 + 12 + (visited ? 30 : 17);
-      items += `<text x="${sx.toFixed(1)}" y="${spY.toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700"
-        fill="#f2fbff" opacity=".95">${sp.ic} ${esc(sp.name)}</text>`;
+      const spY = HZ - r*1.3 - r*0.62 - 6;
+      items += `<text x="${sx.toFixed(1)}" y="${spY.toFixed(1)}" text-anchor="middle" font-size="17" font-weight="800"
+        fill="#17395f" paint-order="stroke" stroke="#fff" stroke-width="4" opacity=".95">${sp.ic} ${esc(sp.name)}</text>`;
     }
   });
   g += `<g class="isles">${items}</g>`;
   const rgLabel = {all:'すべての島', izu:'伊豆諸島', kago:'屋久島・奄美', oki:'沖縄・先島'}[STATE.region||'all'] || 'すべての島';
-  g += `<text x="24" y="${VH-36}" fill="#fff" font-size="15" font-weight="800" opacity=".95">⛵ ${rgLabel}（北 → 南）${width>VW?'・ドラッグで移動':''}</text>`;
+  g += `<text x="24" y="${VH-36}" fill="#fff" font-size="17" font-weight="800" opacity=".95">⛵ ${rgLabel}（北 → 南）${width>VW?'・ドラッグで移動':''}</text>`;
   svg.innerHTML = g;
   bindIsleClicks();
 }
