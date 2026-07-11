@@ -3,246 +3,324 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#eef7f8" />
+<meta name="theme-color" content="#f2f7f8" />
 <title>島キャンプ思い出マップ</title>
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    /* UI パネル（モダン・ブライト系）*/
-    --bg:#f6fafb; --panel:#ffffff; --panel2:#eef6f7; --line:#dceaec;
-    --ink:#1f3a3e; --sub:#5f7d82; --accent:#ff9f43; --accent2:#15a39a;
-    --pin:#ff5a5a; --fav:#ffc928;
-    /* 白地図 カラー */
-    --sea:#d8eef4; --land:#f4efe1; --isle:#cfe6b0; --isle-fav:#ffe49a;
-    --isle-stroke:#7fae6c; --land-stroke:#c9c2a8;
-    --map-label:#7c98a0; --map-text:#2a2520;
+    /* モダン・ブライト パレット */
+    --bg:#f2f7f8; --panel:#ffffff; --panel2:#f2f7f9; --line:#e2edf0;
+    --ink:#17343a; --sub:#69868c; --accent:#ff9f43; --accent-d:#ef8c2c;
+    --accent2:#109b90; --teal-d:#0c7d74;
+    --pin:#ff5a5a; --fav:#ffb928;
+    --sea:#cfe7f0; --land:#f0ebdc;
+    --shadow-lg:0 14px 44px rgba(23,52,58,.16);
+    --shadow-md:0 5px 18px rgba(23,52,58,.11);
+    --shadow-sm:0 2px 8px rgba(23,52,58,.08);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Kaku Gothic ProN",sans-serif;
+    font-family:"Zen Maru Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN",sans-serif;
+    font-weight:500;
     background:var(--sea); color:var(--ink); overflow:hidden;
   }
   /* ===== レイアウト ===== */
   .app{display:flex; height:100dvh; height:100vh}
   .mapwrap{flex:1; position:relative; min-width:0}
   .panel{
-    width:380px; max-width:88vw; background:var(--panel); border-left:1px solid var(--line);
-    display:flex; flex-direction:column; transform:translateX(100%);
-    transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:30;
+    width:400px; max-width:92vw; background:var(--panel);
+    border-radius:24px 0 0 24px; box-shadow:var(--shadow-lg);
+    display:flex; flex-direction:column; transform:translateX(105%);
+    transition:transform .32s cubic-bezier(.32,.9,.35,1); position:relative; z-index:30;
   }
   .panel.open{transform:translateX(0)}
   /* 左ペイン：年次別インデックス */
   .idxpanel{
-    width:300px; max-width:82vw; background:var(--panel); border-right:1px solid var(--line);
-    display:flex; flex-direction:column; transform:translateX(-100%);
-    transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:31;
+    width:300px; max-width:84vw; background:var(--panel);
+    border-radius:0 24px 24px 0; box-shadow:var(--shadow-lg);
+    display:flex; flex-direction:column; transform:translateX(-105%);
+    transition:transform .32s cubic-bezier(.32,.9,.35,1); position:relative; z-index:31;
   }
   .idxpanel.open{transform:translateX(0)}
   @media (max-width:760px){
     .app{flex-direction:column}
-    .panel{position:fixed; top:0; right:0; height:100dvh; height:100vh; box-shadow:-8px 0 40px rgba(0,0,0,.5)}
-    .idxpanel{position:fixed; top:0; left:0; height:100dvh; height:100vh; box-shadow:8px 0 40px rgba(0,0,0,.5)}
+    .panel{position:fixed; top:0; right:0; height:100dvh; height:100vh; border-radius:24px 0 0 24px}
+    .idxpanel{position:fixed; top:0; left:0; height:100dvh; height:100vh}
   }
-  /* ===== ヘッダー ===== */
+  /* ===== ヘッダー（フローティング） ===== */
   .topbar{
-    position:absolute; top:0; left:0; right:0; z-index:20; padding:12px 16px;
+    position:absolute; top:12px; left:12px; right:12px; z-index:20;
+    padding:10px 14px; border-radius:18px;
     display:flex; align-items:center; gap:10px; pointer-events:none;
-    background:rgba(255,255,255,.86); backdrop-filter:blur(8px);
-    border-bottom:1px solid rgba(0,0,0,.06);
+    background:rgba(255,255,255,.9); backdrop-filter:blur(12px);
+    box-shadow:var(--shadow-md);
   }
-  .title{pointer-events:auto}
-  .title h1{margin:0; font-size:1.05rem; letter-spacing:.04em}
-  .title p{margin:2px 0 0; font-size:.72rem; color:var(--sub)}
+  .title{pointer-events:auto; min-width:0}
+  .title h1{margin:0; font-size:1.02rem; font-weight:900; letter-spacing:.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .title p{margin:1px 0 0; font-size:.68rem; color:var(--sub)}
   .spacer{flex:1}
   .topbar button{pointer-events:auto}
   .btn{
     background:var(--panel2); color:var(--ink); border:1px solid var(--line);
-    border-radius:10px; padding:8px 12px; font-size:.8rem; cursor:pointer; font-weight:600;
+    border-radius:999px; padding:8px 14px; font-size:.8rem; cursor:pointer; font-weight:700;
+    font-family:inherit; transition:transform .12s, box-shadow .12s, background .12s;
   }
-  .btn:hover{background:#dff0f2}
-  .btn.accent{background:var(--accent); color:#22324b; border-color:transparent}
-  .btn.ghost{background:transparent}
+  .btn:hover{background:#e4f0f2; box-shadow:var(--shadow-sm)}
+  .btn:active{transform:scale(.96)}
+  .btn.accent{background:linear-gradient(135deg,var(--accent),var(--accent-d)); color:#fff; border-color:transparent; box-shadow:0 3px 10px rgba(255,159,67,.4)}
+  .btn.ghost{background:transparent; border-color:transparent}
+  .btn.ghost:hover{background:var(--panel2)}
+  /* ===== エリアタブ ===== */
+  .regionbar{
+    position:absolute; left:50%; transform:translateX(-50%); top:76px; z-index:19;
+    display:flex; gap:6px; padding:5px; border-radius:999px;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(10px); box-shadow:var(--shadow-md);
+    max-width:calc(100% - 24px); overflow-x:auto; scrollbar-width:none;
+  }
+  .regionbar::-webkit-scrollbar{display:none}
+  .rchip{
+    flex:none; border:none; border-radius:999px; padding:7px 15px;
+    font-size:.78rem; font-weight:700; font-family:inherit; cursor:pointer;
+    background:transparent; color:var(--sub); transition:all .18s;
+  }
+  .rchip:hover{color:var(--ink)}
+  .rchip.on{background:var(--accent2); color:#fff; box-shadow:0 2px 8px rgba(16,155,144,.35)}
+  @media (max-width:760px){ .regionbar{top:84px} }
   /* ===== 地図 ===== */
   svg.map{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
   svg.map.dragging{cursor:grabbing}
-  /* 島イラスト（ぷっくり立体） */
   .isles{pointer-events:none}
   .isle{cursor:pointer; pointer-events:auto; transition:opacity .2s}
-  .isle:hover{filter:brightness(1.05) drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+  .isle:hover{filter:brightness(1.06) drop-shadow(0 3px 5px rgba(0,0,0,.22))}
   .isle .isle-lbl{
-    fill:var(--map-text); paint-order:stroke; stroke:#fff; stroke-width:3px; pointer-events:none;
+    fill:#22443c; paint-order:stroke; stroke:#fff; stroke-width:3.5px; pointer-events:none;
   }
-  .isle.unseen .isle-lbl{fill:#5d6f65}
-  /* ドット型ピン（シェイプデータのない島） */
+  .isle.unseen .isle-lbl{fill:#6d8378}
   .pin{cursor:pointer}
   .pin .dot{fill:var(--pin); stroke:#fff; stroke-width:2; transition:r .15s}
   .pin.fav .dot{fill:var(--fav)}
-  .pin .ring{fill:none; stroke:#4a90c8; stroke-width:2; opacity:0}
+  .pin .ring{fill:none; stroke:#2a7ec8; stroke-width:2; opacity:0}
   .pin:hover .dot{r:11}
   .pin.active .ring{opacity:.9}
-  .pin .lbl{
-    fill:var(--map-text); font-size:12px; font-weight:700; paint-order:stroke;
-    stroke:#fff; stroke-width:3px; pointer-events:none;
-  }
+  .pin .lbl{fill:#22443c; font-size:12px; font-weight:700; paint-order:stroke; stroke:#fff; stroke-width:3px; pointer-events:none}
   .pin .visits{fill:#fff; font-size:9px; font-weight:800; text-anchor:middle; pointer-events:none}
-  .zoomctl{position:absolute; right:16px; bottom:16px; z-index:20; display:flex; flex-direction:column; gap:6px}
-  .zoomctl button{width:40px; height:40px; font-size:1.2rem; border-radius:10px}
+  /* ズームボタン（FAB風） */
+  .zoomctl{position:absolute; right:16px; bottom:20px; z-index:20; display:flex; flex-direction:column; gap:8px}
+  .zoomctl button{
+    width:46px; height:46px; font-size:1.25rem; border-radius:50%;
+    background:#fff; border:none; box-shadow:var(--shadow-md); color:var(--ink);
+    cursor:pointer; font-family:inherit; font-weight:700; transition:transform .12s;
+  }
+  .zoomctl button:hover{transform:scale(1.07)}
+  .zoomctl button:active{transform:scale(.94)}
   /* 凡例 */
   .legend{
-    position:absolute; left:16px; bottom:16px; z-index:20;
-    background:rgba(255,255,255,.9); border:1px solid rgba(0,0,0,.08);
-    border-radius:12px; padding:10px 12px; font-size:.72rem; color:var(--sub);
-    backdrop-filter:blur(4px); max-width:60vw;
+    position:absolute; left:16px; bottom:20px; z-index:20;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
+    border-radius:14px; padding:10px 13px; font-size:.7rem; color:var(--sub);
+    box-shadow:var(--shadow-sm); max-width:60vw;
   }
-  .legend b{color:var(--ink)}
+  .legend b{color:var(--ink); font-weight:800}
   .legend .row{display:flex; align-items:center; gap:6px; margin-top:4px}
-  .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+  .swatch{width:12px;height:12px;border-radius:4px;display:inline-block}
   /* ===== 詳細パネル中身 ===== */
-  .phead{padding:18px 18px 12px; border-bottom:1px solid var(--line); position:relative}
+  .phead{padding:20px 20px 14px; border-bottom:1px solid var(--line); position:relative}
   .phead .close{position:absolute; top:14px; right:14px}
-  .phead .badge{display:inline-block; font-size:.68rem; background:var(--panel2); border:1px solid var(--line);
-    color:var(--sub); padding:3px 8px; border-radius:999px; margin-bottom:8px}
-  .phead h2{margin:0; font-size:1.35rem}
-  .phead .meta{margin-top:6px; font-size:.78rem; color:var(--sub); display:flex; gap:14px; flex-wrap:wrap}
-  .phead .summary{margin-top:10px; font-size:.86rem; line-height:1.55; color:var(--ink)}
-  .pbody{flex:1; overflow-y:auto; padding:0 18px 90px}
-  .sec{margin-top:22px}
-  .sec h3{font-size:.8rem; letter-spacing:.12em; color:var(--accent2); margin:0 0 10px;
-    text-transform:uppercase; display:flex; align-items:center; gap:8px}
-  .sec h3 .add{margin-left:auto; font-size:.72rem; color:var(--accent); cursor:pointer; font-weight:700; text-transform:none}
-  .gallery{display:grid; grid-template-columns:repeat(3,1fr); gap:6px}
-  .gallery .ph{position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; background:var(--panel2)}
+  .phead .badge{display:inline-block; font-size:.66rem; background:var(--panel2); border:1px solid var(--line);
+    color:var(--sub); padding:3px 10px; border-radius:999px; margin-bottom:8px; font-weight:700}
+  .phead h2{margin:0; font-size:1.4rem; font-weight:900}
+  .phead .meta{margin-top:8px; font-size:.76rem; color:var(--sub); display:flex; gap:14px; flex-wrap:wrap}
+  .phead .summary{margin-top:10px; font-size:.85rem; line-height:1.6; color:var(--ink)}
+  .pbody{flex:1; overflow-y:auto; padding:0 20px 90px}
+  .sec{margin-top:24px}
+  .sec h3{font-size:.78rem; letter-spacing:.1em; color:var(--accent2); margin:0 0 10px;
+    text-transform:uppercase; display:flex; align-items:center; gap:8px; font-weight:800}
+  .sec h3 .add{margin-left:auto; font-size:.72rem; color:var(--accent-d); cursor:pointer; font-weight:800; text-transform:none}
+  .gallery{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .gallery .ph{position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:var(--panel2); box-shadow:var(--shadow-sm)}
   .gallery .ph img{width:100%; height:100%; object-fit:cover}
-  .gallery .ph .del{position:absolute; top:3px; right:3px; background:rgba(0,0,0,.55); color:#fff;
-    border:none; border-radius:6px; width:22px; height:22px; cursor:pointer; font-size:.8rem}
-  .gallery .add-ph{display:flex; align-items:center; justify-content:center; border:1.5px dashed var(--line);
-    aspect-ratio:1; border-radius:10px; color:var(--sub); cursor:pointer; font-size:1.6rem}
-  .gallery .add-ph:hover{border-color:var(--accent2); color:var(--accent2)}
+  .gallery .ph .del{position:absolute; top:4px; right:4px; background:rgba(0,0,0,.5); color:#fff;
+    border:none; border-radius:8px; width:24px; height:24px; cursor:pointer; font-size:.8rem}
+  .gallery .add-ph{display:flex; align-items:center; justify-content:center; border:2px dashed var(--line);
+    aspect-ratio:1; border-radius:12px; color:var(--sub); cursor:pointer; font-size:1.6rem; transition:all .15s}
+  .gallery .add-ph:hover{border-color:var(--accent2); color:var(--accent2); background:#f0faf9}
   ul.list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
-  ul.list li{background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
-    font-size:.84rem; line-height:1.5; display:flex; gap:8px; align-items:flex-start}
+  ul.list li{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:11px 13px;
+    font-size:.84rem; line-height:1.55; display:flex; gap:8px; align-items:flex-start}
   ul.list li .ic{flex:none}
   ul.list li .txt{flex:1; min-width:0; word-break:break-word}
-  ul.list li .x{color:var(--sub); cursor:pointer; flex:none; opacity:.5}
+  ul.list li .x{color:var(--sub); cursor:pointer; flex:none; opacity:.45; transition:opacity .12s}
   ul.list li .x:hover{opacity:1; color:var(--pin)}
-  .shop .t{font-weight:700}
-  .shop .ty{font-size:.7rem; color:var(--accent2); margin-left:6px}
-  .shop .n{display:block; color:var(--sub); margin-top:2px; font-size:.78rem}
-  .log .d{font-weight:700; color:var(--accent); font-size:.76rem}
+  .shop .t{font-weight:800}
+  .shop .ty{font-size:.68rem; color:var(--accent2); margin-left:6px; font-weight:700}
+  .shop .n{display:block; color:var(--sub); margin-top:2px; font-size:.76rem}
+  .log .d{font-weight:800; color:var(--accent-d); font-size:.74rem}
   .empty{font-size:.8rem; color:var(--sub); font-style:italic; padding:4px 2px}
+  /* ===== 横からビュー切替 ===== */
+  .viewtoggle{position:absolute; left:50%; transform:translateX(-50%); bottom:20px; z-index:20;
+    background:#fff; border:none; border-radius:999px; padding:12px 22px; font-family:inherit;
+    font-size:.84rem; font-weight:800; color:var(--ink); box-shadow:var(--shadow-md); cursor:pointer;
+    transition:transform .12s}
+  .viewtoggle:hover{transform:translateX(-50%) scale(1.05)}
+  .mapwrap.side-mode .zoomctl, .mapwrap.side-mode .legend, .mapwrap.side-mode .hint{display:none}
+  /* ===== 島の詳細地図（観光マップ風） ===== */
+  .imap{border-radius:18px; overflow:hidden; box-shadow:var(--shadow-md); background:#d9edf5; position:relative}
+  .imap svg{width:100%; height:auto; display:block; cursor:crosshair; touch-action:none}
+  .imap-cap{display:flex; justify-content:space-between; align-items:center; gap:8px;
+    font-size:.68rem; color:var(--sub); padding:7px 4px 0}
+  .imap-pin, .imap-spot{cursor:pointer}
+  .imap-tools{position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:5px; z-index:4}
+  .imap-tools button{width:31px; height:31px; border-radius:50%; border:none; background:rgba(255,255,255,.95);
+    box-shadow:var(--shadow-sm); font-size:.9rem; font-weight:800; color:var(--ink); cursor:pointer; font-family:inherit}
+  .imap-tools button:active{transform:scale(.92)}
+  .imap-pop{position:absolute; left:8px; right:8px; bottom:8px; background:#fff; border-radius:14px;
+    box-shadow:var(--shadow-lg); padding:10px 12px; display:flex; align-items:center; gap:10px;
+    font-size:.8rem; z-index:5}
+  .imap-pop .pic{flex:none; font-size:1.1rem}
+  .imap-pop .nm{flex:1; font-weight:800; min-width:0; line-height:1.35}
+  .imap-pop .nm small{display:block; font-weight:600; color:var(--sub); font-size:.66rem}
+  .imap-pop a.btn{white-space:nowrap; text-decoration:none; font-size:.72rem; padding:7px 12px}
+  .imap-pop .pclose{flex:none; background:none; border:none; color:var(--sub); cursor:pointer; font-size:.9rem; font-family:inherit}
   /* 編集ボタン行 */
   .editrow{display:flex; gap:6px; margin-top:8px}
   .editrow input, .editrow select, .editrow textarea{
-    background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+    background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:10px;
     padding:8px 10px; font-size:.82rem; font-family:inherit; width:100%;
   }
   .editrow.col{flex-direction:column}
   .fav-toggle{cursor:pointer; font-size:1.1rem}
   /* トースト */
   .toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
-    background:#1f3a3e; border:1px solid var(--line); color:#eaf6f8; padding:10px 18px; border-radius:999px;
-    font-size:.82rem; opacity:0; transition:.25s; z-index:100; pointer-events:none}
+    background:#17343a; color:#f0fafc; padding:11px 20px; border-radius:999px;
+    font-size:.82rem; opacity:0; transition:.25s; z-index:100; pointer-events:none; box-shadow:var(--shadow-lg)}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
   /* スタートヒント */
-  .hint{position:absolute; left:50%; top:55%; transform:translate(-50%,-50%); text-align:center;
-    color:#5a7a88; pointer-events:none; z-index:5; transition:opacity .4s;
-    background:rgba(255,255,255,.7); border-radius:14px; padding:14px 20px;
-    backdrop-filter:blur(4px); font-size:.88rem; line-height:1.6}
+  .hint{position:absolute; left:50%; top:56%; transform:translate(-50%,-50%); text-align:center;
+    color:var(--sub); pointer-events:none; z-index:5; transition:opacity .4s;
+    background:rgba(255,255,255,.88); border-radius:18px; padding:16px 24px;
+    backdrop-filter:blur(6px); font-size:.88rem; line-height:1.6; box-shadow:var(--shadow-md)}
   .hint .big{font-size:2rem; margin-bottom:6px}
   .hidden{display:none !important}
   /* 入力フォーム（モーダル風） */
-  .modal{position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px}
+  .modal{position:fixed; inset:0; z-index:90; background:rgba(23,52,58,.4); backdrop-filter:blur(3px);
+    display:none; align-items:center; justify-content:center; padding:20px}
   .modal.open{display:flex}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; width:100%; max-width:380px}
-  .card h3{margin:0 0 14px; font-size:1rem}
-  .card label{display:block; font-size:.74rem; color:var(--sub); margin:10px 0 4px}
-  .card input,.card textarea,.card select{width:100%; background:var(--bg); color:var(--ink);
-    border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:.86rem; font-family:inherit}
-  .card .actions{display:flex; gap:8px; margin-top:18px; justify-content:flex-end}
+  .card{background:var(--panel); border-radius:22px; padding:24px; width:100%; max-width:380px; box-shadow:var(--shadow-lg)}
+  .card h3{margin:0 0 14px; font-size:1.05rem; font-weight:900}
+  .card label{display:block; font-size:.72rem; color:var(--sub); margin:12px 0 4px; font-weight:700}
+  .card input,.card textarea,.card select{width:100%; background:var(--panel2); color:var(--ink);
+    border:1px solid var(--line); border-radius:12px; padding:10px 12px; font-size:.86rem; font-family:inherit}
+  .card input:focus,.card textarea:focus{outline:2px solid var(--accent2); outline-offset:-1px}
+  .card .actions{display:flex; gap:8px; margin-top:20px; justify-content:flex-end}
 
   /* ===== 三宅島スペシャル ===== */
-  .myk-help{font-size:.76rem; color:var(--sub); line-height:1.5; margin:2px 0 12px}
-  .myk-h{font-size:.84rem; color:var(--accent2); margin:18px 0 10px; font-weight:700}
-  /* ヒーロー（横顔パララックス） */
-  .myk-hero{--p:0; position:relative; height:240px; margin:-2px -18px 6px; overflow:hidden;
+  .myk-help{font-size:.74rem; color:var(--sub); line-height:1.5; margin:2px 0 12px}
+  .myk-h{font-size:.84rem; color:var(--accent2); margin:20px 0 10px; font-weight:800}
+  .myk-hero{--p:0; position:relative; height:240px; margin:-2px -20px 6px; overflow:hidden;
     border-bottom:1px solid var(--line); background:linear-gradient(#cdeefb,#eaf8f1)}
   .myk-sky{position:absolute; inset:0;
-    background:linear-gradient(180deg,#2a6c84 0%, #5fa9c0 45%, #bfe0ea 100%);
+    background:linear-gradient(180deg,#8fd0e8 0%, #bfe4f2 45%, #e8f6fa 100%);
     opacity:calc(.25 + var(--p)*.75); transition:opacity .1s linear}
   .myk-stage{position:absolute; inset:0; perspective:600px}
-  /* 上から見た円盤：スクロール0で正面、進むと寝て消える */
   .myk-top{position:absolute; left:50%; top:46%; width:190px; height:190px;
     transform:translate(-50%,-50%) rotateX(calc(var(--p)*78deg)) scale(calc(1 - var(--p)*.25));
     opacity:calc(1 - var(--p)*1.6); transition:transform .1s linear, opacity .1s linear}
-  /* 横から見た火山：スクロールで立ち上がる */
   .myk-side{position:absolute; left:50%; bottom:6px; width:340px; max-width:96%; height:auto;
     transform:translate(-50%, calc(40px - var(--p)*40px)) rotateX(calc(70deg - var(--p)*70deg));
     transform-origin:bottom center;
     opacity:calc(var(--p)*1.5); transition:transform .1s linear, opacity .1s linear}
   .myk-sea{position:absolute; left:0; right:0; bottom:0; height:34px;
-    background:linear-gradient(180deg, rgba(95,169,192,.0), #3f7e92);
+    background:linear-gradient(180deg, rgba(122,190,214,0), #7ab8d0);
     transform:translateY(calc(20px - var(--p)*20px))}
   .myk-smoke{opacity:calc(var(--p)*.9)}
   .myk-hero-cap{position:absolute; left:12px; bottom:10px; z-index:2;
-    font-size:.72rem; color:#eaf6f8; background:rgba(0,0,0,.34); padding:4px 10px; border-radius:999px;
-    backdrop-filter:blur(3px)}
-  .myk-hero-cap b{color:var(--accent)}
-  /* タブ */
+    font-size:.7rem; color:#fff; background:rgba(23,52,58,.55); padding:4px 12px; border-radius:999px;
+    backdrop-filter:blur(3px); font-weight:700}
+  .myk-hero-cap b{color:#ffd58a}
   .myk-tabs{position:sticky; top:0; z-index:6; display:flex; gap:6px; padding:10px 0 8px;
-    background:linear-gradient(var(--panel) 70%, rgba(17,40,48,0)); flex-wrap:wrap}
+    background:linear-gradient(var(--panel) 70%, rgba(255,255,255,0)); flex-wrap:wrap}
   .myk-tabs button{flex:1 1 0; min-width:64px; background:var(--panel2); color:var(--sub);
-    border:1px solid var(--line); border-radius:10px; padding:8px 6px; font-size:.78rem; font-weight:700; cursor:pointer}
-  .myk-tabs button.on{background:var(--accent); color:#22324b; border-color:transparent}
+    border:1px solid var(--line); border-radius:999px; padding:8px 6px; font-size:.76rem; font-weight:800; cursor:pointer; font-family:inherit}
+  .myk-tabs button.on{background:var(--accent2); color:#fff; border-color:transparent; box-shadow:0 2px 8px rgba(16,155,144,.35)}
   .myk-panel{padding-top:6px}
-  /* 地図 */
-  .myk-map{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#bfe0ea}
+  .myk-map{border-radius:18px; overflow:hidden; background:#d9edf5; box-shadow:var(--shadow-md)}
   .myk-map svg{width:100%; height:auto; display:block; cursor:crosshair; touch-action:manipulation}
   .myk-pin{cursor:pointer}
   .myk-pin:hover circle{stroke-width:1.8}
-  /* カード（キャンプ場） */
-  .myk-card{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px 14px; margin-bottom:12px}
-  .myk-card-h{font-weight:700; font-size:.92rem; margin-bottom:4px}
-  .myk-card-area{font-size:.76rem; color:var(--sub); margin-bottom:8px}
+  .myk-card{background:var(--panel2); border:1px solid var(--line); border-radius:16px; padding:14px 15px; margin-bottom:12px}
+  .myk-card-h{font-weight:800; font-size:.92rem; margin-bottom:4px}
+  .myk-card-area{font-size:.74rem; color:var(--sub); margin-bottom:8px}
   .myk-fac{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px}
-  .myk-chip{font-size:.68rem; background:var(--bg); border:1px solid var(--line); color:var(--accent2);
-    padding:3px 8px; border-radius:999px}
-  .myk-chip.mini{flex:none; min-width:42px; text-align:center; color:var(--accent)}
-  .myk-card-note{font-size:.8rem; color:var(--ink); line-height:1.55; margin:0 0 8px}
+  .myk-chip{font-size:.66rem; background:#fff; border:1px solid var(--line); color:var(--accent2);
+    padding:3px 9px; border-radius:999px; font-weight:700}
+  .myk-chip.mini{flex:none; min-width:42px; text-align:center; color:var(--accent-d)}
+  .myk-card-note{font-size:.78rem; color:var(--ink); line-height:1.6; margin:0 0 8px}
   .myk-tel{display:inline-flex; align-items:center; gap:8px; text-decoration:none; color:var(--accent2);
-    font-size:.82rem; font-weight:700; background:var(--bg); border:1px solid var(--line);
-    border-radius:9px; padding:8px 12px}
+    font-size:.82rem; font-weight:800; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:9px 13px}
   .myk-tel.row{display:flex; width:100%; margin-bottom:8px}
-  .myk-tel-l{flex:1; color:var(--ink); font-weight:600}
+  .myk-tel-l{flex:1; color:var(--ink); font-weight:700}
   .myk-tel-n{color:var(--accent2)}
-  /* バス */
-  .myk-bus{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px}
-  .myk-bus-r{font-weight:700; font-size:.84rem; margin-bottom:8px}
+  .myk-bus{background:var(--panel2); border:1px solid var(--line); border-radius:16px; padding:13px 15px; margin-bottom:10px}
+  .myk-bus-r{font-weight:800; font-size:.84rem; margin-bottom:8px}
   .myk-bus-t{display:flex; flex-wrap:wrap; gap:6px}
-  .myk-bus-t span{font-size:.82rem; background:var(--bg); border:1px solid var(--line); color:var(--accent);
-    font-weight:700; padding:5px 10px; border-radius:8px; font-variant-numeric:tabular-nums}
+  .myk-bus-t span{font-size:.8rem; background:#fff; border:1px solid var(--line); color:var(--accent-d);
+    font-weight:800; padding:5px 11px; border-radius:10px; font-variant-numeric:tabular-nums}
   .myk-phones{display:flex; flex-direction:column}
 
+  /* ===== アルバム ===== */
+  .album{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column}
+  .album.hidden{display:none}
+  .album-head{display:flex; align-items:center; gap:8px; padding:12px 16px; background:#fff; box-shadow:var(--shadow-sm); flex-wrap:wrap}
+  .album-head h2{margin:0; font-size:1.02rem; font-weight:900}
+  .album-head h2 span{font-size:.74rem; color:var(--sub); font-weight:700}
+  .album-body{flex:1; overflow-y:auto; padding:12px 16px 40px}
+  .album-isl{margin-top:18px}
+  .album-isl h3{font-size:.88rem; font-weight:900; color:var(--accent2); margin:0 0 8px}
+  .album-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px}
+  .album-ph{position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:#e6eef1;
+    cursor:pointer; border:3px solid transparent; transition:border-color .12s}
+  .album-ph img{width:100%; height:100%; object-fit:cover; display:block}
+  .album-ph.sel{border-color:var(--accent)}
+  .album-ph .ck{position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%;
+    background:rgba(255,255,255,.92); border:1.5px solid var(--line); display:flex; align-items:center;
+    justify-content:center; font-size:.72rem; color:transparent; box-shadow:var(--shadow-sm)}
+  .album-ph.sel .ck{background:var(--accent); color:#fff; border-color:transparent}
+  .album-empty{text-align:center; color:var(--sub); padding:70px 20px; font-size:.9rem; line-height:1.8}
+  /* ライトボックス */
+  .lightbox{position:fixed; inset:0; z-index:75; background:rgba(10,25,30,.93); display:flex;
+    flex-direction:column; align-items:center; justify-content:center; padding:20px}
+  .lightbox.hidden{display:none}
+  .lightbox img{max-width:92vw; max-height:72vh; border-radius:14px; box-shadow:var(--shadow-lg)}
+  .lb-bar{display:flex; align-items:center; gap:14px; margin-top:16px; color:#fff; font-size:.86rem; font-weight:700}
+  .lb-bar a{text-decoration:none}
+  .lb-close{position:absolute; top:16px; right:16px; background:rgba(255,255,255,.16); color:#fff; border:none;
+    width:42px; height:42px; border-radius:50%; font-size:1rem; cursor:pointer; font-family:inherit}
+
   /* ===== 左ペイン：年次別インデックス ===== */
-  .idx-head{padding:16px 16px 10px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
-  .idx-head h2{margin:0; font-size:1rem; flex:1}
+  .idx-head{padding:18px 16px 12px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
+  .idx-head h2{margin:0; font-size:1rem; flex:1; font-weight:900}
   .idx-body{flex:1; overflow-y:auto; padding:6px 12px 24px}
   .idx-year{margin-top:18px}
   .idx-year:first-child{margin-top:10px}
   .idx-year-h{display:flex; align-items:baseline; gap:8px; margin:0 2px 8px; color:var(--accent2)}
-  .idx-year-h .y{font-size:1.1rem; font-weight:800}
-  .idx-year-h .n{font-size:.72rem; color:var(--sub)}
-  .idx-year-h::after{content:''; flex:1; height:1px; background:var(--line); margin-left:4px}
+  .idx-year-h .y{font-size:1.05rem; font-weight:900}
+  .idx-year-h .n{font-size:.7rem; color:var(--sub); font-weight:700}
+  .idx-year-h::after{content:''; flex:1; height:2px; border-radius:2px; background:var(--line); margin-left:4px}
   .idx-list{display:flex; flex-direction:column; gap:6px}
   .idx-item{display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line);
-    border-radius:10px; padding:9px 10px; cursor:pointer; text-align:left; font-size:.84rem; color:var(--ink);
-    width:100%; font-family:inherit}
-  .idx-item:hover{border-color:var(--accent2)}
-  .idx-item.active{border-color:var(--accent); background:#fff1e0}
+    border-radius:12px; padding:10px 11px; cursor:pointer; text-align:left; font-size:.83rem; color:var(--ink);
+    width:100%; font-family:inherit; font-weight:600; transition:all .14s}
+  .idx-item:hover{border-color:var(--accent2); box-shadow:var(--shadow-sm)}
+  .idx-item.active{border-color:var(--accent); background:#fff4e5}
   .idx-item .ic{font-size:1rem; flex:none}
   .idx-item .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .idx-item .vc{font-size:.7rem; color:var(--sub); flex:none}
+  .idx-item .vc{font-size:.68rem; color:var(--sub); flex:none; font-weight:700}
   .idx-item.unseen{opacity:.6}
   .idx-item.unseen .nm{color:var(--sub)}
 </style>
@@ -266,9 +344,13 @@
         <p>20年分の島旅を地図でふりかえる</p>
       </div>
       <div class="spacer"></div>
+      <button class="btn ghost" id="albumBtn" title="アルバム">📸</button>
       <button class="btn ghost" id="addIslandBtn" title="島を追加">＋島</button>
       <button class="btn ghost" id="menuBtn" title="データ">⋯</button>
     </div>
+
+    <!-- エリアタブ -->
+    <div class="regionbar" id="regionBar"></div>
 
     <svg class="map" id="map" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid meet"></svg>
 
@@ -279,16 +361,18 @@
 
     <div class="legend">
       <b>凡例</b>
-      <div class="row"><span class="swatch" style="background:#e0d080;border:1px solid #b0a850"></span> お気に入りの島</div>
-      <div class="row"><span class="swatch" style="background:#c8d8b4;border:1px solid #8aaa80"></span> 訪問した島</div>
-      <div class="row"><span class="swatch" style="background:#e8e4d8;border:1px solid #b0aaa0"></span> 陸地（参考）</div>
+      <div class="row"><span class="swatch" style="background:#ffe49a;border:1px solid #d9b95c"></span> お気に入りの島</div>
+      <div class="row"><span class="swatch" style="background:#cfe6b0;border:1px solid #7fae6c"></span> 訪問した島</div>
+      <div class="row"><span class="swatch" style="background:#f0ebdc;border:1px solid #d8d2be"></span> 陸地（参考）</div>
     </div>
 
     <div class="zoomctl">
-      <button class="btn" id="zin">＋</button>
-      <button class="btn" id="zout">－</button>
-      <button class="btn" id="zreset" title="全体表示">⤢</button>
+      <button id="zin">＋</button>
+      <button id="zout">－</button>
+      <button id="zreset" title="全体表示">⤢</button>
     </div>
+
+    <button class="viewtoggle" id="viewToggle">⛰ 横からながめる</button>
   </div>
 
   <!-- 詳細パネル -->
@@ -325,10 +409,30 @@
   <div class="card" id="formCard"></div>
 </div>
 
+<!-- アルバム（全島の写真） -->
+<div class="album hidden" id="album">
+  <div class="album-head">
+    <h2>📸 アルバム <span id="albumCount"></span></h2>
+    <div class="spacer"></div>
+    <button class="btn" id="albumSelAll">全選択</button>
+    <button class="btn accent" id="albumDl">⬇ まとめてDL</button>
+    <button class="btn ghost" id="albumClose">✕</button>
+  </div>
+  <div class="album-body" id="albumBody"></div>
+</div>
+
+<!-- ライトボックス（写真の拡大表示） -->
+<div class="lightbox hidden" id="lightbox">
+  <button class="lb-close" id="lbClose">✕</button>
+  <img id="lbImg" alt="">
+  <div class="lb-bar"><span id="lbCap"></span><a class="btn accent" id="lbDl" download>⬇ この写真を保存</a></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="./geo.js"></script>
 <script src="./data.js"></script>
+<script src="./islemap.js"></script>
 <script src="./app.js"></script>
 <script src="./miyake.js"></script>
 <script>

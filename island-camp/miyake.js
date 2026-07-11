@@ -214,16 +214,18 @@ function mapHTML(is){
             <stop offset="70%" stop-color="#a8cd86"/>
             <stop offset="100%" stop-color="#d6e7bd"/>
           </radialGradient>
-          <radialGradient id="mykSea" cx="50%" cy="35%" r="75%">
-            <stop offset="0%"  stop-color="#e9f7fa"/>
-            <stop offset="100%" stop-color="#bfe0ea"/>
+          <radialGradient id="mykSea" cx="50%" cy="38%" r="75%">
+            <stop offset="0%"  stop-color="#eaf7fa"/>
+            <stop offset="100%" stop-color="#c6e4ef"/>
           </radialGradient>
         </defs>
         <rect x="0" y="0" width="100" height="100" fill="url(#mykSea)"/>
-        <!-- 砂浜（実海岸線をわずかに拡大して縁取り） -->
-        <polygon points="${contour(1.035)}" fill="#ecdfb0" opacity="0.9"/>
+        <!-- 白いコーストハロー（観光マップ風の縁取り） -->
+        <polygon points="${islandPts}" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linejoin="round" opacity="0.9"/>
+        <!-- 砂浜のふち -->
+        <polygon points="${islandPts}" fill="none" stroke="#ecd9a4" stroke-width="1.5" stroke-linejoin="round"/>
         <!-- 島本体（実海岸線 / OpenStreetMap・地形グラデーション） -->
-        <polygon points="${islandPts}" fill="url(#mykTerrain)" stroke="#5f7e46" stroke-width="0.8" stroke-linejoin="round"/>
+        <polygon points="${islandPts}" fill="url(#mykTerrain)" stroke="#8aa86e" stroke-width="0.5" stroke-linejoin="round"/>
         <!-- 等高線（立体感） -->
         <polygon points="${contour(0.74)}" fill="none" stroke="#5f7e46" stroke-width="0.35" opacity="0.5" stroke-linejoin="round"/>
         <polygon points="${contour(0.46)}" fill="none" stroke="#43603a" stroke-width="0.35" opacity="0.55" stroke-linejoin="round"/>

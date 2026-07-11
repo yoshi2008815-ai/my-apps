@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-70 -70 140 140" width="1400" height="1400">
+  <!-- 伊豆七島 サークルバッジ（2色・左胸ロゴ用） -->
+  <defs>
+    <path id="pCone" d="M -20 0 Q -12 -3 -7 -12 Q 0 -19 7 -12 Q 12 -3 20 0 Z"/>
+    <path id="pDome" d="M -18 0 Q 0 -21 18 0 Z"/>
+    <path id="pTwin" d="M -20 0 Q -11 -15 -2 0 Z M -4 0 Q 8 -21 20 0 Z"/>
+  </defs>
+  <circle r="58" fill="none" stroke="#17395f" stroke-width="2.5"/>
+  <circle r="51" fill="none" stroke="#17395f" stroke-width="0.8"/>
+  <path d="M0 -45 L3.2 -39.5 L0 -34 L-3.2 -39.5 Z" fill="#d85a30"/>
+  <text x="0" y="-19" text-anchor="middle" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif" font-size="13" font-weight="700" letter-spacing="5" fill="#17395f">伊豆七島</text>
+  <g fill="#0f6e56">
+    <path d="M-40 13 q8 -4 16 0 t16 0 t16 0 t16 0 t16 0" fill="none" stroke="#0f6e56" stroke-width="1.6" stroke-linecap="round"/>
+    <use href="#pCone" transform="translate(-35,10) scale(0.5)"/>
+    <use href="#pCone" transform="translate(-22,10) scale(0.28)"/>
+    <use href="#pDome" transform="translate(-10,10) scale(0.6,0.38)"/>
+    <use href="#pDome" transform="translate(2,10) scale(0.42)"/>
+    <use href="#pCone" transform="translate(14,10) scale(0.46)"/>
+    <use href="#pDome" transform="translate(25,10) scale(0.32,0.5)"/>
+    <use href="#pTwin" transform="translate(37,10) scale(0.5)"/>
+  </g>
+  <text x="0" y="38" text-anchor="middle" font-family="'Zen Maru Gothic',sans-serif" font-size="11" letter-spacing="1.5" fill="#17395f">IZU 7 ISLANDS</text>
+</svg>
