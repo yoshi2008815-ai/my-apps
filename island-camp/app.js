@@ -301,12 +301,13 @@ function renderSideView(){
     items += isleArt(is, sx, HZ, r, r*1.3, r*0.28,
       {active: is.id===STATE.activeId, visited, op: visited?1:0.6, showLabel:true,
        labelSize:19, visitsSize:14, visitsGap:21, favSize:16});
-    // 名産バッジ（島の上・ゆげより高い位置）
+    // 名産バッジ（島の上・ゆげより高い位置）：大きな絵＋名前の2段
     const sp = SPECIALTY[is.id];
     if (sp){
       const spY = HZ - r*1.3 - r*0.62 - 6;
-      items += `<text x="${sx.toFixed(1)}" y="${spY.toFixed(1)}" text-anchor="middle" font-size="17" font-weight="800"
-        fill="#17395f" paint-order="stroke" stroke="#fff" stroke-width="4" opacity=".95">${sp.ic} ${esc(sp.name)}</text>`;
+      items += `<text x="${sx.toFixed(1)}" y="${(spY-24).toFixed(1)}" text-anchor="middle" font-size="34">${sp.ic}</text>`
+        + `<text x="${sx.toFixed(1)}" y="${spY.toFixed(1)}" text-anchor="middle" font-size="17" font-weight="800"
+        fill="#17395f" paint-order="stroke" stroke="#fff" stroke-width="4" opacity=".95">${esc(sp.name)}</text>`;
     }
   });
   g += `<g class="isles">${items}</g>`;
