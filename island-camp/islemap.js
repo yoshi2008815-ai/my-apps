@@ -124,10 +124,11 @@ function mapSVG(is){
       <text y="${0.9*iv}" text-anchor="middle" font-size="${2.5*iv}">${s.ic}</text>${label}
     </g>`;
   }).join('');
-  // ユーザーの「行った場所」ピン
+  // ユーザー登録スポットのピン（オレンジ縁＝自分の登録）
   const places = (is.places||[]).map((p,i)=>`<g class="imap-pin" data-pi="${i}" transform="translate(${p.x},${p.y})">
-      <circle r="${2*iv}" fill="#ff9f43" stroke="#fff" stroke-width="${0.7*iv}"/>
-      <text x="${2.8*iv}" y="${1.1*iv}" font-size="${3*iv}" font-weight="800" fill="#8a5210"
+      <circle r="${2.3*iv}" fill="#fff" stroke="#ef8c2c" stroke-width="${0.55*iv}"/>
+      <text y="${0.9*iv}" text-anchor="middle" font-size="${2.5*iv}">${p.ic||'📍'}</text>
+      <text x="${3.2*iv}" y="${1.1*iv}" font-size="${3*iv}" font-weight="800" fill="#8a5210"
         paint-order="stroke" stroke="#fff" stroke-width="${1*iv}">${esc(p.name)}</text>
     </g>`).join('');
 
@@ -164,7 +165,7 @@ window.isleMapHTML = function(is){
   if (!svgHTML) return '';
   const list = is.places.length
     ? `<ul class="list" style="margin-top:12px">${is.places.map((p,i)=>
-        `<li><span class="ic">📍</span><span class="txt">${esc(p.name)}</span><span class="x" data-del="places:${i}">✕</span></li>`).join('')}</ul>`
+        `<li><span class="ic">${p.ic||'📍'}</span><span class="txt"><b>${esc(p.name)}</b>${p.note?`<span class="pnote">${esc(p.note)}</span>`:''}${p.by?`<span class="pby">👤 登録：${esc(p.by)}</span>`:''}</span><span class="x" data-del="places:${i}">✕</span></li>`).join('')}</ul>`
     : '';
   return `<div class="sec" data-sec="islemap"><h3>🗺 島マップ</h3>
     <div class="imap" id="imapBox">
@@ -192,31 +193,33 @@ window.wireIsleMap = function(is){
   };
   const zoomTo = z => { VIEW.z = Math.min(5, Math.max(1, z)); rerender(); };
 
-  // スポット情報ポップアップ（Googleマップへのリンク付き）
-  const showPop = (name, ic) => {
+  // スポット情報ポップアップ（おすすめ・登録者・URLリンク付き）
+  const showPop = (o) => {
     const el = pop();
-    el.innerHTML = `<span class="pic">${ic}</span>
-      <span class="nm">${esc(name)}<small>${esc(is.name)}</small></span>
-      <a class="btn accent" target="_blank" rel="noopener" href="${gmapsURL(name, is.name)}">🌐 地図で見る</a>
-      <button class="pclose">✕</button>`;
+    const url = o.url || gmapsURL(o.name, is.name);
+    el.innerHTML = `
+      <div class="pop-r1"><span class="pic">${o.ic||'📍'}</span><span class="nm">${esc(o.name)}</span><button class="pclose">✕</button></div>
+      ${o.note ? `<div class="pop-note">${esc(o.note)}</div>` : ''}
+      <div class="pop-r2"><span class="pop-by">${o.by ? `👤 登録：${esc(o.by)}` : ''}</span>
+        <a class="btn accent" target="_blank" rel="noopener" href="${esc(url)}">🌐 ${o.url ? 'サイトを見る' : '地図で見る'}</a></div>`;
     el.classList.remove('hidden');
     el.querySelector('.pclose').onclick = () => el.classList.add('hidden');
   };
 
-  // クリック（スポット詳細 / 場所追加）
+  // クリック（スポット詳細 / スポット登録）
   box.addEventListener('click', ev => {
     if (ev.target.closest('.imap-tools') || ev.target.closest('.imap-pop')) return;
     if (dragged){ dragged = false; return; }
     const spotEl = ev.target.closest('.imap-spot');
     if (spotEl){
       const s = spotsFor(is)[+spotEl.dataset.si];
-      if (s) showPop(s.name, s.ic);
+      if (s) showPop(s);
       return;
     }
     const pinEl = ev.target.closest('.imap-pin');
     if (pinEl){
       const p = is.places[+pinEl.dataset.pi];
-      if (p) showPop(p.name, '📍');
+      if (p) showPop(p);
       return;
     }
     const svgEl = box.querySelector('svg');
@@ -226,12 +229,18 @@ window.wireIsleMap = function(is){
     const vb = svgEl.viewBox.baseVal;
     const x = +(vb.x + (ev.clientX-rect.left)/rect.width  * vb.width ).toFixed(1);
     const y = +(vb.y + (ev.clientY-rect.top) /rect.height * vb.height).toFixed(1);
-    modalForm('行った場所を追加', [
-      {name:'name', label:'場所の名前', ph:'例：ビーチ、展望台、キャンプ場…'}
+    modalForm('スポットを登録', [
+      {name:'name', label:'名所の名前', ph:'例：中の浦海水浴場'},
+      {name:'ic', label:'アイコン', type:'select', options:[
+        {v:'🏞', l:'🏞 名所・景色'}, {v:'🏖', l:'🏖 ビーチ'}, {v:'♨', l:'♨ 温泉'},
+        {v:'🍴', l:'🍴 食事処'}, {v:'⛺', l:'⛺ キャンプ場'}, {v:'🏪', l:'🏪 お店'}, {v:'📍', l:'📍 その他'}]},
+      {name:'note', label:'何がおすすめ？', type:'textarea', ph:'例：透明度がすごい。シュノーケルは午前が◎'},
+      {name:'url', label:'URL（あれば）', ph:'https://…'},
+      {name:'by', label:'登録者', ph:'例：よしざわ'}
     ], v => {
       if (!v.name) return false;
-      is.places.push({x, y, name:v.name});
-      saveIslands(); toast(`「${v.name}」を記録しました`); openIsland(is.id);
+      is.places.push({x, y, name:v.name, ic:v.ic||'📍', note:v.note||'', url:v.url||'', by:v.by||''});
+      saveIslands(); toast(`「${v.name}」を登録しました`); openIsland(is.id);
     });
   });
 

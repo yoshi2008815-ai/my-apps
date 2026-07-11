@@ -181,13 +181,20 @@
     box-shadow:var(--shadow-sm); font-size:.9rem; font-weight:800; color:var(--ink); cursor:pointer; font-family:inherit}
   .imap-tools button:active{transform:scale(.92)}
   .imap-pop{position:absolute; left:8px; right:8px; bottom:8px; background:#fff; border-radius:14px;
-    box-shadow:var(--shadow-lg); padding:10px 12px; display:flex; align-items:center; gap:10px;
+    box-shadow:var(--shadow-lg); padding:10px 12px; display:flex; flex-direction:column; gap:7px;
     font-size:.8rem; z-index:5}
-  .imap-pop .pic{flex:none; font-size:1.1rem}
+  .imap-pop .pop-r1{display:flex; align-items:center; gap:8px}
+  .imap-pop .pic{flex:none; font-size:1.15rem}
   .imap-pop .nm{flex:1; font-weight:800; min-width:0; line-height:1.35}
-  .imap-pop .nm small{display:block; font-weight:600; color:var(--sub); font-size:.66rem}
+  .imap-pop .pop-note{font-size:.76rem; color:var(--ink); line-height:1.5;
+    background:var(--panel2); border-radius:10px; padding:8px 10px}
+  .imap-pop .pop-r2{display:flex; align-items:center; gap:8px; justify-content:space-between}
+  .imap-pop .pop-by{font-size:.72rem; color:var(--sub); font-weight:700}
   .imap-pop a.btn{white-space:nowrap; text-decoration:none; font-size:.72rem; padding:7px 12px}
   .imap-pop .pclose{flex:none; background:none; border:none; color:var(--sub); cursor:pointer; font-size:.9rem; font-family:inherit}
+  ul.list li .txt b{display:block}
+  ul.list li .txt .pnote{display:block; color:var(--sub); font-size:.76rem; margin-top:2px}
+  ul.list li .txt .pby{display:block; color:var(--accent2); font-size:.68rem; font-weight:700; margin-top:2px}
   /* 編集ボタン行 */
   .editrow{display:flex; gap:6px; margin-top:8px}
   .editrow input, .editrow select, .editrow textarea{
@@ -432,11 +439,12 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="./geo.js"></script>
-<script src="./data.js"></script>
-<script src="./islemap.js"></script>
-<script src="./app.js"></script>
-<script src="./miyake.js"></script>
+<!-- ?v= はSWキャッシュ版数と連動（更新時に必ず上げる：ブラウザキャッシュ対策） -->
+<script src="./geo.js?v=11"></script>
+<script src="./data.js?v=11"></script>
+<script src="./islemap.js?v=11"></script>
+<script src="./app.js?v=11"></script>
+<script src="./miyake.js?v=11"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));

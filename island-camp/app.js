@@ -510,6 +510,8 @@ function modalForm(title, fields, onSubmit){
   card.innerHTML = `<h3>${title}</h3>` + fields.map(f =>
     `<label>${f.label}</label>` + (f.type==='textarea'
       ? `<textarea data-f="${f.name}" rows="3" placeholder="${f.ph||''}"></textarea>`
+      : f.type==='select'
+      ? `<select data-f="${f.name}">${(f.options||[]).map(o=>`<option value="${o.v}">${o.l}</option>`).join('')}</select>`
       : `<input data-f="${f.name}" type="${f.type||'text'}" placeholder="${f.ph||''}" value="${f.value||''}">`)
   ).join('') +
   `<div class="actions"><button class="btn ghost" id="fCancel">キャンセル</button><button class="btn accent" id="fOk">保存</button></div>`;
