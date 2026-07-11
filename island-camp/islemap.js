@@ -32,10 +32,11 @@ const POI = {
   'hateruma':     { port:{name:'波照間港', lat:24.068, lng:123.771} },
 };
 
-/* ---------- 海岸線リングの取得（islands → refs フォールバック） ---------- */
+/* ---------- 海岸線リングの取得（高解像度detail → islands → refs） ---------- */
 const REF_ALIAS = { 'okinawa-hontou':'okinawa', 'miyako':'miyako', 'tanegashima':'tanegashima' };
 function ringFor(id){
   const G = window.GEO || {};
+  if (G.isleDetail && G.isleDetail[id]) return G.isleDetail[id]; // パンフ級の細かさ
   if (G.islands && G.islands[id]) return G.islands[id];
   const rk = REF_ALIAS[id];
   if (rk && G.refs && G.refs[rk]){
