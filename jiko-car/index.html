@@ -121,12 +121,31 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
 #btn-jump svg{width:44px;height:44px;}
 #btn-jump .tl{font-size:19px;font-weight:900;color:#fff;}
 #toast{
-  position:absolute;top:calc(84px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+  position:absolute;top:calc(120px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
   z-index:6;background:rgba(25,130,200,.92);color:#fff;font-weight:900;
   font-size:clamp(18px,4.5vw,26px);padding:8px 28px;border-radius:999px;
   box-shadow:0 6px 14px rgba(0,0,0,.25);pointer-events:none;white-space:nowrap;
 }
-#toast.pop{animation:pop .4s ease-out;}
+#toast.pop{animation:toastpop .4s ease-out;}
+@keyframes toastpop{
+  0%{transform:translateX(-50%) scale(.2);opacity:0;}
+  60%{transform:translateX(-50%) scale(1.12);opacity:1;}
+  100%{transform:translateX(-50%) scale(1);opacity:1;}
+}
+#toast.ouch{background:rgba(232,90,70,.94);}
+#lives{display:flex;gap:3px;justify-content:center;margin-top:3px;}
+#lives .hh{display:block;position:relative;}
+#lives .hh svg{width:clamp(17px,4.4vw,23px);height:clamp(17px,4.4vw,23px);display:block;transition:filter .25s,opacity .25s;}
+#lives .hh.off svg{filter:grayscale(1);opacity:.28;}
+#lives .hh.pop{animation:heartbye .8s ease-out;}
+@keyframes heartbye{
+  0%{transform:scale(1) translateY(0) rotate(0deg);}
+  30%{transform:scale(1.9) translateY(-12px) rotate(-20deg);}
+  60%{transform:scale(1.2) translateY(-4px) rotate(12deg);}
+  100%{transform:scale(1) translateY(0) rotate(0deg);}
+}
+#lives .hh.doki{animation:doki .6s ease-in-out infinite;}
+@keyframes doki{0%,100%{transform:scale(1);}50%{transform:scale(1.4);}}
 #btn-music{
   position:absolute;top:calc(10px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));
   z-index:11;width:58px;height:58px;border-radius:50%;border:3px solid #ffb63d;
@@ -194,7 +213,7 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
 
   <div id="hud" class="hidden">
     <button class="btn small" id="btn-home">もどる</button>
-    <div class="chip"><div id="dist">0m</div><div id="bestlab">べすと 0m</div></div>
+    <div class="chip"><div id="dist">0m</div><div id="bestlab">べすと 0m</div><div id="lives"></div></div>
     <div style="width:86px"></div>
   </div>
 
@@ -457,6 +476,26 @@ function sndSplash(inWater){
   }catch(e){}
 }
 function sndJump(){blip(280,720,.2,'square',.09);}
+function sndOuch(){ // gentle "poyon + zannen" when a heart is lost (not scary)
+  if(!AC)return;
+  try{
+    const t0=AC.currentTime;
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(480,t0);
+    o.frequency.exponentialRampToValueAtTime(150,t0+.16);
+    o.frequency.exponentialRampToValueAtTime(300,t0+.24);
+    o.frequency.exponentialRampToValueAtTime(120,t0+.34);
+    g.gain.setValueAtTime(.22,t0);
+    g.gain.exponentialRampToValueAtTime(.002,t0+.4);
+    o.connect(g);g.connect(master);o.start(t0);o.stop(t0+.5);
+    blip(392,320,.16,'triangle',.11,.2); // small sad note
+  }catch(e){}
+}
+function sndDoki(){ // two soft heartbeats when only one heart is left
+  blip(96,70,.1,'sine',.16,0);
+  blip(96,70,.1,'sine',.13,.17);
+}
 function sndZukkoke(){ // comedic "slipped up" descending phrase on crash
   if(!AC)return;
   try{
@@ -1770,6 +1809,7 @@ const world={
   obstacles:[],deco:[],particles:[],balls:[],
   nextObsZ:0,nextDecoZ:0,nextItemZ:0,exhaustT:0,demoT:0,
   items:0,bonus:0,fx:null,inWater:false,
+  lives:5,invT:0,
   sideObs:[],airItems:[],nextAirZ:0,
   jumpY:0,jumpVy:0,jumpT:0,jumps:0,demoJumpT:1.5,
   sideX:0,sideVx:0
@@ -1816,6 +1856,8 @@ function resetWorld(demo){
   world.nextAirZ=W+800;
   world.exhaustT=0;
   world.items=0;world.bonus=0;world.inWater=false;
+  world.lives=5;world.invT=0;
+  updateLivesHUD();
   world.jumpY=0;world.jumpVy=0;world.jumpT=0;world.jumps=0;world.demoJumpT=1.5;
   world.sideX=0;world.sideVx=0;
   updateItemHUD();
@@ -1938,6 +1980,31 @@ function obstacleDims(o){
   if(o.type==='snowpile')return{w:52*CS,l:34*CS};
   return{w:40*CS,l:40*CS};
 }
+/* lives (hearts) HUD */
+const HEARTP='M12 21.3C6.6 17.2 2 13.3 2 8.9 2 5.9 4.4 3.8 7 3.8c1.9 0 3.7 1.1 5 3 1.3-1.9 3.1-3 5-3 2.6 0 5 2.1 5 5.1 0 4.4-4.6 8.3-10 12.4z';
+function updateLivesHUD(anim){
+  const el=$('#lives');
+  if(!el)return;
+  if(!el.childElementCount){
+    for(let i=0;i<5;i++){
+      const sp=document.createElement('span');
+      sp.className='hh';
+      sp.innerHTML='<svg viewBox="0 0 24 24"><path fill="#ff5a63" stroke="#c92a3c" stroke-width="1.2" d="'+HEARTP+'"/></svg>';
+      el.appendChild(sp);
+    }
+  }
+  const hs=el.children;
+  for(let i=0;i<5;i++){
+    const on=i<world.lives;
+    hs[i].classList.toggle('off',!on);
+    hs[i].classList.toggle('doki',on&&world.lives===1);
+    hs[i].classList.remove('pop');
+  }
+  if(anim&&world.lives>=0&&world.lives<5){
+    const lost=hs[world.lives]; // the heart that just broke
+    if(lost){void lost.offsetWidth;lost.classList.add('pop');}
+  }
+}
 /* items / throwing */
 function updateItemHUD(){
   $('#throw-count').textContent=world.items;
@@ -2028,6 +2095,7 @@ function update(dt,t){
   world.speed=lerp(world.speed,target,Math.min(1,dt*(state==='crash'?6:1.8)));
   world.dist+=world.speed*dt;
   updateEngine(world.speed);
+  if(world.invT>0)world.invT=Math.max(0,world.invT-dt); // recovery time after losing a heart
 
   // sea-dive transitions (umi): land <-> underwater
   if(course.seaDive){
@@ -2147,7 +2215,7 @@ function update(dt,t){
     // off road
     if(state==='play'){
       const dx=Math.abs(world.carX-roadCenterAt(world.dist));
-      if(dx>roadHalf+pd.w*.08)doCrash();
+      if(dx>roadHalf+pd.w*.08)doCrash(true);
     }
     // exhaust
     world.exhaustT-=dt;
@@ -2348,7 +2416,7 @@ function splashFx(x,y){
 function showToast(txt){
   const el=$('#toast');
   el.textContent=txt;
-  el.classList.remove('hidden','pop');
+  el.classList.remove('hidden','pop','ouch');
   void el.offsetWidth;el.classList.add('pop');
   clearTimeout(showToast._t);
   showToast._t=setTimeout(()=>el.classList.add('hidden'),1500);
@@ -2365,13 +2433,69 @@ function updateParticles(dt){
   });
   world.particles=world.particles.filter(p=>p.t<p.life);
 }
-function doCrash(){
-  if(state!=='play')return;
-  state='crash';world.crashT=0;
-  stopEngine();stopSiren();stopBgm();
-  sndPoyon();sndZukkoke();
-  if(course.mode==='side')spawnCrashFx(sidePlayerX()+world.sideX,sideGroundY()-30*sideScale()-world.jumpY);
-  else spawnCrashFx(world.carX,PY);
+function clearAfterHit(){
+  // spin out / remove everything close by so the restart is safe
+  if(course.mode==='side'){
+    for(const o of world.sideObs){
+      const dxo=o.z-world.dist;
+      if(dxo>-320&&dxo<W+240&&!o.hit){
+        if(o.type==='car'){o.hit=true;o.hitT=0;o.vy=-360;o.rot=0;o.vr=9;o.yOff=0;}
+        else o.gone=true;
+      }
+    }
+    world.sideObs=world.sideObs.filter(o=>!o.gone);
+  }else{
+    for(const o of world.obstacles){
+      const y=PY-(o.z-world.dist);
+      if(y>-280&&y<H+140){
+        if(o.type==='car'&&!o.hit){
+          o.hit=true;o.spin=0;o.hitT=0;o.xOff=0;
+          o.slide=o.lane>=0?1:-1;o.sp*=.3;
+        }else if(o.type!=='item'&&o.type!=='car')o.gone=true;
+      }
+    }
+    world.obstacles=world.obstacles.filter(o=>!o.gone);
+  }
+}
+function doCrash(offroad){
+  if(state!=='play'||world.invT>0)return;
+  const side=course.mode==='side';
+  const cx=side?sidePlayerX()+world.sideX:world.carX;
+  const cy=side?sideGroundY()-30*sideScale()-world.jumpY:PY;
+  if(world.lives>1){
+    // soft crash: lose one heart, keep on driving (same run, same distance)
+    world.lives--;
+    updateLivesHUD(true);
+    world.invT=1.9;      // invincible + blinking while recovering
+    world.speed*=.35;
+    spawnCrashFx(cx,cy);
+    sndOuch();
+    clearAfterHit();
+    if(side){ // back to the home position on the ground
+      world.sideX=0;world.sideVx=0;
+      world.jumpY=0;world.jumpVy=0;world.jumps=0;
+    }else if(offroad){ // put the car back on the road
+      world.carX=roadCenterAt(world.dist)+(course.twoway?-roadHalf*.47:0);
+    }
+    showOuchToast();
+    if(world.lives===1)sndDoki();
+  }else{
+    world.lives=0;
+    updateLivesHUD(true);
+    state='crash';world.crashT=0;
+    stopEngine();stopSiren();stopBgm();
+    sndPoyon();sndZukkoke();
+    spawnCrashFx(cx,cy);
+  }
+}
+function showOuchToast(){
+  const el=$('#toast');
+  el.textContent=world.lives===1?'いたた！ あと1かい きをつけて！':'いたた！ あと'+world.lives+'かい だいじょうぶ！';
+  el.classList.remove('hidden','pop');
+  el.classList.add('ouch');
+  void el.offsetWidth;el.classList.add('pop');
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>{el.classList.add('hidden');el.classList.remove('ouch');},1700);
 }
 
 /* ============================== render ============================== */
@@ -2590,7 +2714,9 @@ function renderTopScene(t){
     sc=CS*(1+Math.sin(k*18)*.1*Math.max(0,1-k));
     oy=-Math.abs(Math.sin(k*12))*14*Math.max(0,1-k);
   }
+  if(world.invT>0)ctx.globalAlpha=.55+.35*Math.sin(t*24); // recovery blink
   drawSprite(ctx,SPRITES[selCar.id],world.carX,PY+oy,rot,sc);
+  ctx.globalAlpha=1;
   // speed lines
   if(state==='play'&&world.speed>course.base*1.12){
     ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=3;ctx.lineCap='round';
@@ -2893,7 +3019,9 @@ function renderSideScene(t){
     tilt=Math.sin(k*26)*.4*Math.max(0,1-k);
     bounce=-Math.abs(Math.sin(k*12))*10*Math.max(0,1-k);
   }
+  if(world.invT>0)ctx.globalAlpha=.55+.35*Math.sin(t*24); // recovery blink
   drawCarSideAt(ctx,selCar,pxx,gy-jy,SS,d*.11,bounce,tilt);
+  ctx.globalAlpha=1;
   // whoosh streaks while steering sideways in the air
   if(jy>0&&state==='play'&&(Math.abs(world.sideVx)>120||keys.left||keys.right)){
     const dir=(Math.abs(world.sideVx)>120?world.sideVx:((keys.right?1:0)-(keys.left?1:0)))>0?1:-1;
@@ -3332,6 +3460,10 @@ window.__test={
     world.airItems.forEach(o=>{if(!o.got){const dx=o.z-world.dist;if(dx>-40&&dx<m)m=dx;}});
     return m;
   },
+  lives:()=>world.lives,
+  setLives:n=>{world.lives=clamp(n,1,5);updateLivesHUD();},
+  invT:()=>world.invT,
+  clearRoad:()=>{world.obstacles=[];world.nextObsZ=world.dist+PY+3000;world.nextItemZ=world.dist+PY+3000;},
   sirenOn:()=>!!siren,
   acOn:()=>!!AC,
   acState:()=>AC?AC.state:'none',
