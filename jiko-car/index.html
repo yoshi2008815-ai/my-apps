@@ -146,6 +146,18 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
 }
 #lives .hh.doki{animation:doki .6s ease-in-out infinite;}
 @keyframes doki{0%,100%{transform:scale(1);}50%{transform:scale(1.4);}}
+#lives.many{flex-wrap:wrap;gap:2px;max-width:92px;margin-left:auto;margin-right:auto;}
+#lives.many .hh svg{width:16px;height:16px;}
+#lives-head{font-size:clamp(17px,4.2vw,24px);font-weight:900;color:#2c5f9e;text-align:center;margin:16px 0 8px;}
+#lives-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:2px 0 6px;}
+.lifecard{
+  display:flex;align-items:center;gap:5px;background:#fff;border:4px solid #dfe6f0;
+  border-radius:18px;padding:10px 14px;cursor:pointer;transition:transform .12s;
+}
+.lifecard:active{transform:scale(.94);}
+.lifecard.sel{border-color:#ff8a3d;background:#fff4dd;box-shadow:0 0 0 4px rgba(255,170,60,.35);}
+.lifecard svg{width:clamp(22px,6vw,30px);height:clamp(22px,6vw,30px);display:block;}
+.lifecard .ln{font-size:clamp(19px,4.8vw,26px);font-weight:900;color:#c92a3c;}
 #btn-music{
   position:absolute;top:calc(10px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));
   z-index:11;width:58px;height:58px;border-radius:50%;border:3px solid #ffb63d;
@@ -176,6 +188,7 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
   background:rgba(255,255,255,.92);border-radius:999px;border:3px solid #ffb63d;
   padding:6px 20px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,.18);
 }
+#hud .chip.tall{border-radius:28px;} /* two heart rows: rounded card, not an egg */
 #dist{font-size:clamp(26px,6vw,38px);font-weight:900;color:#2b4a75;line-height:1.05;}
 #bestlab{font-size:clamp(12px,2.8vw,15px);font-weight:800;color:#e8842a;}
 #btn-home{pointer-events:auto;}
@@ -276,7 +289,11 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
   <div id="screen-diff" class="screen hidden">
     <div class="panel">
       <h2 class="head">むずかしさを えらんでね</h2>
-      <div class="scrolly"><div class="grid diffs" id="diff-list"></div></div>
+      <div class="scrolly">
+        <div class="grid diffs" id="diff-list"></div>
+        <div id="lives-head">ハートの かず</div>
+        <div id="lives-row"></div>
+      </div>
       <div class="row">
         <button class="btn small blue" id="btn-diff-back">もどる</button>
         <button class="btn big" id="btn-go">しゅっぱつ！</button>
@@ -1781,6 +1798,8 @@ const DIFFS=[
   {id:5,name:'げきむず',stars:5,speed:1.5,accel:2.2,density:1.65,curve:1.25},
 ];
 let diff=DIFFS[2];
+const LIVES_CHOICES=[1,3,5,10];
+let selLives=5; // how many hearts the next run starts with
 function baseSpeed(){return course.base*diff.speed;}
 function laneFractions(co){
   if(co.twoway||co.lanes===4)return[-.7,-.25,.25,.7];
@@ -1809,7 +1828,7 @@ const world={
   obstacles:[],deco:[],particles:[],balls:[],
   nextObsZ:0,nextDecoZ:0,nextItemZ:0,exhaustT:0,demoT:0,
   items:0,bonus:0,fx:null,inWater:false,
-  lives:5,invT:0,
+  lives:5,livesTotal:5,invT:0,
   sideObs:[],airItems:[],nextAirZ:0,
   jumpY:0,jumpVy:0,jumpT:0,jumps:0,demoJumpT:1.5,
   sideX:0,sideVx:0
@@ -1856,7 +1875,7 @@ function resetWorld(demo){
   world.nextAirZ=W+800;
   world.exhaustT=0;
   world.items=0;world.bonus=0;world.inWater=false;
-  world.lives=5;world.invT=0;
+  world.lives=selLives;world.livesTotal=selLives;world.invT=0;
   updateLivesHUD();
   world.jumpY=0;world.jumpVy=0;world.jumpT=0;world.jumps=0;world.demoJumpT=1.5;
   world.sideX=0;world.sideVx=0;
@@ -1985,22 +2004,27 @@ const HEARTP='M12 21.3C6.6 17.2 2 13.3 2 8.9 2 5.9 4.4 3.8 7 3.8c1.9 0 3.7 1.1 5
 function updateLivesHUD(anim){
   const el=$('#lives');
   if(!el)return;
-  if(!el.childElementCount){
-    for(let i=0;i<5;i++){
+  const total=Math.max(world.livesTotal||1,world.lives,1);
+  if(el.childElementCount!==total){
+    el.innerHTML='';
+    for(let i=0;i<total;i++){
       const sp=document.createElement('span');
       sp.className='hh';
       sp.innerHTML='<svg viewBox="0 0 24 24"><path fill="#ff5a63" stroke="#c92a3c" stroke-width="1.2" d="'+HEARTP+'"/></svg>';
       el.appendChild(sp);
     }
   }
+  el.classList.toggle('many',total>5); // 10 hearts: two small rows so the chip never overflows
+  const chip=el.closest('.chip');
+  if(chip)chip.classList.toggle('tall',total>5);
   const hs=el.children;
-  for(let i=0;i<5;i++){
+  for(let i=0;i<total;i++){
     const on=i<world.lives;
     hs[i].classList.toggle('off',!on);
     hs[i].classList.toggle('doki',on&&world.lives===1);
     hs[i].classList.remove('pop');
   }
-  if(anim&&world.lives>=0&&world.lives<5){
+  if(anim&&world.lives>=0&&world.lives<total){
     const lost=hs[world.lives]; // the heart that just broke
     if(lost){void lost.offsetWidth;lost.classList.add('pop');}
   }
@@ -3124,6 +3148,26 @@ function refreshDiffBests(){
   });
 }
 
+/* lives (hearts) select UI */
+function buildLivesRow(){
+  const row=$('#lives-row');
+  LIVES_CHOICES.forEach(n=>{
+    const el=document.createElement('div');
+    el.className='lifecard';el.dataset.lives=n;
+    el.innerHTML='<svg viewBox="0 0 24 24"><path fill="#ff5a63" stroke="#c92a3c" stroke-width="1.2" d="'+HEARTP+'"/></svg><span class="ln">&#215;'+n+'</span>';
+    el.addEventListener('click',()=>{initAudio();selectLives(n);sndSelect();});
+    row.appendChild(el);
+  });
+}
+function selectLives(n){
+  n=parseInt(n,10);
+  selLives=LIVES_CHOICES.indexOf(n)>=0?n:5;
+  lsSet('jikoSelLives',String(selLives));
+  document.querySelectorAll('#lives-row .lifecard').forEach(el=>{
+    el.classList.toggle('sel',+el.dataset.lives===selLives);
+  });
+}
+
 /* car select UI */
 function buildCarGrid(){
   const grid=$('#car-grid');
@@ -3414,9 +3458,11 @@ resize();
 buildCarGrid();
 buildCourseGrid();
 buildDiffList();
+buildLivesRow();
 selectCar(lsGet('jikoSelCar')||'sports');
 selectCourse(lsGet('jikoSelCourse')||'machi');
 selectDiff(parseInt(lsGet('jikoSelDiff')||'3',10)||3);
+selectLives(parseInt(lsGet('jikoSelLives')||'5',10)||5);
 updateMusicBtn();
 resetWorld(true);
 /* test hooks (harmless in production) */
@@ -3461,7 +3507,11 @@ window.__test={
     return m;
   },
   lives:()=>world.lives,
-  setLives:n=>{world.lives=clamp(n,1,5);updateLivesHUD();},
+  livesTotal:()=>world.livesTotal,
+  selLives:()=>selLives,
+  setLives:n=>{world.lives=clamp(n,1,world.livesTotal||10);updateLivesHUD();},
+  forceCrash:()=>doCrash(false),
+  clearInv:()=>{world.invT=0;},
   invT:()=>world.invT,
   clearRoad:()=>{world.obstacles=[];world.nextObsZ=world.dist+PY+3000;world.nextItemZ=world.dist+PY+3000;},
   sirenOn:()=>!!siren,
