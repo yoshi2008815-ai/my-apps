@@ -1,6 +1,6 @@
 // 島キャンプ思い出マップ Service Worker
-const CACHE = 'island-camp-v14';
-const V = '14'; // index.html の <script src="...?v="> と合わせる
+const CACHE = 'island-camp-v15';
+const V = '15'; // index.html の <script src="...?v="> と合わせる
 const ASSETS = [
   './',
   './index.html',

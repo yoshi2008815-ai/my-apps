@@ -344,6 +344,12 @@ function renderSideView(){
   g += `<text x="24" y="${VH-36}" fill="#fff" font-size="17" font-weight="800" opacity=".95">⛵ ${rgLabel}（北 → 南）${width>VW?'・ドラッグで移動':''}</text>`;
   svg.innerHTML = g;
   bindIsleClicks();
+  // 左右スクロールボタンの有効/無効
+  const prevB = $('#sidePrev'), nextB = $('#sideNext');
+  if (prevB && nextB){
+    prevB.classList.toggle('off', STATE.sideTx >= 0);
+    nextB.classList.toggle('off', STATE.sideTx <= minTx + 1);
+  }
 }
 
 /* ---------- 左ペイン：年次別インデックス ---------- */
@@ -425,23 +431,41 @@ async function openIsland(id){
 
 async function renderBody(is){
   const body = $('#pBody');
-  const mapSec = window.isleMapHTML ? window.isleMapHTML(is) : '';
+  const tab = is._tab || 'map';
+  const n = (v) => v ? ` <span class="tn">${v}</span>` : '';
   body.innerHTML = `
-    ${mapSec}
-    ${section('photos','📷 写真', photosBlock(is))}
-    ${section('logs','📖 旅日記', listLogs(is))}
-    ${section('shops','🍴 お店・グルメ', listShops(is))}
-    ${section('knowledge','💡 ナレッジ', listSimple(is,'knowledge','📌'))}
-    ${section('tips','🎯 Tips・コツ', listSimple(is,'tips','✅'))}
-  `;
-  // 写真の遅延読み込み
-  for (const pid of is.photos){
-    const blob = await PhotoDB.get(pid);
-    const img = body.querySelector(`img[data-pid="${pid}"]`);
-    if (img && blob) img.src = URL.createObjectURL(blob);
+    <div class="ptabs" id="pTabs">
+      <button data-t="map"    class="${tab==='map'?'on':''}">🗺 地図</button>
+      <button data-t="photos" class="${tab==='photos'?'on':''}">📷 写真${n(is.photos.length)}</button>
+      <button data-t="logs"   class="${tab==='logs'?'on':''}">📖 旅日記${n(is.logs.length)}</button>
+      <button data-t="shops"  class="${tab==='shops'?'on':''}">🍴 お店${n(is.shops.length)}</button>
+      <button data-t="notes"  class="${tab==='notes'?'on':''}">💡 メモ${n((is.knowledge||[]).length + (is.tips||[]).length)}</button>
+    </div>
+    <div class="ptab-body">${tabContent(is, tab)}</div>`;
+  // 写真の遅延読み込み（写真タブのみ）
+  if (tab === 'photos'){
+    for (const pid of is.photos){
+      const blob = await PhotoDB.get(pid);
+      const img = body.querySelector(`img[data-pid="${pid}"]`);
+      if (img && blob) img.src = URL.createObjectURL(blob);
+    }
   }
   bindBody(is);
-  if (window.wireIsleMap) window.wireIsleMap(is);
+  if (tab === 'map' && window.wireIsleMap) window.wireIsleMap(is);
+  body.querySelectorAll('#pTabs button').forEach(b => b.onclick = async () => {
+    is._tab = b.dataset.t;
+    await renderBody(is);
+    $('#pBody').scrollTop = 0;
+  });
+}
+function tabContent(is, tab){
+  if (tab === 'photos') return section('photos','📷 写真', photosBlock(is));
+  if (tab === 'logs')   return section('logs','📖 旅日記', listLogs(is));
+  if (tab === 'shops')  return section('shops','🍴 お店・グルメ', listShops(is));
+  if (tab === 'notes')  return section('knowledge','💡 ナレッジ', listSimple(is,'knowledge','📌'))
+                             + section('tips','🎯 Tips・コツ', listSimple(is,'tips','✅'));
+  const mapSec = window.isleMapHTML ? window.isleMapHTML(is) : '';
+  return mapSec || `<p class="empty">この島の地図データはまだありません。</p>`;
 }
 
 function section(key, title, inner){
@@ -878,6 +902,8 @@ $('#resetBtn').onclick = () => {
     renderMap(); renderIndexPanel(); toast('初期データに戻しました');
   }
 };
+$('#sidePrev').onclick = () => { STATE.sideTx += 390; renderMap(); };
+$('#sideNext').onclick = () => { STATE.sideTx -= 390; renderMap(); };
 $('#viewToggle').onclick = () => {
   STATE.viewMode = STATE.viewMode === 'side' ? 'map' : 'side';
   const side = STATE.viewMode === 'side';
