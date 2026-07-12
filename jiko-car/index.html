@@ -59,8 +59,8 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
 .btn.small{font-size:clamp(16px,3.6vw,20px);padding:9px 22px;box-shadow:0 4px 0 #d97b00,0 8px 12px rgba(0,0,0,.18);}
 .row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:center;}
 .grid{
-  display:grid;gap:12px;width:100%;
-  grid-template-columns:repeat(auto-fill,minmax(136px,1fr));
+  display:grid;gap:10px;width:100%;
+  grid-template-columns:repeat(auto-fill,minmax(118px,1fr));
 }
 .grid.courses{grid-template-columns:repeat(auto-fill,minmax(186px,1fr));}
 .card{
@@ -395,6 +395,10 @@ function sndFanfare(){
   [523,659,784,1047].forEach((f,i)=>blip(f,f,.16,'triangle',.14,i*.11));
 }
 function sndCount(hi){blip(hi?880:440,hi?880:440,.14,'sine',.14);}
+function sndClack(){ // gatan-goton rail joint clatter
+  blip(130,72,.055,'triangle',.15);
+  blip(105,62,.055,'triangle',.13,.085);
+}
 function sndGet(){blip(880,880,.07,'square',.12);blip(1320,1320,.1,'square',.12,.07);}
 function sndThrow(){blip(950,240,.16,'triangle',.12);}
 function sndHit(){
@@ -668,6 +672,12 @@ const CARS=[
   {id:'blue',name:'あおい くるま',w:56,l:104,color:'#3178dd',arch:'sedan'},
   {id:'wagon',name:'みどりの わごん',w:56,l:112,color:'#3faf62',arch:'sedan',wagon:true},
   {id:'pink',name:'ぴんくの くるま',w:54,l:100,color:'#f27db0',arch:'sedan',cute:true},
+  {id:'dump',name:'だんぷかー',w:64,l:150,color:'#f0912a',arch:'dump'},
+  {id:'shinkansen',name:'しんかんせん',w:58,l:272,color:'#f4f7fa',arch:'shinkansen',rail:true,norand:true},
+  {id:'densha',name:'でんしゃ',w:58,l:244,color:'#e9edf2',arch:'densha',rail:true,norand:true},
+  {id:'tanker',name:'たんくろーりー',w:62,l:190,color:'#d9483a',arch:'tanker'},
+  {id:'shovel',name:'しょべるかー',w:66,l:120,color:'#f5b31e',arch:'shovel',norand:true},
+  {id:'carrier',name:'きゃりあかー',w:62,l:232,color:'#3a7bd9',arch:'carrier'},
 ];
 let SKIP_SHADOW=false; // used to bake shadow-less sprites for the top-down jump
 function carShadow(c,w,l){
@@ -960,8 +970,350 @@ function drawTruck(c,s){
   c.restore();
   taillight(c,-hw*.9,hl-l*.03,w*.19,l*.024);taillight(c,hw*.71,hl-l*.03,w*.19,l*.024);
 }
+function miniCarTop(c,x,y,mw,ml,col){ // tiny car loaded on the carrier
+  c.save();c.translate(x,y);
+  c.fillStyle='#15161c';
+  rr(c,-mw*.55,-ml*.34,mw*.15,ml*.18,2);c.fill();rr(c,mw*.40,-ml*.34,mw*.15,ml*.18,2);c.fill();
+  rr(c,-mw*.55,ml*.16,mw*.15,ml*.18,2);c.fill();rr(c,mw*.40,ml*.16,mw*.15,ml*.18,2);c.fill();
+  carBodyPath(c,mw,ml,.6,.78);
+  c.fillStyle=bodyGrad(c,mw,col);c.fill();
+  c.strokeStyle=shade(col,-.45);c.lineWidth=1;c.stroke();
+  glassPanel(c,-mw*.4,-ml*.18,mw*.8,ml*.42,mw*.18);
+  c.fillStyle='#252830';rr(c,-mw*.1,-ml*.5+1,mw*.2,ml*.05,1.5);c.fill();
+  c.restore();
+}
+function drawDump(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  wheel(c,-hw*.94,-hl+l*.14,w*.17,l*.10);wheel(c,hw*.94,-hl+l*.14,w*.17,l*.10);
+  wheel(c,-hw*.94,l*.20,w*.18,l*.10);wheel(c,hw*.94,l*.20,w*.18,l*.10);
+  wheel(c,-hw*.94,l*.36,w*.18,l*.10);wheel(c,hw*.94,l*.36,w*.18,l*.10);
+  // cab
+  rr(c,-hw*.92,-hl,w*.92,l*.26,w*.16);
+  c.fillStyle=bodyGrad(c,w*.92,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  glassPanel(c,-w*.36,-hl+l*.085,w*.72,l*.075,w*.09);
+  rr(c,-w*.33,-hl+l*.17,w*.66,l*.07,6);
+  c.fillStyle=shade(col,.22);c.fill();c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1;c.stroke();
+  mirrors(c,w,-hl+l*.09,col);
+  headlight(c,-hw*.55,-hl+2,w*.19,l*.03);headlight(c,hw*.36,-hl+2,w*.19,l*.03);
+  // tipper bed (steel, slightly widening to the rear)
+  c.beginPath();
+  c.moveTo(-hw*.86,-hl+l*.30);c.lineTo(hw*.86,-hl+l*.30);
+  c.lineTo(hw,hl);c.lineTo(-hw,hl);c.closePath();
+  const bg2=c.createLinearGradient(-hw,0,hw,0);
+  bg2.addColorStop(0,'#8f97a5');bg2.addColorStop(.45,'#d2d7df');bg2.addColorStop(1,'#828a98');
+  c.fillStyle=bg2;c.fill();
+  c.strokeStyle='#5f6672';c.lineWidth=2;c.stroke();
+  // inner bed
+  c.beginPath();
+  c.moveTo(-hw*.70,-hl+l*.335);c.lineTo(hw*.70,-hl+l*.335);
+  c.lineTo(hw*.82,hl-l*.035);c.lineTo(-hw*.82,hl-l*.035);c.closePath();
+  c.fillStyle='#707784';c.fill();
+  c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=1.2;c.stroke();
+  // gravel load
+  const gr=c.createRadialGradient(-w*.08,-l*.02,3,0,l*.08,w*.62);
+  gr.addColorStop(0,'#cfc5b2');gr.addColorStop(1,'#8f8674');
+  c.fillStyle=gr;
+  [[-w*.17,-l*.03,w*.19],[w*.14,l*.01,w*.21],[-w*.03,l*.13,w*.23],[w*.16,l*.24,w*.17],[-w*.19,l*.23,w*.16],[0,l*.32,w*.19]].forEach(k=>{
+    c.beginPath();c.arc(k[0],k[1],k[2],0,TAU);c.fill();
+  });
+  c.fillStyle='rgba(70,64,52,.4)';
+  for(let i=0;i<12;i++){
+    const gx=(((i*37)%2?-1:1)*((i*13)%Math.round(w*.30)));
+    const gy2=-l*.03+((i*29)%Math.round(l*.36));
+    c.beginPath();c.arc(gx,gy2,1.8,0,TAU);c.fill();
+  }
+  taillight(c,-hw*.9,hl-l*.035,w*.18,l*.026);taillight(c,hw*.72,hl-l*.035,w*.18,l*.026);
+}
+function shinkPath(c,w,l){ // long nose at the front, gently tapered tail
+  const hw=w/2,hl=l/2;
+  c.beginPath();
+  c.moveTo(0,-hl);
+  c.quadraticCurveTo(hw*.92,-hl+l*.05,hw,-hl+l*.155);
+  c.lineTo(hw,hl-l*.045);
+  c.quadraticCurveTo(hw,hl,hw*.55,hl);
+  c.lineTo(-hw*.55,hl);
+  c.quadraticCurveTo(-hw,hl,-hw,hl-l*.045);
+  c.lineTo(-hw,-hl+l*.155);
+  c.quadraticCurveTo(-hw*.92,-hl+l*.05,0,-hl);
+  c.closePath();
+}
+function pantographTop(c,w,l,yy){
+  c.strokeStyle='#5d6675';c.lineWidth=2.2;c.lineCap='round';
+  c.beginPath();c.moveTo(-w*.20,yy+l*.026);c.lineTo(0,yy+l*.006);c.lineTo(w*.20,yy+l*.026);c.stroke();
+  c.strokeStyle='#8f97a5';c.lineWidth=3.2;
+  c.beginPath();c.moveTo(-w*.27,yy);c.lineTo(w*.27,yy);c.stroke();
+  c.fillStyle='#6a727e';
+  rr(c,-w*.055,yy+l*.022,w*.11,l*.013,2);c.fill();
+}
+function drawShinkansenTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2;
+  carShadow(c,w,l);
+  shinkPath(c,w,l);
+  const g=c.createLinearGradient(-hw,0,hw,0);
+  g.addColorStop(0,'#bfc9d4');g.addColorStop(.28,'#ffffff');g.addColorStop(.58,'#f4f8fb');g.addColorStop(1,'#b2bcc8');
+  c.fillStyle=g;c.fill();
+  c.strokeStyle='#8a97a5';c.lineWidth=1.6;c.stroke();
+  c.save();shinkPath(c,w,l);c.clip();
+  // blue side lines (N700 style)
+  c.fillStyle='#1d5fae';
+  c.fillRect(-hw,-hl+l*.06,w*.095,l);
+  c.fillRect(hw-w*.095,-hl+l*.06,w*.095,l);
+  c.fillStyle='rgba(29,95,174,.4)';
+  c.fillRect(-hw+w*.095,-hl+l*.08,w*.02,l);
+  c.fillRect(hw-w*.115,-hl+l*.08,w*.02,l);
+  // cab window on the nose
+  const ng=c.createLinearGradient(0,-hl+l*.03,0,-hl+l*.115);
+  ng.addColorStop(0,'#bcd9ee');ng.addColorStop(1,'#2c4a66');
+  c.fillStyle=ng;
+  c.beginPath();
+  c.moveTo(0,-hl+l*.026);
+  c.quadraticCurveTo(w*.27,-hl+l*.06,w*.205,-hl+l*.115);
+  c.lineTo(-w*.205,-hl+l*.115);
+  c.quadraticCurveTo(-w*.27,-hl+l*.06,0,-hl+l*.026);
+  c.closePath();c.fill();
+  c.strokeStyle='rgba(20,40,60,.4)';c.lineWidth=1.2;c.stroke();
+  // car joints + roof panel lines
+  c.strokeStyle='rgba(90,110,130,.3)';c.lineWidth=1.6;
+  [-l*.18,l*.10,l*.38].forEach(yy=>{
+    c.beginPath();c.moveTo(-hw+1,yy);c.lineTo(hw-1,yy);c.stroke();
+  });
+  c.strokeStyle='rgba(120,140,160,.22)';c.lineWidth=1.2;
+  c.beginPath();c.moveTo(-w*.30,-hl+l*.17);c.lineTo(-w*.30,hl-3);c.stroke();
+  c.beginPath();c.moveTo(w*.30,-hl+l*.17);c.lineTo(w*.30,hl-3);c.stroke();
+  // smooth center highlight
+  c.fillStyle='rgba(255,255,255,.4)';
+  rr(c,-w*.13,-hl+l*.13,w*.26,l*.84,w*.13);c.fill();
+  c.restore();
+  pantographTop(c,w,l,-l*.05);
+  pantographTop(c,w,l,l*.26);
+  headlight(c,-w*.115,-hl+l*.012,w*.10,l*.011);headlight(c,w*.015,-hl+l*.012,w*.10,l*.011);
+  taillight(c,-w*.34,hl-l*.016,w*.13,l*.009);taillight(c,w*.21,hl-l*.016,w*.13,l*.009);
+}
+function drawDenshaTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2;
+  carShadow(c,w,l);
+  rr(c,-hw,-hl,w,l,w*.17);
+  const g=c.createLinearGradient(-hw,0,hw,0);
+  g.addColorStop(0,'#a9b1bc');g.addColorStop(.3,'#f2f5f8');g.addColorStop(.62,'#e4e9ee');g.addColorStop(1,'#9fa8b3');
+  c.fillStyle=g;c.fill();
+  c.strokeStyle='#7d8590';c.lineWidth=1.6;c.stroke();
+  c.save();rr(c,-hw,-hl,w,l,w*.17);c.clip();
+  // yamanote-green side stripes with door gaps
+  c.fillStyle='#3fae5a';
+  c.fillRect(-hw,-hl,w*.10,l);
+  c.fillRect(hw-w*.10,-hl,w*.10,l);
+  c.fillStyle='rgba(30,36,44,.5)';
+  [-l*.31,-l*.03,l*.25].forEach(yy=>{
+    c.fillRect(-hw,yy,w*.10,l*.055);
+    c.fillRect(hw-w*.10,yy,w*.10,l*.055);
+  });
+  // front windshield band + destination display
+  const fg=c.createLinearGradient(0,-hl+2.5,0,-hl+l*.055);
+  fg.addColorStop(0,'#46525e');fg.addColorStop(1,'#1c2329');
+  c.fillStyle=fg;
+  rr(c,-w*.36,-hl+2.5,w*.72,l*.045,4);c.fill();
+  rr(c,-w*.14,-hl+l*.058,w*.28,l*.02,2);c.fillStyle='#20262c';c.fill();
+  rr(c,-w*.10,-hl+l*.062,w*.20,l*.012,1.5);c.fillStyle='#7ef29a';c.fill();
+  // roof ribs
+  c.strokeStyle='rgba(90,100,115,.3)';c.lineWidth=1.3;
+  for(let i=1;i<9;i++){
+    const yy=-hl+l*.10+i*l*.095;
+    c.beginPath();c.moveTo(-hw+3,yy);c.lineTo(hw-3,yy);c.stroke();
+  }
+  // car joint near tail
+  c.strokeStyle='rgba(60,70,80,.4)';c.lineWidth=1.8;
+  c.beginPath();c.moveTo(-hw+1,l*.40);c.lineTo(hw-1,l*.40);c.stroke();
+  c.restore();
+  // AC units
+  [-l*.26,l*.06].forEach(yy=>{
+    rr(c,-w*.20,yy,w*.40,l*.115,5);
+    c.fillStyle='#c8cfd8';c.fill();c.strokeStyle='#8f97a5';c.lineWidth=1.2;c.stroke();
+    c.fillStyle='#a7afba';
+    rr(c,-w*.14,yy+l*.022,w*.28,l*.017,2);c.fill();
+    rr(c,-w*.14,yy+l*.062,w*.28,l*.017,2);c.fill();
+  });
+  pantographTop(c,w,l,l*.33);
+  headlight(c,-w*.31,-hl+1.5,w*.13,l*.015);headlight(c,w*.18,-hl+1.5,w*.13,l*.015);
+}
+function drawTankerTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  wheel(c,-hw*.94,-hl+l*.13,w*.17,l*.09);wheel(c,hw*.94,-hl+l*.13,w*.17,l*.09);
+  wheel(c,-hw*.94,l*.22,w*.18,l*.09);wheel(c,hw*.94,l*.22,w*.18,l*.09);
+  wheel(c,-hw*.94,l*.35,w*.18,l*.09);wheel(c,hw*.94,l*.35,w*.18,l*.09);
+  // cab
+  rr(c,-hw*.92,-hl,w*.92,l*.225,w*.16);
+  c.fillStyle=bodyGrad(c,w*.92,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  glassPanel(c,-w*.36,-hl+l*.07,w*.72,l*.065,w*.09);
+  rr(c,-w*.33,-hl+l*.145,w*.66,l*.06,6);
+  c.fillStyle=shade(col,.22);c.fill();c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1;c.stroke();
+  mirrors(c,w,-hl+l*.075,col);
+  headlight(c,-hw*.55,-hl+2,w*.19,l*.026);headlight(c,hw*.36,-hl+2,w*.19,l*.026);
+  // silver tank (capsule)
+  const ty=-hl+l*.26,tl=l*.74-3,tw=w*.9;
+  rr(c,-tw/2,ty,tw,tl,tw*.30);
+  const tg=c.createLinearGradient(-tw/2,0,tw/2,0);
+  tg.addColorStop(0,'#828c9b');tg.addColorStop(.3,'#eef2f7');tg.addColorStop(.5,'#ffffff');
+  tg.addColorStop(.7,'#dfe5ec');tg.addColorStop(1,'#76808f');
+  c.fillStyle=tg;c.fill();
+  c.strokeStyle='#5f6672';c.lineWidth=1.8;c.stroke();
+  c.save();rr(c,-tw/2,ty,tw,tl,tw*.30);c.clip();
+  // tank bands
+  c.fillStyle='rgba(70,80,95,.28)';
+  [.24,.52,.80].forEach(f=>{c.fillRect(-tw/2,ty+tl*f,tw,3.4);});
+  // long specular streak
+  c.fillStyle='rgba(255,255,255,.5)';
+  rr(c,-tw*.10,ty+6,tw*.16,tl-12,6);c.fill();
+  c.restore();
+  // hatches along the spine
+  [.14,.42,.70].forEach(f=>{
+    const hy=ty+tl*f;
+    c.beginPath();c.arc(0,hy,w*.115,0,TAU);
+    c.fillStyle='#c2cad4';c.fill();c.strokeStyle='#7d8590';c.lineWidth=1.4;c.stroke();
+    c.beginPath();c.arc(0,hy,w*.055,0,TAU);c.fillStyle='#9aa3af';c.fill();c.stroke();
+  });
+  // warning diamond at the rear
+  c.save();c.translate(0,hl-l*.075);c.rotate(Math.PI/4);
+  rr(c,-w*.085,-w*.085,w*.17,w*.17,2);
+  c.fillStyle='#ffd23f';c.fill();c.strokeStyle='#c2451f';c.lineWidth=2;c.stroke();
+  c.restore();
+  // rear ladder
+  c.strokeStyle='#6f7683';c.lineWidth=2;
+  c.beginPath();c.moveTo(-w*.07,hl-l*.045);c.lineTo(-w*.07,hl-2);c.stroke();
+  c.beginPath();c.moveTo(w*.07,hl-l*.045);c.lineTo(w*.07,hl-2);c.stroke();
+  taillight(c,-hw*.86,hl-l*.032,w*.17,l*.024);taillight(c,hw*.69,hl-l*.032,w*.17,l*.024);
+}
+function drawShovelTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  // crawler tracks
+  [-1,1].forEach(sd=>{
+    const tx=sd>0?hw-w*.30:-hw;
+    rr(c,tx,-l*.36,w*.30,l*.74,w*.10);
+    c.fillStyle='#2e3138';c.fill();
+    c.strokeStyle='#1b1e24';c.lineWidth=1.6;c.stroke();
+    c.save();rr(c,tx,-l*.36,w*.30,l*.74,w*.10);c.clip();
+    c.strokeStyle='#4a4e58';c.lineWidth=2;
+    for(let yy=-l*.34;yy<l*.38;yy+=l*.055){
+      c.beginPath();c.moveTo(tx,yy);c.lineTo(tx+w*.30,yy);c.stroke();
+    }
+    c.restore();
+  });
+  // turntable body
+  rr(c,-w*.37,-l*.14,w*.74,l*.50,w*.10);
+  c.fillStyle=bodyGrad(c,w*.74,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  // engine deck + vents (rear)
+  rr(c,-w*.32,l*.12,w*.64,l*.20,5);
+  c.fillStyle=shade(col,-.12);c.fill();c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=1.2;c.stroke();
+  c.strokeStyle='rgba(0,0,0,.35)';c.lineWidth=1.6;
+  for(let i=0;i<4;i++){
+    const yy=l*.15+i*l*.038;
+    c.beginPath();c.moveTo(-w*.24,yy);c.lineTo(w*.10,yy);c.stroke();
+  }
+  // counterweight
+  rr(c,-w*.34,l*.295,w*.68,l*.055,4);
+  c.fillStyle='#6f7683';c.fill();c.strokeStyle='#4c525c';c.lineWidth=1.2;c.stroke();
+  // cab (front-left)
+  rr(c,-w*.345,-l*.125,w*.30,l*.24,5);
+  c.fillStyle=shade(col,.18);c.fill();c.strokeStyle=shade(col,-.4);c.lineWidth=1.6;c.stroke();
+  glassPanel(c,-w*.315,-l*.105,w*.24,l*.19,4);
+  // boom (folded forward on the right side)
+  const bx=w*.14;
+  c.beginPath();
+  c.moveTo(bx-w*.125,-l*.06);
+  c.lineTo(bx+w*.125,-l*.06);
+  c.lineTo(bx+w*.075,-hl+l*.145);
+  c.lineTo(bx-w*.075,-hl+l*.145);
+  c.closePath();
+  const bg3=c.createLinearGradient(bx-w*.12,0,bx+w*.12,0);
+  bg3.addColorStop(0,shade(col,-.20));bg3.addColorStop(.5,shade(col,.24));bg3.addColorStop(1,shade(col,-.28));
+  c.fillStyle=bg3;c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.8;c.stroke();
+  // hydraulic ram along the boom
+  c.strokeStyle='#e6ebf2';c.lineWidth=3;c.lineCap='round';
+  c.beginPath();c.moveTo(bx-w*.04,-l*.10);c.lineTo(bx-w*.02,-hl+l*.20);c.stroke();
+  c.strokeStyle='#8f97a5';c.lineWidth=1.2;
+  c.beginPath();c.moveTo(bx-w*.04,-l*.10);c.lineTo(bx-w*.02,-hl+l*.20);c.stroke();
+  // joints
+  [[bx,-l*.06],[bx,-hl+l*.145]].forEach(j=>{
+    c.beginPath();c.arc(j[0],j[1],w*.062,0,TAU);
+    c.fillStyle='#6b6e78';c.fill();c.strokeStyle='#41444f';c.lineWidth=1.4;c.stroke();
+    c.beginPath();c.arc(j[0],j[1],w*.024,0,TAU);c.fillStyle='#c8cdd6';c.fill();
+  });
+  // bucket with teeth at the tip
+  c.beginPath();
+  c.moveTo(bx-w*.16,-hl+l*.14);
+  c.lineTo(bx+w*.16,-hl+l*.14);
+  c.lineTo(bx+w*.125,-hl+l*.03);
+  c.lineTo(bx-w*.125,-hl+l*.03);
+  c.closePath();
+  const kg=c.createLinearGradient(bx-w*.16,0,bx+w*.16,0);
+  kg.addColorStop(0,'#767e8c');kg.addColorStop(.5,'#b6bec9');kg.addColorStop(1,'#6a727e');
+  c.fillStyle=kg;c.fill();
+  c.strokeStyle='#41464f';c.lineWidth=1.8;c.stroke();
+  c.fillStyle='#41464f';
+  for(let i=-1;i<=1;i++){
+    c.beginPath();
+    c.moveTo(bx+i*w*.08-w*.028,-hl+l*.034);
+    c.lineTo(bx+i*w*.08+w*.028,-hl+l*.034);
+    c.lineTo(bx+i*w*.08,-hl+l*.004);
+    c.closePath();c.fill();
+  }
+  // beacon on the cab
+  c.beginPath();c.arc(-w*.22,-l*.145,w*.045,0,TAU);
+  c.fillStyle='#ffb020';c.fill();c.strokeStyle='#a86a00';c.lineWidth=1.2;c.stroke();
+}
+function drawCarrierTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  wheel(c,-hw*.94,-hl+l*.105,w*.16,l*.075);wheel(c,hw*.94,-hl+l*.105,w*.16,l*.075);
+  wheel(c,-hw*.94,l*.24,w*.17,l*.075);wheel(c,hw*.94,l*.24,w*.17,l*.075);
+  wheel(c,-hw*.94,l*.34,w*.17,l*.075);wheel(c,hw*.94,l*.34,w*.17,l*.075);
+  wheel(c,-hw*.94,l*.44,w*.17,l*.075);wheel(c,hw*.94,l*.44,w*.17,l*.075);
+  // cab
+  rr(c,-hw*.92,-hl,w*.92,l*.185,w*.16);
+  c.fillStyle=bodyGrad(c,w*.92,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  glassPanel(c,-w*.36,-hl+l*.058,w*.72,l*.055,w*.09);
+  rr(c,-w*.33,-hl+l*.12,w*.66,l*.05,6);
+  c.fillStyle=shade(col,.22);c.fill();c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1;c.stroke();
+  mirrors(c,w,-hl+l*.062,col);
+  headlight(c,-hw*.55,-hl+2,w*.19,l*.022);headlight(c,hw*.36,-hl+2,w*.19,l*.022);
+  // trailer frame
+  const ty=-hl+l*.215;
+  rr(c,-hw*.98,ty,hw*1.96,hl-ty,6);
+  const fg2=c.createLinearGradient(-hw,0,hw,0);
+  fg2.addColorStop(0,'#8a929e');fg2.addColorStop(.5,'#b9c0ca');fg2.addColorStop(1,'#7f8793');
+  c.fillStyle=fg2;c.fill();
+  c.strokeStyle='#565c66';c.lineWidth=1.8;c.stroke();
+  // wheel tracks (rails) for the loaded cars
+  c.fillStyle='#646b77';
+  rr(c,-w*.335,ty+3,w*.155,hl-ty-6,3);c.fill();
+  rr(c,w*.18,ty+3,w*.155,hl-ty-6,3);c.fill();
+  // cross members
+  c.strokeStyle='rgba(40,45,54,.35)';c.lineWidth=2;
+  for(let i=1;i<6;i++){
+    const yy=ty+(hl-ty)*i/6;
+    c.beginPath();c.moveTo(-hw*.9,yy);c.lineTo(hw*.9,yy);c.stroke();
+  }
+  // rear ramps
+  c.strokeStyle='#565c66';c.lineWidth=3.4;
+  c.beginPath();c.moveTo(-w*.26,hl-l*.005);c.lineTo(-w*.26,hl+l*.028);c.stroke();
+  c.beginPath();c.moveTo(w*.26,hl-l*.005);c.lineTo(w*.26,hl+l*.028);c.stroke();
+  // loaded mini cars
+  miniCarTop(c,0,ty+(hl-ty)*.20,w*.54,l*.155,'#e6402a');
+  miniCarTop(c,0,ty+(hl-ty)*.52,w*.54,l*.155,'#3faf62');
+  miniCarTop(c,0,ty+(hl-ty)*.84,w*.54,l*.155,'#ffd23f');
+  taillight(c,-hw*.9,hl-l*.026,w*.17,l*.02);taillight(c,hw*.73,hl-l*.026,w*.17,l*.02);
+}
 function drawCarTop(c,s){
-  ({sedan:drawSedan,van:drawVan,bus:drawBus,fire:drawFire,truck:drawTruck})[s.arch](c,s);
+  ({sedan:drawSedan,van:drawVan,bus:drawBus,fire:drawFire,truck:drawTruck,
+    dump:drawDump,shinkansen:drawShinkansenTop,densha:drawDenshaTop,
+    tanker:drawTankerTop,shovel:drawShovelTop,carrier:drawCarrierTop})[s.arch](c,s);
 }
 const SPRITES={},SPRITES_AIR={};
 function makeSprite(spec,noShadow){
@@ -1528,6 +1880,55 @@ function sideBodyGrad(c,col,y0,y1){
   return g;
 }
 /* draws a car seen from the side, facing right; origin = ground under car center */
+function miniCarSideAt(c,x,by,col){ // tiny car on the carrier deck (baseline at by)
+  c.save();c.translate(x,by);
+  c.beginPath();
+  c.moveTo(-22,-2);c.lineTo(-22,-9);
+  c.quadraticCurveTo(-14,-10,-11,-10);
+  c.quadraticCurveTo(-8,-17,0,-17);
+  c.lineTo(7,-17);
+  c.quadraticCurveTo(13,-16,15,-10);
+  c.quadraticCurveTo(21,-9,22,-6);
+  c.lineTo(22,-2);c.closePath();
+  c.fillStyle=sideBodyGrad(c,col,-17,-2);c.fill();
+  c.strokeStyle=shade(col,-.45);c.lineWidth=1.2;c.stroke();
+  c.fillStyle='#bfe0f2';rr(c,-7,-15.5,12,6,2);c.fill();
+  c.strokeStyle='rgba(15,35,55,.35)';c.lineWidth=1;rr(c,-7,-15.5,12,6,2);c.stroke();
+  c.fillStyle='#191b21';
+  c.beginPath();c.arc(-13,-1.5,4.5,0,TAU);c.fill();
+  c.beginPath();c.arc(13,-1.5,4.5,0,TAU);c.fill();
+  c.fillStyle='#c8cdd6';
+  c.beginPath();c.arc(-13,-1.5,2,0,TAU);c.fill();
+  c.beginPath();c.arc(13,-1.5,2,0,TAU);c.fill();
+  c.restore();
+}
+function drawTracksSide(c,L,wheelRot){ // excavator crawler (side view)
+  const x0=-L*.40,x1=L*.28,h=26;
+  c.beginPath();
+  c.moveTo(x0,-h);c.lineTo(x1,-h);
+  c.arc(x1,-h/2,h/2,-Math.PI/2,Math.PI/2);
+  c.lineTo(x0,0);
+  c.arc(x0,-h/2,h/2,Math.PI/2,Math.PI*1.5);
+  c.closePath();
+  c.fillStyle='#2e3138';c.fill();
+  c.strokeStyle='#1b1e24';c.lineWidth=2.2;c.stroke();
+  // tread lugs
+  c.strokeStyle='#4a4e58';c.lineWidth=2;
+  for(let x=x0;x<=x1;x+=11){
+    c.beginPath();c.moveTo(x,-2.5);c.lineTo(x+5,-2.5);c.stroke();
+    c.beginPath();c.moveTo(x+2,-h+2.5);c.lineTo(x+7,-h+2.5);c.stroke();
+  }
+  // road wheels + end sprockets (rotate with speed)
+  const ws=[[x0,7.5],[x0+(x1-x0)*.3,5.5],[x0+(x1-x0)*.55,5.5],[x0+(x1-x0)*.8,5.5],[x1,7.5]];
+  ws.forEach(k=>{
+    c.save();c.translate(k[0],-h/2);c.rotate(wheelRot||0);
+    c.beginPath();c.arc(0,0,k[1],0,TAU);
+    c.fillStyle='#6a727e';c.fill();c.strokeStyle='#454a54';c.lineWidth=1.4;c.stroke();
+    c.strokeStyle='#9aa2ae';c.lineWidth=1.6;
+    c.beginPath();c.moveTo(-k[1]*.6,0);c.lineTo(k[1]*.6,0);c.stroke();
+    c.restore();
+  });
+}
 function drawCarSide(c,s,wheelRot,bounce){
   const L=s.l,col=s.color,arch=s.arch;
   let wxs=[-L*.30,L*.32],wr=11;
@@ -1535,6 +1936,13 @@ function drawCarSide(c,s,wheelRot,bounce){
   if(arch==='fire'){wxs=[-L*.33,-L*.02,L*.33];wr=12;}
   if(arch==='truck'){wxs=[-L*.36,-L*.12,L*.32];wr=12;}
   if(arch==='van'){wxs=[-L*.30,L*.30];wr=11.5;}
+  if(arch==='dump'){wxs=[-L*.35,-L*.16,L*.32];wr=13;}
+  if(arch==='tanker'){wxs=[-L*.37,-L*.19,L*.32];wr=12;}
+  if(arch==='carrier'){wxs=[-L*.43,-L*.32,-L*.06,L*.35];wr=9;}
+  if(arch==='shinkansen'){wxs=[-L*.42,-L*.33,L*.14,L*.23];wr=7;}
+  if(arch==='densha'){wxs=[-L*.42,-L*.33,L*.28,L*.37];wr=7;}
+  if(arch==='shovel'){wxs=[];wr=0;}
+  const railcar=(arch==='shinkansen'||arch==='densha');
   c.save();
   c.save();c.translate(0,bounce||0);
   if(arch==='sedan'){
@@ -1684,19 +2092,299 @@ function drawCarSide(c,s,wheelRot,bounce){
     c.fillStyle=sideBodyGrad(c,col,-46,-8);c.fill();
     c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
     glassSide(c,[[L*.22,-42],[L*.30,-42],[L*.40,-29],[L*.22,-29]]);
+  }else if(arch==='dump'){
+    // tipper bed
+    c.beginPath();
+    c.moveTo(-L*.5,-14);c.lineTo(-L*.5,-45);
+    c.lineTo(L*.13,-41);c.lineTo(L*.13,-14);
+    c.closePath();
+    const dg2=c.createLinearGradient(0,-46,0,-12);
+    dg2.addColorStop(0,'#d2d7df');dg2.addColorStop(1,'#828a98');
+    c.fillStyle=dg2;c.fill();c.strokeStyle='#5f6672';c.lineWidth=1.8;c.stroke();
+    // gravel peeking over the top
+    c.fillStyle='#a89e8a';
+    c.beginPath();
+    c.moveTo(-L*.47,-44);
+    c.quadraticCurveTo(-L*.34,-56,-L*.20,-46);
+    c.quadraticCurveTo(-L*.08,-54,L*.02,-45);
+    c.quadraticCurveTo(L*.08,-48,L*.11,-42);
+    c.lineTo(-L*.47,-41);c.closePath();c.fill();
+    c.strokeStyle='rgba(70,64,52,.45)';c.lineWidth=1.2;c.stroke();
+    c.fillStyle='rgba(70,64,52,.4)';
+    [[-L*.36,-49],[-L*.24,-46],[-L*.12,-50],[-L*.02,-46]].forEach(k=>{
+      c.beginPath();c.arc(k[0],k[1],1.8,0,TAU);c.fill();
+    });
+    // bed ribs
+    c.strokeStyle='rgba(50,56,66,.35)';c.lineWidth=2.2;
+    for(let x=-L*.43;x<L*.09;x+=L*.09){c.beginPath();c.moveTo(x,-39);c.lineTo(x,-17);c.stroke();}
+    // hydraulic ram under the bed
+    rr(c,L*.02,-14,L*.10,4.5,2);c.fillStyle='#6f7683';c.fill();
+    c.strokeStyle='#4c525c';c.lineWidth=1;c.stroke();
+    // cab
+    c.beginPath();
+    c.moveTo(L*.16,-8);c.lineTo(L*.16,-46);
+    c.quadraticCurveTo(L*.16,-48,L*.20,-48);
+    c.lineTo(L*.32,-48);
+    c.quadraticCurveTo(L*.42,-46,L*.45,-31);
+    c.quadraticCurveTo(L*.5,-28,L*.5,-17);
+    c.quadraticCurveTo(L*.5,-8,L*.45,-8);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,col,-48,-8);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[L*.22,-44],[L*.30,-44],[L*.40,-30],[L*.22,-30]]);
+  }else if(arch==='tanker'){
+    // silver tank
+    rr(c,-L*.5,-49,L*.64,38,17);
+    const tg2=c.createLinearGradient(0,-49,0,-11);
+    tg2.addColorStop(0,'#f2f5f9');tg2.addColorStop(.4,'#ffffff');tg2.addColorStop(1,'#828c9b');
+    c.fillStyle=tg2;c.fill();c.strokeStyle='#5f6672';c.lineWidth=1.8;c.stroke();
+    // tank bands
+    c.strokeStyle='rgba(70,80,95,.4)';c.lineWidth=2.4;
+    [-L*.36,-L*.18,L*.0].forEach(x=>{
+      c.beginPath();c.moveTo(x,-48);c.lineTo(x,-12);c.stroke();
+    });
+    // top hatches
+    rr(c,-L*.40,-53,L*.07,5,2);c.fillStyle='#aab2be';c.fill();
+    c.strokeStyle='#6f7683';c.lineWidth=1.2;c.stroke();
+    rr(c,-L*.16,-53,L*.07,5,2);c.fillStyle='#aab2be';c.fill();c.stroke();
+    // warning diamond
+    c.save();c.translate(-L*.245,-30);c.rotate(Math.PI/4);
+    rr(c,-6.5,-6.5,13,13,1.5);
+    c.fillStyle='#ffd23f';c.fill();c.strokeStyle='#c2451f';c.lineWidth=1.8;c.stroke();
+    c.restore();
+    // rear ladder
+    c.strokeStyle='#6f7683';c.lineWidth=2;
+    c.beginPath();c.moveTo(-L*.49,-46);c.lineTo(-L*.49,-12);c.stroke();
+    c.beginPath();c.moveTo(-L*.455,-46);c.lineTo(-L*.455,-12);c.stroke();
+    for(let y=-44;y<-13;y+=6){c.beginPath();c.moveTo(-L*.49,y);c.lineTo(-L*.455,y);c.stroke();}
+    // cab
+    c.beginPath();
+    c.moveTo(L*.17,-8);c.lineTo(L*.17,-45);
+    c.quadraticCurveTo(L*.17,-47,L*.21,-47);
+    c.lineTo(L*.33,-47);
+    c.quadraticCurveTo(L*.43,-45,L*.46,-30);
+    c.quadraticCurveTo(L*.5,-27,L*.5,-17);
+    c.quadraticCurveTo(L*.5,-8,L*.45,-8);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,col,-47,-8);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[L*.23,-43],[L*.31,-43],[L*.41,-29],[L*.23,-29]]);
+  }else if(arch==='carrier'){
+    // lower deck frame
+    rr(c,-L*.5,-13,L*.96,5,2);
+    c.fillStyle='#6f7683';c.fill();c.strokeStyle='#4c525c';c.lineWidth=1.2;c.stroke();
+    // upper deck + rear ramp
+    rr(c,-L*.5,-42,L*.60,5,2);
+    c.fillStyle='#8a929e';c.fill();c.strokeStyle='#565c66';c.lineWidth=1.2;c.stroke();
+    c.beginPath();
+    c.moveTo(L*.095,-40);c.lineTo(L*.21,-16);c.lineTo(L*.21,-12);c.lineTo(L*.075,-37);c.closePath();
+    c.fillStyle='#8a929e';c.fill();c.strokeStyle='#565c66';c.stroke();
+    // support posts
+    [ -L*.46,-L*.10 ].forEach(x=>{
+      rr(c,x,-40,4,29,1.5);c.fillStyle='#565c66';c.fill();
+    });
+    // loaded cars: two up top, one below
+    miniCarSideAt(c,-L*.35,-43,'#e6402a');
+    miniCarSideAt(c,-L*.06,-43,'#3faf62');
+    miniCarSideAt(c,-L*.24,-14,'#ffd23f');
+    // cab
+    c.beginPath();
+    c.moveTo(L*.24,-8);c.lineTo(L*.24,-45);
+    c.quadraticCurveTo(L*.24,-47,L*.28,-47);
+    c.lineTo(L*.37,-47);
+    c.quadraticCurveTo(L*.45,-45,L*.47,-30);
+    c.quadraticCurveTo(L*.5,-27,L*.5,-17);
+    c.quadraticCurveTo(L*.5,-8,L*.46,-8);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,col,-47,-8);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[L*.29,-43],[L*.36,-43],[L*.44,-29],[L*.29,-29]]);
+  }else if(arch==='shinkansen'){
+    const bh=-38;
+    c.beginPath();
+    c.moveTo(-L*.5,-9);
+    c.lineTo(-L*.5,bh+7);
+    c.quadraticCurveTo(-L*.5,bh,-L*.44,bh);
+    c.lineTo(L*.12,bh);
+    c.quadraticCurveTo(L*.32,bh+1,L*.47,-15);
+    c.quadraticCurveTo(L*.5,-12,L*.5,-10);
+    c.lineTo(L*.5,-9);
+    c.closePath();
+    const sg2=c.createLinearGradient(0,bh,0,-9);
+    sg2.addColorStop(0,'#ffffff');sg2.addColorStop(.72,'#eef3f8');sg2.addColorStop(1,'#c2ccd7');
+    c.fillStyle=sg2;c.fill();
+    c.strokeStyle='#8a97a5';c.lineWidth=1.6;c.stroke();
+    // blue stripe along the body (clipped to the nose curve)
+    c.save();
+    c.beginPath();
+    c.moveTo(-L*.5,-9);c.lineTo(-L*.5,bh+7);
+    c.quadraticCurveTo(-L*.5,bh,-L*.44,bh);
+    c.lineTo(L*.12,bh);
+    c.quadraticCurveTo(L*.32,bh+1,L*.47,-15);
+    c.quadraticCurveTo(L*.5,-12,L*.5,-10);
+    c.lineTo(L*.5,-9);c.closePath();
+    c.clip();
+    c.fillStyle='#1d5fae';c.fillRect(-L*.5,-27,L,5.5);
+    c.fillStyle='rgba(29,95,174,.4)';c.fillRect(-L*.5,-20.5,L,2);
+    c.fillStyle='rgba(20,26,34,.85)';c.fillRect(-L*.5,-13,L,5); // under-skirt
+    c.restore();
+    // windows row
+    for(let i=0;i<7;i++){
+      const x=-L*.45+i*L*.072;
+      rr(c,x,bh+7,L*.038,7,2);
+      const g3=c.createLinearGradient(0,bh+7,0,bh+14);
+      g3.addColorStop(0,'#d9effc');g3.addColorStop(1,'#5b87a8');
+      c.fillStyle=g3;c.fill();
+      c.strokeStyle='rgba(15,35,55,.3)';c.lineWidth=.9;c.stroke();
+    }
+    // cab window on the nose slope
+    glassSide(c,[[L*.245,bh+2],[L*.33,bh+5],[L*.29,bh+12],[L*.22,bh+10]]);
+    // door lines
+    c.strokeStyle='rgba(90,110,130,.4)';c.lineWidth=1.3;
+    [-L*.24,L*.05].forEach(x=>{
+      c.beginPath();c.moveTo(x,bh+2);c.lineTo(x,-11);c.stroke();
+    });
+    // pantograph
+    c.strokeStyle='#5d6675';c.lineWidth=2;c.lineCap='round';
+    c.beginPath();c.moveTo(-L*.20,bh);c.lineTo(-L*.16,bh-9);c.lineTo(-L*.235,bh-15);c.stroke();
+    c.strokeStyle='#8f97a5';c.lineWidth=2.6;
+    c.beginPath();c.moveTo(-L*.285,bh-15);c.lineTo(-L*.185,bh-15);c.stroke();
+    // headlight on the nose
+    c.fillStyle='#ffe9a8';
+    c.beginPath();c.ellipse(L*.43,-16.5,4.5,2.6,-.5,0,TAU);c.fill();
+    c.strokeStyle='rgba(90,70,10,.35)';c.lineWidth=1;c.stroke();
+  }else if(arch==='densha'){
+    rr(c,-L*.5,-47,L,39,6);
+    const eg2=c.createLinearGradient(0,-47,0,-8);
+    eg2.addColorStop(0,'#f4f7fa');eg2.addColorStop(.7,'#e2e7ec');eg2.addColorStop(1,'#a9b1bc');
+    c.fillStyle=eg2;c.fill();
+    c.strokeStyle='#7d8590';c.lineWidth=1.6;c.stroke();
+    // green stripe below the windows
+    c.fillStyle='#3fae5a';c.fillRect(-L*.49,-27,L*.98,6);
+    // doors (3) + windows between them
+    c.strokeStyle='rgba(60,70,80,.5)';
+    [-L*.34,-L*.05,L*.24].forEach(x=>{
+      rr(c,x,-43,L*.075,32,2);
+      c.fillStyle='#d4dae1';c.fill();c.lineWidth=1.2;c.stroke();
+      c.beginPath();c.moveTo(x+L*.0375,-43);c.lineTo(x+L*.0375,-11);c.stroke();
+      rr(c,x+L*.012,-41,L*.051,10,1.5);
+      const dgl=c.createLinearGradient(0,-41,0,-31);
+      dgl.addColorStop(0,'#d9effc');dgl.addColorStop(1,'#5b87a8');
+      c.fillStyle=dgl;c.fill();
+    });
+    [-L*.455,-L*.245,L*.045,L*.335].forEach(x=>{
+      rr(c,x,-42,L*.075,12,2);
+      const wgl=c.createLinearGradient(0,-42,0,-30);
+      wgl.addColorStop(0,'#d9effc');wgl.addColorStop(1,'#5b87a8');
+      c.fillStyle=wgl;c.fill();
+      c.strokeStyle='rgba(15,35,55,.3)';c.lineWidth=1;c.stroke();
+    });
+    // front (right end): windshield + destination display
+    glassSide(c,[[L*.425,-43],[L*.478,-43],[L*.478,-28],[L*.425,-28]]);
+    rr(c,L*.31,-46.5,L*.09,4.5,1.5);c.fillStyle='#20262c';c.fill();
+    c.fillStyle='#7ef29a';rr(c,L*.32,-45.6,L*.07,2.6,1);c.fill();
+    // roof: AC box + pantograph
+    rr(c,-L*.16,-53,L*.17,6,2);c.fillStyle='#c2c9d2';c.fill();
+    c.strokeStyle='#8f97a5';c.lineWidth=1.2;c.stroke();
+    c.strokeStyle='#5d6675';c.lineWidth=2;c.lineCap='round';
+    c.beginPath();c.moveTo(-L*.33,-47);c.lineTo(-L*.29,-56);c.lineTo(-L*.365,-62);c.stroke();
+    c.strokeStyle='#8f97a5';c.lineWidth=2.6;
+    c.beginPath();c.moveTo(-L*.415,-62);c.lineTo(-L*.315,-62);c.stroke();
+    // under-frame
+    c.fillStyle='rgba(20,26,34,.85)';c.fillRect(-L*.48,-12,L*.96,4);
+    // headlight + taillight
+    c.fillStyle='#ffe9a8';
+    c.beginPath();c.arc(L*.465,-20,2.8,0,TAU);c.fill();
+    c.fillStyle='#d92c2c';
+    c.beginPath();c.arc(-L*.475,-20,2.4,0,TAU);c.fill();
+  }else if(arch==='shovel'){
+    // body deck above the tracks
+    rr(c,-L*.46,-46,L*.74,20,5);
+    c.fillStyle=sideBodyGrad(c,col,-46,-26);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    // engine vents
+    c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=1.6;
+    for(let i=0;i<3;i++){
+      c.beginPath();c.moveTo(-L*.42+i*3,-42+i*4);c.lineTo(-L*.24+i*3,-42+i*4);c.stroke();
+    }
+    // counterweight
+    rr(c,-L*.475,-40,L*.10,14,3);
+    c.fillStyle='#6f7683';c.fill();c.strokeStyle='#4c525c';c.lineWidth=1.2;c.stroke();
+    // cab with big window
+    rr(c,-L*.14,-70,L*.24,26,4);
+    c.fillStyle=sideBodyGrad(c,col,-70,-44);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[-L*.115,-67],[L*.075,-67],[L*.075,-48],[-L*.115,-48]]);
+    // boom (upper arm) with joints
+    const j0=[L*.13,-52],j1=[L*.36,-72],j2=[L*.50,-38];
+    c.beginPath();
+    c.moveTo(j0[0]-3,j0[1]+6);
+    c.lineTo(j1[0]-4,j1[1]-4);
+    c.lineTo(j1[0]+5,j1[1]+3);
+    c.lineTo(j0[0]+7,j0[1]+11);
+    c.closePath();
+    c.fillStyle=shade(col,-.05);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    // stick (fore-arm)
+    c.beginPath();
+    c.moveTo(j1[0]-2,j1[1]-2);
+    c.lineTo(j2[0]-2,j2[1]-3);
+    c.lineTo(j2[0]+3,j2[1]+3);
+    c.lineTo(j1[0]+5,j1[1]+4);
+    c.closePath();
+    c.fillStyle=shade(col,-.12);c.fill();c.stroke();
+    // hydraulic cylinders
+    c.strokeStyle='#c8cdd6';c.lineWidth=3;c.lineCap='round';
+    c.beginPath();c.moveTo(L*.04,-46);c.lineTo(j1[0]-L*.05,j1[1]+6);c.stroke();
+    c.strokeStyle='#8f97a5';c.lineWidth=2;
+    c.beginPath();c.moveTo(j1[0]+2,j1[1]-1);c.lineTo(j2[0]-6,j2[1]-8);c.stroke();
+    // bucket (curved claw with teeth)
+    c.beginPath();
+    c.moveTo(j2[0]-2,j2[1]-4);
+    c.quadraticCurveTo(j2[0]+13,j2[1]+2,j2[0]+8,j2[1]+18);
+    c.lineTo(j2[0]-1,j2[1]+24);
+    c.quadraticCurveTo(j2[0]-8,j2[1]+10,j2[0]-6,j2[1]+1);
+    c.closePath();
+    const kg2=c.createLinearGradient(j2[0]-8,0,j2[0]+12,0);
+    kg2.addColorStop(0,'#767e8c');kg2.addColorStop(1,'#aab2be');
+    c.fillStyle=kg2;c.fill();
+    c.strokeStyle='#4c525c';c.lineWidth=1.6;c.stroke();
+    c.fillStyle='#4c525c';
+    for(let i=0;i<3;i++){
+      const ky=j2[1]+8+i*6;
+      c.beginPath();c.moveTo(j2[0]+6-i*2,ky);c.lineTo(j2[0]+12-i*2,ky+2);c.lineTo(j2[0]+6-i*2,ky+4);c.closePath();c.fill();
+    }
+    // joint pins
+    [j0,j1,j2].forEach(j=>{
+      c.beginPath();c.arc(j[0],j[1],3.4,0,TAU);
+      c.fillStyle='#6b6e78';c.fill();c.strokeStyle='#41444f';c.lineWidth=1.2;c.stroke();
+      c.beginPath();c.arc(j[0],j[1],1.3,0,TAU);c.fillStyle='#c8cdd6';c.fill();
+    });
+    // beacon
+    c.fillStyle='#ffb020';
+    rr(c,-L*.06,-75,7,5,2);c.fill();
+    c.strokeStyle='#a86a00';c.lineWidth=1;c.stroke();
   }
-  // lights + bumpers (common)
-  rr(c,L*.44,-19,6,5,2);
-  const hg=c.createLinearGradient(0,-19,0,-14);
-  hg.addColorStop(0,'#fff');hg.addColorStop(1,'#ffd977');
-  c.fillStyle=hg;c.fill();c.strokeStyle='rgba(90,70,10,.35)';c.lineWidth=1;c.stroke();
-  rr(c,-L*.5,-20,5,5,2);c.fillStyle='#d92c2c';c.fill();
+  // lights + bumpers (common, road vehicles only)
+  if(!railcar&&arch!=='shovel'){
+    rr(c,L*.44,-19,6,5,2);
+    const hg=c.createLinearGradient(0,-19,0,-14);
+    hg.addColorStop(0,'#fff');hg.addColorStop(1,'#ffd977');
+    c.fillStyle=hg;c.fill();c.strokeStyle='rgba(90,70,10,.35)';c.lineWidth=1;c.stroke();
+    rr(c,-L*.5,-20,5,5,2);c.fillStyle='#d92c2c';c.fill();
+  }
   c.restore(); // un-bounce
-  // wheel arches (dark) + wheels stay on the ground
-  wxs.forEach(x=>{
-    c.beginPath();c.arc(x,-wr-1,wr+3.5,Math.PI,0);c.fillStyle='rgba(20,23,30,.85)';c.fill();
-  });
-  wxs.forEach(x=>sideWheel(c,x,wr,wheelRot||0));
+  if(arch==='shovel'){
+    drawTracksSide(c,L,wheelRot);
+  }else{
+    // wheel arches (dark) + wheels stay on the ground
+    if(!railcar){
+      wxs.forEach(x=>{
+        c.beginPath();c.arc(x,-wr-1,wr+3.5,Math.PI,0);c.fillStyle='rgba(20,23,30,.85)';c.fill();
+      });
+    }
+    wxs.forEach(x=>sideWheel(c,x,wr,wheelRot||0));
+  }
   c.restore();
 }
 function drawCarSideAt(c,spec,x,y,scale,wheelRot,bounce,tilt){
@@ -1987,7 +2675,8 @@ function spawnObstacle(){
   const lane=lanes[Math.floor(Math.random()*lanes.length)];
   const o={z,lane,type,sp:0,dir:1,kind:'car',seed:Math.floor(Math.random()*97)};
   if(type==='car'){
-    o.spec=CARS[Math.floor(Math.random()*CARS.length)];
+    const pool=CARS.filter(cs=>!cs.norand); // trains / excavator stay off the road traffic
+    o.spec=pool[Math.floor(Math.random()*pool.length)];
     const base=baseSpeed()*speedMul();
     if(course.twoway&&lane>.1){o.dir=-1;o.sp=-base*rand(.45,.6);}
     else{o.dir=1;o.sp=base*rand(.3,.45);}
@@ -2147,6 +2836,10 @@ function update(dt,t){
   world.speed=lerp(world.speed,target,Math.min(1,dt*(state==='crash'?6:(world.boostT>0?4:1.8))));
   world.dist+=world.speed*dt;
   updateEngine(world.speed);
+  if(state==='play'&&selCar.rail&&world.speed>40){ // gatan-goton for trains
+    world.clackT=(world.clackT||0)-dt*Math.max(.45,world.speed/230);
+    if(world.clackT<=0){world.clackT=1;sndClack();}
+  }
   if(world.invT>0)world.invT=Math.max(0,world.invT-dt); // recovery time after losing a heart
 
   // sea-dive transitions (umi): land <-> underwater
@@ -2291,7 +2984,9 @@ function update(dt,t){
         if(oy<-80||oy>H+80)continue;
         const ox=roadCenterAt(o.z)+o.lane*roadHalf;
         const od=obstacleDims(o);
-        const lax=(pd.w+od.w)*.5*.56,lay=(pd.l+od.l)*.5*.56;
+        // long vehicles: cap the hitbox length so it never feels unfair
+        const lax=(pd.w+od.w)*.5*.56;
+        const lay=(Math.min(pd.l,155*CS)+Math.min(od.l,155*CS))*.5*.56;
         if(Math.abs(px-ox)<lax&&Math.abs(py-oy)<lay){doCrash();break;}
       }
     }
@@ -2464,7 +3159,7 @@ function updateSide(dt,t,demo){
   }
   world.balls=world.balls.filter(b=>!b.dead&&b.z<world.dist+W+160);
   if(state==='play'){
-    const pw=selCar.l*SS;
+    const pw=Math.min(selCar.l,200)*SS; // long vehicles: forgiving side hitbox
     // collect air items
     for(const it of world.airItems){
       if(it.got)continue;
