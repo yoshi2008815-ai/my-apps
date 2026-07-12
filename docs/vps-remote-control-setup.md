@@ -156,6 +156,25 @@ SSHで入り直して`claude --version`が通れば解決。
 「Yes, I trust this folder」を選ぶ（手順5）。
 それでも通らない場合は、対話画面の中から`/remote-control`を打つ方法（手順6）が確実。
 
+### スマホからVPSセッションが見えない・送信しても応答がない
+
+VPS側のclaudeプロセスが切断されている（tmux外で起動していてSSHを閉じた、
+VPS再起動、10分以上のネットワーク断など）。**スマホ側からは復旧できない**ので、
+PCからSSHして起動し直す：
+
+```bash
+tmux ls                   # tmuxが生きているか確認
+tmux attach -t claude     # 生きていれば中を確認して claude を再起動
+# tmuxごと消えていたら
+tmux new -s claude
+claude remote-control
+```
+
+- 再起動すると**新しいセッション名**（ホスト名-xxxx）になる。スマホでは新しい方をタップする
+- 古いセッションは「切断済み」→「アーカイブ済み」に自動で移る（正常な動作。気にしなくてよい）
+- **必ずtmuxの中で起動すること**（画面下に緑のバーがあるか確認）。tmux外で起動すると
+  SSHウィンドウを閉じた時点で切断される
+
 ### `Remote Control requires a claude.ai subscription`
 
 APIキー認証になっている。Remote ControlはAPIキー非対応。
