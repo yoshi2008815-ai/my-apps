@@ -106,6 +106,22 @@ body.gamepad #gpBadge{display:block;}
 .card .ds{font-size:10px;color:#cfcfcf;margin-top:3px;line-height:1.45;}
 .card .bdg{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#e2483a;color:#fff;font-size:9px;padding:2px 7px;border-radius:8px;white-space:nowrap;}
 .mode-card{width:158px;}
+/* 視点切替ボタン */
+#btnView{right:calc(62px + env(safe-area-inset-right));top:calc(8px + env(safe-area-inset-top));width:44px;height:44px;font-size:20px;}
+/* レクチャーボードパネル */
+#board{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:15;pointer-events:auto;}
+#bInner{width:min(440px,94vw);max-height:88vh;overflow-y:auto;background:#f7f0e0;border:4px solid #8a5a2b;border-radius:16px;padding:14px 16px;color:#3a2c1a;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+#bTitle{font-size:19px;font-weight:900;}
+#bClose{float:right;background:#c0392b;color:#fff;border-radius:8px;padding:4px 10px;font-size:13px;font-weight:700;cursor:pointer;}
+#bDesc{font-size:13px;line-height:1.7;margin:6px 0 8px;}
+#bMats{display:flex;flex-wrap:wrap;gap:6px;background:rgba(138,90,43,.12);border-radius:10px;padding:7px;margin-bottom:8px;}
+.bmat{display:flex;align-items:center;gap:3px;font-size:12px;font-weight:700;}
+.bmat canvas{width:22px;height:22px;image-rendering:pixelated;border-radius:3px;border:1px solid #b09468;}
+#bCv{width:100%;image-rendering:pixelated;border-radius:8px;background:#87b7e4;display:block;border:2px solid #8a5a2b;}
+#bStepT{font-size:15px;font-weight:900;margin:8px 0 2px;color:#7a4a12;}
+#bStepX{font-size:13px;line-height:1.65;min-height:44px;}
+#bNav{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.slot.pageBtn{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:1.2;background:rgba(70,110,210,.4);}
 #errOv{position:absolute;inset:0;background:rgba(60,0,0,.9);color:#fff;padding:20px;font-size:13px;display:none;z-index:99;white-space:pre-wrap;overflow:auto;}
 </style>
 </head>
@@ -125,6 +141,15 @@ body.gamepad #gpBadge{display:block;}
   <div id="btnMode" class="rbtn touchOnly">⛏<br>こわす</div>
   <div id="btnGuide" class="rbtn">📖</div>
   <div id="btnHome" class="rbtn">⏸</div>
+  <div id="btnView" class="rbtn">👁</div>
+  <div id="board"><div id="bInner">
+    <div id="bClose">✕ とじる</div><div id="bTitle"></div>
+    <div id="bDesc"></div>
+    <div id="bMats"></div>
+    <canvas id="bCv" width="192" height="128"></canvas>
+    <div id="bStepT"></div><div id="bStepX"></div>
+    <div id="bNav"><button class="gbtn" id="bPrev">◀ まえ</button><span id="bNum" style="font-size:12px;color:#7a6a50;"></span><button class="gbtn" id="bNext">つぎ ▶</button></div>
+  </div></div>
   <div id="storyBox"><span id="storyText"></span><div style="text-align:right"><button id="storyBtn">つぎへ ▶</button></div></div>
   <div id="guide">
     <div id="guideHead">🏠 おうちの つくりかた <span id="guideClose">✕</span></div>
@@ -150,10 +175,10 @@ body.gamepad #gpBadge{display:block;}
     <div id="seedLabel">シード: -</div>
     <div id="help">
       📱 ひだり:ジョイスティックでいどう / みぎ:ドラッグでみまわし・タップでこわす/おく<br>
-      🎮 コントローラー: 左スティックいどう・右スティックしてん・A:ジャンプ・R2:こわす・L2:おく<br>
-      ⌨️ PC: WASD+マウス / スペース:ジャンプ / 左クリックこわす・右クリックおく / すうじキー:ブロック<br>
-      🕊 ジャンプを 2かい おすと そらとび！（もう2かいで もどる）<br>
-      🗡 けん と 🏹 ゆみ で ゾンビと たたかえる / 📖 ボタンで おうちのつくりかたガイド
+      🎮 コントローラー: 左スティックいどう・右スティックしてん・A:ジャンプ・R2:こわす・L2:おく・Y:してんきりかえ・X:ボードをよむ・Start:タイトル<br>
+      ⌨️ PC: WASD+マウス / スペース:ジャンプ / 左クリックこわす・右クリックおく / すうじキー:ブロック / F5:してん / E:ボードをよむ<br>
+      👁 ボタンで 一人称⇔三人称きりかえ / 🕊 ジャンプ2かいで そらとび！<br>
+      🏘 スポーンのまわりに おしろや とうだいなど 12の たてもの！いりぐちの 📋ボードで つくりかたが よめるよ
     </div>
   </div>
 </div>
@@ -173,7 +198,8 @@ const FOG_N=54, FOG_F=RADIUS*16-3;        // フォグ
 const FOGCOL=[0.72,0.84,0.96];
 const REACH=6;                            // 手のとどく距離
 const PW=0.3, PH=1.8, EYE=1.62;           // プレイヤーAABB
-const B={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,WATER:5,LOG:6,LEAF:7,PLANK:8,BRICK:9,GLASS:10,SNOW:11,SNOWGRASS:12,COBBLE:13,BEDROCK:14,GRAVEL:15};
+const B={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,WATER:5,LOG:6,LEAF:7,PLANK:8,BRICK:9,GLASS:10,SNOW:11,SNOWGRASS:12,COBBLE:13,BEDROCK:14,GRAVEL:15,
+ BOOKSHELF:16,QUARTZ:17,GOLD:18,LAMP:19,WOOLR:20,WOOLU:21,SBRICK:22,BOARD:23};
 // tiles:[上,下,横]
 const BLOCKS=[null,
  {name:'くさブロック',t:[0,2,1],opaque:true, solid:true},
@@ -191,13 +217,32 @@ const BLOCKS=[null,
  {name:'まるいし',    t:[14,14,14],opaque:true,solid:true},
  {name:'がんばん',    t:[15,15,15],opaque:true,solid:true,unbreakable:true},
  {name:'じゃり',      t:[16,16,16],opaque:true,solid:true},
+ {name:'ほんだな',    t:[9,9,21],opaque:true,solid:true},
+ {name:'白いいし',    t:[22,22,22],opaque:true,solid:true},
+ {name:'金ブロック',  t:[23,23,23],opaque:true,solid:true},
+ {name:'ひかるランプ',t:[24,24,24],opaque:true,solid:true,glow:true},
+ {name:'あかいカーペット',t:[25,25,25],opaque:true,solid:true},
+ {name:'あおいカーペット',t:[26,26,26],opaque:true,solid:true},
+ {name:'石レンガ',    t:[27,27,27],opaque:true,solid:true},
+ {name:'レクチャーボード',t:[9,9,28],opaque:true,solid:true,unbreakable:true,board:true},
 ];
 /* アイテム（100以上はどうぐ） */
 const IT_SWORD=100,IT_BOW=101;
 const ITEM_DEFS={[IT_SWORD]:{name:'木のけん',emo:'🗡️'},[IT_BOW]:{name:'ゆみ',emo:'🏹'}};
-const HB_NORMAL=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANK,B.LOG,B.BRICK,B.GLASS,IT_SWORD,IT_BOW];
-const HB_FULL=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANK,B.LOG,B.BRICK,B.GLASS,B.SNOW,B.COBBLE,B.GRAVEL,B.LEAF,B.WATER,IT_SWORD,IT_BOW];
-let HOTBAR=HB_NORMAL.slice();
+/* ページ切替式ホットバー（パレット） */
+const PAGES_NORMAL=[
+ {name:'きほん',ids:[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANK,B.LOG,B.BRICK,B.GLASS,IT_SWORD,IT_BOW]},
+ {name:'かざり',ids:[B.SBRICK,B.QUARTZ,B.GOLD,B.LAMP,B.WOOLR,B.WOOLU,B.BOOKSHELF,B.SNOW,B.COBBLE,B.GRAVEL]},
+];
+const PAGES_FULL=[
+ {name:'きほん',ids:[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANK,B.LOG,B.BRICK,B.GLASS,B.SBRICK,B.COBBLE]},
+ {name:'かざり',ids:[B.QUARTZ,B.GOLD,B.LAMP,B.WOOLR,B.WOOLU,B.BOOKSHELF,B.SNOW,B.GRAVEL,B.LEAF,B.WATER]},
+ {name:'どうぐ',ids:[IT_SWORD,IT_BOW]},
+];
+let PAGES=PAGES_NORMAL,hbPage=0;
+let HOTBAR=PAGES[0].ids.slice();
+const ALL_PALETTE=new Set();
+for(const pg of[...PAGES_NORMAL,...PAGES_FULL])for(const id of pg.ids)if(id<100)ALL_PALETTE.add(id);
 const itemName=id=>id>=100?ITEM_DEFS[id].name:BLOCKS[id].name;
 /* キャラクター（スピード・ジャンプ・こうげき・たいりょく・そらとび） */
 const CHARS=[
@@ -341,7 +386,8 @@ function setAttribs(n){
 }
 
 /* ---------------- 手続きテクスチャ（16x16ドット絵アトラス） ---------------- */
-const T={GRASS_TOP:0,GRASS_SIDE:1,DIRT:2,STONE:3,SAND:4,WATER:5,LOG_SIDE:6,LOG_TOP:7,LEAF:8,PLANK:9,BRICK:10,GLASS:11,SNOW:12,SNOW_SIDE:13,COBBLE:14,BEDROCK:15,GRAVEL:16,ZHEAD:17,ZBODY:18,ZLEG:19,ARROW:20};
+const T={GRASS_TOP:0,GRASS_SIDE:1,DIRT:2,STONE:3,SAND:4,WATER:5,LOG_SIDE:6,LOG_TOP:7,LEAF:8,PLANK:9,BRICK:10,GLASS:11,SNOW:12,SNOW_SIDE:13,COBBLE:14,BEDROCK:15,GRAVEL:16,ZHEAD:17,ZBODY:18,ZLEG:19,ARROW:20,
+ BOOKSHELF:21,QUARTZ:22,GOLD:23,LAMP:24,WOOLR:25,WOOLU:26,SBRICK:27,BOARD:28,PCHAR:30/* 30+i*3: 頭・体・脚 ×5キャラ */};
 let atlasCanvas=null;
 function buildAtlas(){
   const size=256,cv=document.createElement('canvas');cv.width=cv.height=size;
@@ -391,6 +437,56 @@ function buildAtlas(){
   fill(T.ZBODY,()=>{const k=rnd();return v(k<0.18?[38,84,118]:[52,104,142],10);});
   fill(T.ZLEG,()=>{const k=rnd();return v(k<0.2?[50,52,68]:[66,68,88],8);});
   fill(T.ARROW,()=>{const k=rnd();return v(k<0.3?[118,86,40]:[150,112,56],8);});
+  // 装飾ブロック
+  {const bookCols=[[180,60,50],[60,110,180],[70,150,70],[200,160,60],[140,80,160],[210,210,200]];
+   const bcol=[];for(let i=0;i<16;i++)bcol.push(bookCols[(rnd()*bookCols.length)|0]);
+   fill(T.BOOKSHELF,(x,y)=>{
+     if(y<2||y===7||y===8||y>13)return v([150,118,70],7);      // たな板
+     if(x===0||x===15)return v([130,102,60],6);
+     const seg=y<7?0:8;
+     return v(bcol[(x+seg)%16],10);});}
+  fill(T.QUARTZ,(x,y)=>{const k=rnd();const b=y%8===7?[214,210,200]:(k<0.12?[224,220,212]:[238,235,228]);return v(b,4);});
+  fill(T.GOLD,(x,y)=>{if(x===0||y===0||x===15||y===15)return v([255,232,110],6);
+    if((x%5===2&&y%5===2))return[255,245,170,255];
+    return v(y%4===3?[212,168,40]:[246,206,58],9);});
+  fill(T.LAMP,(x,y)=>{if(x%4===0||y%4===0)return v([186,128,42],7);
+    const d=Math.max(Math.abs(x-7.5),Math.abs(y-7.5));
+    return v(d<3?[255,244,178]:[244,204,96],7);});
+  fill(T.WOOLR,(x,y)=>v((x+y)%4===0?[168,46,42]:[192,58,52],8));
+  fill(T.WOOLU,(x,y)=>v((x+y)%4===0?[46,76,168]:[58,92,192],8));
+  fill(T.SBRICK,(x,y)=>{const row=y>>2,off=(row%2)*4;
+    if(y%4===3||((x+off)%8)===7)return v([88,90,94],5);
+    return v(rnd()<0.15?[118,120,124]:[134,136,140],6);});
+  fill(T.BOARD,(x,y)=>{if(x<2||x>13||y<2||y>13)return v([112,82,46],7);
+    if(y===4||y===7||y===10){if(x>=4&&x<=11&&rnd()<0.75)return[86,72,56,255];}
+    return v([236,230,214],4);});
+  // キャラクター（頭・体・脚 ×5）
+  const SKINS=[
+   {hd:[232,190,150],hair:[92,62,30],eye:[40,60,140],bd:[70,150,90],lg:[60,80,150]},
+   {hd:[235,150,60],hair:[205,120,45],eye:[40,140,60],bd:[225,140,55],lg:[160,95,40]},
+   {hd:[242,240,238],hair:[232,204,210],eye:[195,70,80],bd:[236,226,230],lg:[152,152,160]},
+   {hd:[150,100,60],hair:[118,76,44],eye:[38,30,24],bd:[110,72,45],lg:[80,55,35]},
+   {hd:[245,215,185],hair:[235,140,205],eye:[92,60,160],bd:[120,205,225],lg:[190,230,245]},
+  ];
+  SKINS.forEach((s,i)=>{
+    const HT=T.PCHAR+i*3;
+    fill(HT,(x,y)=>{
+      if(y<3)return v(s.hair,8);
+      if(y===6&&(x===4||x===5||x===10||x===11))return[s.eye[0],s.eye[1],s.eye[2],255];
+      if(i===1&&y===9&&(x===7||x===8))return[235,120,140,255];     // ねこの鼻
+      if(i===2&&y===8&&(x===7||x===8))return[235,140,160,255];     // うさぎの鼻
+      if(i===3&&y>=8&&y<=11&&x>=5&&x<=10)return v([205,165,120],7);// くまの口もと
+      if(y===10&&x>=6&&x<=9)return v([150,90,80],6);               // くち
+      return v(s.hd,7);});
+    fill(HT+1,(x,y)=>{
+      if(i===4&&rnd()<0.06)return[255,255,255,255];                // ようせいのきらきら
+      if(y===14||y===15)return v([s.bd[0]*0.6,s.bd[1]*0.6,s.bd[2]*0.6],6); // ベルト
+      return v(s.bd,8);});
+    fill(HT+2,(x,y)=>{
+      if(y>=13)return v([s.lg[0]*0.55,s.lg[1]*0.55,s.lg[2]*0.55],6); // くつ
+      return v(s.lg,8);});
+    fill(45+i,(x,y)=>y<9?v(s.hair,8):v(s.hd,7)); // 後頭部（かみのけ）
+  });
   g.putImageData(im,0,0);
   atlasCanvas=cv;
   const tex=gl.createTexture();
@@ -495,6 +591,261 @@ function heightAt(x,z){
 const rand2=(x,z,salt)=>N.h(x,z,salt*7919+101);
 const rand3=(x,y,z,salt)=>N.h(x+Math.imul(y,92821),z-Math.imul(y,68917),salt*104729+13);
 
+/* ---------------- 建造物（スポーン周辺の街・シード決定論的） ---------------- */
+const STYPES={
+ fountain:{w:11,d:11,h:6}, house:{w:11,d:9,h:10}, castle:{w:19,d:17,h:12},
+ lighthouse:{w:7,d:7,h:15}, library:{w:11,d:9,h:7}, cafe:{w:9,d:8,h:6},
+ windmill:{w:7,d:7,h:14}, tower:{w:7,d:7,h:14}, villa:{w:14,d:11,h:6},
+ farm:{w:13,d:11,h:6}, church:{w:9,d:14,h:13}, bridge:{w:5,d:11,h:5},
+};
+let structures=[],pathSet=new Map(),boards=new Map(),plaza=[0,0];
+function rectsOverlap(a,b,gap){return a.x0-gap<=b.x1&&a.x1+gap>=b.x0&&a.z0-gap<=b.z1&&a.z1+gap>=b.z0;}
+function siteOK(x0,z0,w,d,placed,shore){
+  const cx=x0+(w>>1),cz=z0+(d>>1),h=heightAt(cx,cz);
+  if(!(h>SEA+(shore?-1:1)&&h<44))return null;
+  const hs=[heightAt(x0,z0),heightAt(x0+w-1,z0),heightAt(x0,z0+d-1),heightAt(x0+w-1,z0+d-1)];
+  for(const hh of hs){if(Math.abs(hh-h)>7)return null;if(!shore&&hh<=SEA-2)return null;}
+  const r={x0,z0,x1:x0+w-1,z1:z0+d-1};
+  for(const p of placed)if(rectsOverlap(r,p,4))return null;
+  return h;
+}
+function addStructure(type,x0,z0,g,placed){
+  const S=STYPES[type];
+  const st={type,x0,z0,w:S.w,d:S.d,h:S.h,g};
+  st.board=[x0+(S.w>>1),g,z0+S.d+1];
+  structures.push(st);
+  placed.push({x0,z0,x1:x0+S.w-1,z1:z0+S.d+2});
+  const bi=structures.length-1,[bx,bg,bz]=st.board;
+  boards.set(bx+','+(bg+1)+','+bz,bi);
+  boards.set(bx+','+(bg+2)+','+bz,bi);
+}
+function findSite(type,ax,az,placed,shore){
+  const S=STYPES[type];
+  for(let rr=0;rr<=56;rr+=4){
+    const na=Math.max(1,Math.round(rr/3));
+    for(let a=0;a<na;a++){
+      const th=a/na*6.283+rr;
+      const x0=Math.round(ax+Math.cos(th)*rr-S.w/2),z0=Math.round(az+Math.sin(th)*rr-S.d/2);
+      const g=siteOK(x0,z0,S.w,S.d,placed,shore);
+      if(g!==null)return{x0,z0,g:Math.min(g,40)};
+    }
+  }
+  return null;
+}
+function carvePath(x0,z0,x1,z1){
+  let x=x0,z=z0;
+  const put=()=>{pathSet.set(x+','+z,1);pathSet.set((x+1)+','+z,1);};
+  while(x!==x1){put();x+=Math.sign(x1-x);}
+  while(z!==z1){put();z+=Math.sign(z1-z);}
+  put();
+}
+function computeStructures(sx,sz){
+  structures=[];pathSet=new Map();boards=new Map();
+  const SX=Math.floor(sx),SZ=Math.floor(sz);
+  const placed=[{x0:SX-2,z0:SZ-2,x1:SX+2,z1:SZ+2}];
+  plaza=[SX+13,SZ];
+  const defs=[['fountain',0,0],['house',-90,26],['cafe',-45,29],['library',0,32],['church',45,35],
+    ['tower',90,28],['villa',135,37],['farm',180,37],['windmill',225,34],['castle',270,52],['bridge',315,29]];
+  for(const[type,ang,dist]of defs){
+    const s=findSite(type,plaza[0]+Math.cos(ang*Math.PI/180)*dist,plaza[1]+Math.sin(ang*Math.PI/180)*dist,placed,false);
+    if(s)addStructure(type,s.x0,s.z0,s.g,placed);
+  }
+  // とうだい: 海岸線をさがす
+  let lh=null;
+  for(let a=0;a<24&&!lh;a++){
+    const th=a/24*6.283;
+    for(let r=16;r<=120;r+=2){
+      if(heightAt(Math.round(plaza[0]+Math.cos(th)*r),Math.round(plaza[1]+Math.sin(th)*r))<=SEA){
+        const lx=Math.round(plaza[0]+Math.cos(th)*(r-4)),lz=Math.round(plaza[1]+Math.sin(th)*(r-4));
+        const h=heightAt(lx,lz);
+        if(h>SEA-2&&h<SEA+6){
+          const x0=lx-3,z0=lz-3,rect={x0,z0,x1:x0+6,z1:z0+6};
+          if(!placed.some(p=>rectsOverlap(rect,p,4))){lh={x0,z0,g:Math.max(h,SEA+1)};}
+        }
+        break;
+      }
+    }
+  }
+  if(!lh)lh=findSite('lighthouse',plaza[0]+40,plaza[1]+40,placed,true);
+  if(lh)addStructure('lighthouse',lh.x0,lh.z0,lh.g,placed);
+  for(const st of structures)if(st.type!=='fountain')carvePath(st.board[0],st.board[2]+2,plaza[0],plaza[1]);
+}
+function inStructRing(wx,wz){
+  for(const st of structures)
+    if(wx>=st.x0-1&&wx<=st.x0+st.w&&wz>=st.z0-1&&wz<=st.z0+st.d)return true;
+  return false;
+}
+/* 各建造物のブロック構築（ローカル座標: P(x,y,z) yはG基準・y0=ゆか面） */
+function mkh(st,put){
+  const X=st.x0,Z=st.z0,G=st.g;
+  const P=(x,y,z,id)=>put(X+x,G+y,Z+z,id);
+  const box=(x0,y0,z0,x1,y1,z1,id)=>{for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)P(x,y,z,id);};
+  const walls=(x0,z0,x1,z1,y0,y1,id)=>{for(let y=y0;y<=y1;y++){for(let x=x0;x<=x1;x++){P(x,y,z0,id);P(x,y,z1,id);}for(let z=z0;z<=z1;z++){P(x0,y,z,id);P(x1,y,z,id);}}};
+  const crenel=(x0,z0,x1,z1,y,id)=>{for(let x=x0;x<=x1;x++){if((x+z0)%2===0)P(x,y,z0,id);if((x+z1)%2===0)P(x,y,z1,id);}for(let z=z0;z<=z1;z++){if((x0+z)%2===0)P(x0,y,z,id);if((x1+z)%2===0)P(x1,y,z,id);}};
+  return{P,box,walls,crenel};
+}
+const BUILDERS={
+ fountain(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,10,0,10,B.QUARTZ);box(1,0,1,9,0,9,B.COBBLE);box(3,0,3,7,0,7,B.QUARTZ);
+  walls(3,3,7,7,1,1,B.SBRICK);box(4,1,4,6,1,6,B.WATER);
+  P(5,1,5,B.QUARTZ);P(5,2,5,B.QUARTZ);P(5,3,5,B.QUARTZ);P(5,4,5,B.GOLD);
+  for(const[cx,cz]of[[1,1],[9,1],[1,9],[9,9]]){P(cx,1,cz,B.LOG);P(cx,2,cz,B.LOG);P(cx,3,cz,B.LAMP);}
+  for(const x of[4,5,6]){P(x,1,0,B.LOG);P(x,1,10,B.LOG);}
+  for(const z of[4,5,6]){P(0,1,z,B.LOG);P(10,1,z,B.LOG);}
+  P(2,1,2,B.LEAF);P(2,1,8,B.WOOLR);P(8,1,2,B.WOOLU);P(8,1,8,B.LEAF);},
+ house(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,10,0,8,B.QUARTZ);
+  walls(0,0,10,8,1,3,B.QUARTZ);
+  for(const z of[2,3,4,5,6]){box(0,1,z,0,2,z,B.GLASS);box(10,1,z,10,2,z,B.GLASS);}
+  for(const x of[1,2,3,4,6,7,8,9]){P(x,1,8,B.GLASS);P(x,2,8,B.GLASS);P(x,2,0,B.GLASS);}
+  P(5,1,8,B.AIR);P(5,2,8,B.AIR);                      // ドア
+  box(0,4,0,10,4,8,B.PLANK);                           // 2Fゆか
+  walls(0,0,10,8,5,7,B.QUARTZ);
+  for(const x of[2,3,4,6,7,8]){P(x,6,0,B.GLASS);P(x,6,8,B.GLASS);}
+  for(const z of[2,3,4,5,6]){P(0,6,z,B.GLASS);P(10,6,z,B.GLASS);}
+  box(0,8,0,10,8,8,B.SBRICK);
+  P(0,8,0,B.GOLD);P(10,8,0,B.GOLD);P(0,8,8,B.GOLD);P(10,8,8,B.GOLD);
+  P(1,1,6,B.PLANK);P(1,2,5,B.PLANK);P(1,3,4,B.PLANK);P(1,4,3,B.AIR); // かいだん
+  P(7,1,1,B.WOOLR);P(8,1,1,B.WOOLR);P(9,1,1,B.BOOKSHELF);P(9,2,1,B.BOOKSHELF);
+  P(4,1,2,B.LOG);P(4,2,2,B.PLANK);P(5,3,4,B.LAMP);
+  P(8,5,1,B.WOOLU);P(8,5,2,B.WOOLU);P(5,7,4,B.LAMP);},
+ castle(st,put){const{P,box,walls,crenel}=mkh(st,put);
+  box(0,0,0,18,0,16,B.COBBLE);
+  walls(0,0,18,16,1,4,B.SBRICK);crenel(0,0,18,16,5,B.SBRICK);
+  box(8,1,16,10,3,16,B.AIR);P(7,1,16,B.LOG);P(7,2,16,B.LOG);P(7,3,16,B.LOG);P(7,4,16,B.LOG);
+  P(11,1,16,B.LOG);P(11,2,16,B.LOG);P(11,3,16,B.LOG);P(11,4,16,B.LOG);
+  for(const[tx,tz]of[[0,0],[14,0],[0,12],[14,12]]){
+    walls(tx,tz,tx+4,tz+4,1,8,B.COBBLE);
+    box(tx+1,8,tz+1,tx+3,8,tz+3,B.SBRICK);
+    crenel(tx,tz,tx+4,tz+4,9,B.SBRICK);
+    P(tx+2,9,tz+2,B.LAMP);}
+  box(9,1,11,9,1,15,B.SBRICK);                         // 参道
+  walls(5,4,13,10,1,4,B.SBRICK);box(5,5,4,13,5,10,B.PLANK); // キープ
+  P(9,1,10,B.AIR);P(9,2,10,B.AIR);
+  box(9,1,6,9,1,9,B.WOOLR);P(9,1,5,B.GOLD);P(9,2,5,B.WOOLR);
+  P(7,2,5,B.WOOLR);P(7,3,5,B.WOOLR);P(11,2,5,B.WOOLR);P(11,3,5,B.WOOLR);
+  P(8,4,7,B.LAMP);P(10,4,7,B.LAMP);},
+ lighthouse(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,6,0,6,B.COBBLE);
+  for(let y=1;y<=11;y++){const id=(((y-1)/3)|0)%2===0?B.WOOLR:B.QUARTZ;
+    for(let x=1;x<=5;x++){P(x,y,1,id);P(x,y,5,id);}
+    for(let z=1;z<=5;z++){P(1,y,z,id);P(5,y,z,id);}}
+  P(3,1,5,B.AIR);P(3,2,5,B.AIR);
+  walls(1,1,5,5,12,12,B.GLASS);
+  P(1,12,1,B.QUARTZ);P(5,12,1,B.QUARTZ);P(1,12,5,B.QUARTZ);P(5,12,5,B.QUARTZ);
+  P(3,12,3,B.LAMP);
+  box(1,13,1,5,13,5,B.QUARTZ);P(3,14,3,B.WOOLR);},
+ library(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,10,0,8,B.PLANK);
+  walls(0,0,10,8,1,4,B.BRICK);
+  P(5,1,8,B.AIR);P(5,2,8,B.AIR);
+  for(const x of[2,3,7,8]){P(x,2,8,B.GLASS);P(x,2,0,B.GLASS);}
+  for(const z of[3,4,5]){P(0,2,z,B.GLASS);P(10,2,z,B.GLASS);}
+  box(1,1,1,9,3,1,B.BOOKSHELF);
+  box(1,1,2,1,3,3,B.BOOKSHELF);box(9,1,2,9,3,3,B.BOOKSHELF);
+  P(3,1,4,B.LOG);P(3,2,4,B.PLANK);P(7,1,4,B.LOG);P(7,2,4,B.PLANK);
+  P(3,4,4,B.LAMP);P(7,4,4,B.LAMP);
+  box(0,5,0,10,5,8,B.PLANK);walls(0,0,10,8,5,5,B.BRICK);},
+ cafe(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,8,0,7,B.PLANK);
+  walls(0,0,8,7,1,3,B.PLANK);
+  for(const[cx,cz]of[[0,0],[8,0],[0,7],[8,7]])box(cx,1,cz,cx,3,cz,B.LOG);
+  box(3,1,7,5,3,7,B.AIR);                              // 大きな入口
+  P(2,2,7,B.GLASS);P(6,2,7,B.GLASS);P(2,2,0,B.GLASS);P(6,2,0,B.GLASS);
+  box(0,4,0,8,4,7,B.PLANK);
+  for(let x=0;x<=8;x++)P(x,4,7,(x%2===0)?B.WOOLR:B.QUARTZ);  // ひさし
+  box(1,1,2,4,1,2,B.QUARTZ);P(1,2,2,B.LAMP);           // カウンター
+  P(6,1,4,B.LOG);P(6,2,4,B.PLANK);P(2,1,5,B.LOG);P(2,2,5,B.PLANK);},
+ windmill(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,6,0,6,B.COBBLE);
+  walls(0,0,6,6,1,2,B.COBBLE);walls(0,0,6,6,3,8,B.PLANK);
+  P(3,1,6,B.AIR);P(3,2,6,B.AIR);
+  P(3,5,6,B.GLASS);
+  box(0,9,0,6,9,6,B.WOOLR);P(3,10,3,B.WOOLR);
+  P(3,8,7,B.LOG);                                       // ハブ
+  for(let k=1;k<=4;k++){P(3+k,8+k,7,B.PLANK);P(3-k,8-k,7,B.PLANK);P(3-k,8+k,7,B.WOOLU);P(3+k,8-k,7,B.WOOLU);}
+  P(2,1,2,B.PLANK);P(4,1,4,B.SAND);},
+ tower(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,6,0,6,B.SBRICK);
+  for(const[cx,cz]of[[0,0],[6,0],[0,6],[6,6]])box(cx,1,cz,cx,10,cz,B.SBRICK);
+  walls(0,0,6,6,1,1,B.LOG);box(3,1,6,3,1,6,B.AIR);
+  walls(0,0,6,6,5,5,B.SBRICK);walls(0,0,6,6,10,10,B.SBRICK);
+  const sp=[[1,1],[3,1],[5,1],[5,3],[5,5],[3,5],[1,5],[1,3]];
+  for(let k=0;k<10;k++){const o=sp[k%8];P(o[0],k+1,o[1],B.PLANK);}
+  box(0,11,0,6,11,6,B.PLANK);
+  walls(0,0,6,6,12,12,B.LOG);
+  for(const[cx,cz]of[[0,0],[6,0],[0,6],[6,6]])P(cx,12,cz,B.LAMP);
+  P(3,11,3,B.AIR);                                      // のぼり口
+ },
+ villa(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,13,0,10,B.PLANK);
+  walls(0,0,6,10,1,3,B.QUARTZ);
+  for(const[cx,cz]of[[0,0],[6,0],[0,10],[6,10]])box(cx,1,cz,cx,3,cz,B.LOG);
+  P(6,1,5,B.AIR);P(6,2,5,B.AIR);
+  P(2,2,10,B.GLASS);P(4,2,10,B.GLASS);P(2,2,0,B.GLASS);P(4,2,0,B.GLASS);
+  P(0,2,4,B.GLASS);P(0,2,6,B.GLASS);
+  box(0,4,0,6,4,10,B.BRICK);
+  P(1,1,1,B.WOOLR);P(1,1,2,B.WOOLR);P(5,1,1,B.BOOKSHELF);P(3,3,5,B.LAMP);
+  walls(8,2,12,8,0,0,B.QUARTZ);                         // プールのふち
+  box(9,-1,3,11,-1,7,B.QUARTZ);box(9,0,3,11,0,7,B.WATER);
+  P(8,1,2,B.LOG);P(8,2,2,B.LAMP);P(12,1,8,B.LOG);P(12,2,8,B.LAMP);},
+ farm(st,put){const{P,box,walls}=mkh(st,put);
+  walls(0,0,12,10,1,1,B.LOG);P(6,1,10,B.AIR);
+  for(let z=1;z<=9;z++)for(const x of[1,3,5]){P(x,0,z,B.DIRT);P(x,1,z,B.LEAF);}
+  for(let z=1;z<=9;z++)for(const x of[2,4]){P(x,0,z,B.WATER);}
+  walls(7,2,11,8,1,3,B.PLANK);
+  for(const[cx,cz]of[[7,2],[11,2],[7,8],[11,8]])box(cx,1,cz,cx,3,cz,B.LOG);
+  P(7,1,5,B.AIR);P(7,2,5,B.AIR);
+  box(7,4,2,11,4,8,B.WOOLR);
+  P(10,1,7,B.PLANK);P(10,1,3,B.SAND);P(10,2,3,B.SAND);P(9,1,3,B.SAND);},
+ church(st,put){const{P,box,walls}=mkh(st,put);
+  box(0,0,0,8,0,13,B.QUARTZ);
+  box(4,0,2,4,0,11,B.WOOLR);
+  walls(0,0,8,13,1,5,B.QUARTZ);
+  box(3,1,13,5,2,13,B.AIR);P(4,3,13,B.AIR);
+  const sg=[B.GLASS,B.WOOLU,B.GLASS,B.WOOLR];
+  for(const z of[3,6,9])for(let y=1;y<=4;y++){P(0,y,z,sg[y-1]);P(8,y,z,sg[y-1]);}
+  box(0,6,0,8,6,13,B.BRICK);box(3,7,0,5,7,13,B.BRICK);
+  for(const z of[4,6,8]){P(2,1,z,B.PLANK);P(6,1,z,B.PLANK);}
+  P(4,1,2,B.GOLD);
+  P(1,1,2,B.LOG);P(1,2,2,B.LAMP);P(7,1,2,B.LOG);P(7,2,2,B.LAMP);
+  walls(3,11,5,13,1,8,B.QUARTZ);box(3,9,11,5,9,13,B.QUARTZ); // とう
+  P(4,10,12,B.GOLD);P(4,11,12,B.GOLD);P(3,11,12,B.GOLD);P(5,11,12,B.GOLD);P(4,12,12,B.GOLD);},
+ bridge(st,put){const{P,box}=mkh(st,put);
+  box(0,-2,3,4,-2,7,B.GRAVEL);box(0,-1,3,4,0,7,B.WATER);
+  box(1,1,0,3,1,2,B.PLANK);box(1,2,3,3,2,3,B.PLANK);
+  box(1,3,4,3,3,6,B.PLANK);box(1,2,7,3,2,7,B.PLANK);box(1,1,8,3,1,10,B.PLANK);
+  for(const x of[0,4]){box(x,2,0,x,2,2,B.LOG);P(x,3,3,B.LOG);box(x,4,4,x,4,6,B.LOG);P(x,3,7,B.LOG);box(x,2,8,x,2,10,B.LOG);}
+  P(0,3,0,B.LAMP);P(4,3,0,B.LAMP);P(0,3,10,B.LAMP);P(4,3,10,B.LAMP);},
+};
+function terraformStruct(st,put){
+  for(let x=st.x0-1;x<=st.x0+st.w;x++)for(let z=st.z0-1;z<=st.z0+st.d;z++){
+    for(let y=Math.max(1,st.g-8);y<st.g;y++)put(x,y,z,y<st.g-2?B.STONE:B.DIRT);
+    put(x,st.g,z,B.GRASS);
+    const yMax=Math.min(CHY-1,st.g+st.h+4);
+    for(let y=st.g+1;y<=yMax;y++)put(x,y,z,B.AIR);
+  }
+}
+function stampStructures(x0,z0,data){
+  const putW=(wx,wy,wz,id)=>{
+    const lx=wx-x0,lz=wz-z0;
+    if(lx<0||lx>15||lz<0||lz>15||wy<1||wy>=CHY)return;
+    data[(wy<<8)|(lz<<4)|lx]=id;
+  };
+  for(const st of structures){
+    if(st.x0-1>x0+15||st.x0+st.w<x0||st.z0-1>z0+15||st.z0+st.d+2<z0)continue;
+    terraformStruct(st,putW);
+    BUILDERS[st.type](st,putW);
+    const[bx,bg,bz]=st.board;
+    for(let y=Math.max(1,bg-5);y<bg;y++)putW(bx,y,bz,B.DIRT);   // 土台
+    putW(bx,bg,bz,B.COBBLE);
+    putW(bx,bg+1,bz,B.BOARD);
+    putW(bx,bg+2,bz,B.BOARD);
+    for(let y=bg+3;y<=Math.min(CHY-1,bg+6);y++)putW(bx,y,bz,B.AIR); // 埋まり防止
+    putW(bx,bg+1,bz+1,B.AIR);putW(bx,bg+2,bz+1,B.AIR);              // 正面をあける
+  }
+}
+
 /* ---------------- チャンク管理 ---------------- */
 const chunks=new Map();     // "cx,cz" -> chunk
 const edits=new Map();      // "cx,cz" -> Map(localIdx -> id)
@@ -549,6 +900,16 @@ function genChunk(cx,cz){
       }
     }
   }
+  // 小道（建造物をつなぐ）
+  for(let z=0;z<16;z++)for(let x=0;x<16;x++){
+    const wx=x0+x,wz=z0+z;
+    if(pathSet.has(wx+','+wz)&&!inStructRing(wx,wz)){
+      const h=heightAt(wx,wz);
+      if(h>SEA&&h<45)data[(h<<8)|(z<<4)|x]=rand2(wx,wz,21)<0.3?B.GRAVEL:B.COBBLE;
+    }
+  }
+  // 建造物（整地→構築→レクチャーボード）
+  stampStructures(x0,z0,data);
   // プレイヤー編集を再適用
   const ed=edits.get(ckey(cx,cz));
   if(ed)for(const[i,id]of ed)data[i]=id;
@@ -628,7 +989,8 @@ function meshChunk(ch){
         if(F.n[1]!==0){cu=c[0];cv=c[2];}
         else{cu=F.n[0]!==0?c[2]:c[0];cv=1-cy;}
         let light=F.sh;
-        if(!isWater){
+        if(def.glow)light=1.75;
+        else if(!isWater){
           const bx=x+F.n[0],by=y+F.n[1],bz=z+F.n[2];
           const s1=c[F.t1]*2-1,s2=c[F.t2]*2-1;
           const o1=occ(bx+(F.t1===0?s1:0),by+(F.t1===1?s1:0),bz+(F.t1===2?s1:0));
@@ -710,6 +1072,13 @@ function meshDirtyNow(){
 /* ---------------- プレイヤー ---------------- */
 const player={x:8.5,y:40,z:8.5,vx:0,vy:0,vz:0,yaw:0.6,pitch:-0.12,onGround:false,inWater:false,headInWater:false,hp:10};
 let state='title',mode='break',sel=0;
+/* 視点モード: 0=一人称 1=三人称(うしろ) 2=三人称(まえ) */
+let viewMode=0,lastCamDist=4.2,walkPhase=0;
+function cycleView(){
+  viewMode=(viewMode+1)%3;
+  toast(['👁 いちにんしょう','👁 さんにんしょう（うしろ）','👁 さんにんしょう（まえ）'][viewMode]);
+  sfx('select');
+}
 function setFly(on,landed){
   if(flying===on)return;
   flying=on;player.vy=0;
@@ -786,6 +1155,7 @@ function updatePlayer(dt,inp){
     else{p.y=Math.floor(p.y)+1+0.001;p.onGround=true;if(flying)setFly(false,true);}
     p.vy=0;
   }
+  walkPhase+=Math.hypot(p.vx,p.vz)*dt*2.6;
   const bw=b=>b===B.WATER;
   p.inWater=bw(blockAt(Math.floor(p.x),Math.floor(p.y+0.4),Math.floor(p.z)))||
             bw(blockAt(Math.floor(p.x),Math.floor(p.y+1.2),Math.floor(p.z)));
@@ -822,18 +1192,17 @@ function target(){
 /* そざいインベントリ（ノーマルモードのみ有限） */
 let inv=null;
 function initInv(){
-  if(gmode==='normal'){inv={};for(const id of HOTBAR)if(id<100)inv[id]=30;}
+  if(gmode==='normal'){inv={};for(const id of ALL_PALETTE)inv[id]=30;}
   else inv=null;
   refreshCounts();
 }
 function gainFor(id){
-  if(id===B.SNOWGRASS||id===B.SNOW)return B.DIRT;
-  if(id===B.COBBLE)return B.STONE;
-  if(id===B.GRAVEL)return B.SAND;
-  return HOTBAR.includes(id)?id:null;
+  if(id===B.SNOWGRASS)return B.DIRT;
+  return ALL_PALETTE.has(id)?id:null;
 }
 function doBreak(){
   if(state!=='play')return;
+  {const tb=target();if(tb&&tb.id===B.BOARD){openBoardAt(tb.x,tb.y,tb.z);return;}}
   const it=HOTBAR[sel];
   if(it===IT_BOW){shootArrow();return;}
   const zh=rayHitZombie();
@@ -847,6 +1216,7 @@ function doBreak(){
 }
 function doPlace(){
   if(state!=='play')return;
+  {const tb=target();if(tb&&tb.id===B.BOARD){openBoardAt(tb.x,tb.y,tb.z);return;}}
   const it=HOTBAR[sel];
   if(it===IT_BOW){shootArrow();return;}
   if(it===IT_SWORD){toast('けんは おくものじゃないよ！⛏モードで ふりまわそう');return;}
@@ -1034,11 +1404,11 @@ function updateArrows(dt){
 /* エンティティ描画（動的メッシュ / progMainを流用） */
 const entVB=gl.createBuffer(),entIB=gl.createBuffer();
 const entV=[],entI=[];
-function pushBox(st,cx,cy,cz,sx,sy,sz,yaw,tTop,tBottom,tSide,flash){
+function pushBox(st,cx,cy,cz,sx,sy,sz,yaw,tTop,tBottom,tSide,flash,tFront){
   const cs=Math.cos(yaw),sn=Math.sin(yaw);
   for(let f=0;f<6;f++){
     const F=FACES[f];
-    const tile=f===2?tTop:f===3?tBottom:tSide;
+    const tile=f===2?tTop:f===3?tBottom:(f===5&&tFront!==undefined?tFront:tSide);
     const tx=tile%16,ty=(tile/16)|0;
     const base=st.n;
     for(let k=0;k<4;k++){
@@ -1055,10 +1425,32 @@ function pushBox(st,cx,cy,cz,sx,sy,sz,yaw,tTop,tBottom,tSide,flash){
     st.n+=4;
   }
 }
+function pushPlayerModel(st){
+  const p=player,i=charIdx;
+  const HT=T.PCHAR+i*3,BT=HT+1,LT=HT+2;
+  const yw=p.yaw;
+  const fx=Math.sin(yw),fz=-Math.cos(yw),rx=Math.cos(yw),rz=Math.sin(yw);
+  const sp=Math.hypot(p.vx,p.vz);
+  const sw=Math.sin(walkPhase*3.2)*Math.min(1,sp/4.4)*0.26;
+  const air=!p.onGround&&!p.inWater;
+  // 脚（歩くと前後にスイング）
+  pushBox(st,p.x+rx*0.125+fx*sw,p.y,p.z+rz*0.125+fz*sw,0.24,0.7,0.24,yw,LT,LT,LT,false);
+  pushBox(st,p.x-rx*0.125-fx*sw,p.y,p.z-rz*0.125-fz*sw,0.24,0.7,0.24,yw,LT,LT,LT,false);
+  // 胴体
+  pushBox(st,p.x,p.y+0.7,p.z,0.52,0.66,0.28,yw,BT,BT,BT,false);
+  // 腕（ジャンプ/飛行中はすこし上がる）
+  const ay=p.y+0.72+((air||flying)?0.14:0);
+  pushBox(st,p.x+rx*0.37-fx*sw,ay,p.z+rz*0.37-fz*sw,0.2,0.6,0.2,yw,BT,BT,BT,false);
+  pushBox(st,p.x-rx*0.37+fx*sw,ay,p.z-rz*0.37+fz*sw,0.2,0.6,0.2,yw,BT,BT,BT,false);
+  // 頭（前面だけ顔、うしろは かみのけ）
+  pushBox(st,p.x,p.y+1.36,p.z,0.46,0.46,0.46,yw,45+i,45+i,45+i,false,HT);
+}
 function renderEntities(){
-  if(!zombies.length&&!arrows.length)return;
+  const showPlayer=viewMode!==0&&state!=='title';
+  if(!zombies.length&&!arrows.length&&!showPlayer)return;
   entV.length=0;entI.length=0;
   const st={n:0};
+  if(showPlayer)pushPlayerModel(st);
   for(const z of zombies){
     const fl=z.hitT>0;
     const fx=Math.sin(z.yaw),fz=-Math.cos(z.yaw);
@@ -1197,7 +1589,7 @@ function toast(msg){
 }
 function buildHotbar(){
   const hb=$('hotbar');hb.innerHTML='';
-  const small=HOTBAR.length>10;
+  const small=HOTBAR.length+(PAGES.length>1?1:0)>10;
   HOTBAR.forEach((id,i)=>{
     const s=document.createElement('div');s.className='slot'+(small?' sm':'')+(i===sel?' sel':'');
     const c=document.createElement('canvas');c.width=c.height=32;
@@ -1215,13 +1607,30 @@ function buildHotbar(){
     s.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();selectHotbar(i);});
     hb.appendChild(s);
   });
+  if(PAGES.length>1){ // ページ切替ボタン
+    const pb=document.createElement('div');
+    pb.className='slot pageBtn'+(small?' sm':'');
+    pb.innerHTML='⇄<br>'+PAGES[hbPage].name;
+    pb.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();cyclePage();});
+    hb.appendChild(pb);
+  }
   refreshCounts();
   positionHearts();
+}
+function cyclePage(){
+  if(PAGES.length<2)return;
+  hbPage=(hbPage+1)%PAGES.length;
+  HOTBAR=PAGES[hbPage].ids.slice();
+  sel=Math.min(sel,HOTBAR.length-1);
+  buildHotbar();
+  toast('📦 パレット: '+PAGES[hbPage].name);
+  sfx('select');
 }
 function refreshCounts(){
   document.querySelectorAll('#hotbar .slot').forEach((s,i)=>{
     const id=HOTBAR[i],cnt=s.querySelector('.cnt');
-    if(inv&&id<100){const c=inv[id]||0;cnt.textContent=c;s.classList.toggle('empty',c<=0);}
+    if(!cnt)return;
+    if(inv&&id!==undefined&&id<100){const c=inv[id]||0;cnt.textContent=c;s.classList.toggle('empty',c<=0);}
     else{cnt.textContent='';s.classList.remove('empty');}
   });
 }
@@ -1319,6 +1728,10 @@ $('btnHome').addEventListener('pointerdown',e=>{
   e.preventDefault();e.stopPropagation();audioInit();
   if(state==='play'||state==='over')goTitle();
 },{passive:false});
+$('btnView').addEventListener('pointerdown',e=>{
+  e.preventDefault();e.stopPropagation();audioInit();
+  if(state==='play')cycleView();
+},{passive:false});
 
 /* ---------------- おうちづくりガイド ---------------- */
 const GTILE={'G':T.GRASS_SIDE,'P':T.PLANK,'p':T.PLANK,'L':T.LOG_SIDE,'l':T.LOG_SIDE,'B':T.BRICK,'b':T.BRICK,'W':T.GLASS,'w':T.GLASS,'S':T.STONE,'s':T.STONE};
@@ -1375,6 +1788,190 @@ $('btnGuide').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropag
 $('guideClose').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();$('guide').style.display='none';},{passive:false});
 $('gPrev').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(gStep>0){gStep--;drawGuide();sfx('select');}},{passive:false});
 $('gNext').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(gStep<GUIDE.length-1){gStep++;drawGuide();sfx('select');}},{passive:false});
+
+/* ---------------- レクチャーボード（建物の作り方看板） ---------------- */
+const BCHR={G:1,D:2,P:9,L:6,B:10,W:11,S:3,T:27,C:14,Q:22,O:23,M:24,R:25,U:26,K:21,N:4,F:8,w:5};
+const STRUCT_INFO={
+ fountain:{name:'ふんすいひろば',emo:'⛲',desc:'まちの まんなかにある いこいのひろば。ふんすいの みずおとが きもちいいよ。',
+  mats:[[B.QUARTZ,60],[B.COBBLE,60],[B.SBRICK,16],[B.WATER,9],[B.LOG,8],[B.LAMP,4],[B.GOLD,1]],
+  elev:['............','.....O......','.....Q......','.M...Q...M..','.L.TwQwT.L..','QQQQQQQQQQQQ','GGGGGGGGGGGG','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① ゆかを しきつめる',x:'白いいしと まるいしで 11×11の ゆかを つくろう。もようを つけると おしゃれ！',r:[5,5]},
+   {t:'② ふんすいの ふち',x:'まんなかに 石レンガで 5×5の わっかを つくるよ。',r:[4,4]},
+   {t:'③ はしらを たてる',x:'ちゅうしんに 白いいしを 3だん、てっぺんに 金ブロックを のせよう。',r:[1,3]},
+   {t:'④ みずを いれる',x:'わっかの なかに みずブロックを いれれば ふんすいの かんせい！',r:[4,4]},
+   {t:'⑤ ランプと ベンチ',x:'よすみに げんぼく＋ランプの がいとう、まわりに ベンチと はなだんを おこう。',r:[3,4]}]},
+ house:{name:'ごうかなおうち',emo:'🏠',desc:'ガラスの おおきなまどが じまんの 2かいだて モダンハウス。なかの かぐも じゆうに もようがえしてね。',
+  mats:[[B.QUARTZ,140],[B.GLASS,40],[B.PLANK,90],[B.SBRICK,30],[B.GOLD,4],[B.LAMP,2],[B.WOOLR,2],[B.WOOLU,2],[B.BOOKSHELF,3]],
+  elev:['.OTTTTTTTTO.','.QWWWQQWWWQ.','.QQQQQQQQQQ.','.PPPPPPPPPP.','.QWWQQQQWWQ.','.QWWQ..QWWQ.','.QQQQ..QQQQ.','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① じめんを たいらに',x:'11×9の ばしょを たいらに して、白いいしで ゆかを つくろう。',r:[7,7]},
+   {t:'② 1かいの かべ',x:'白いいしで かべを 3だん。いりぐちは 2マス あけて、おおきな まどガラスを はめよう。',r:[4,6]},
+   {t:'③ 2かいの ゆか',x:'木のいたで てんじょう（＝2かいのゆか）を はろう。かいだんの あなも わすれずに！',r:[3,3]},
+   {t:'④ 2かいの かべと まど',x:'2かいも かべを つんで、ぐるっと ガラスの まどを つけると あかるいへやに！',r:[1,2]},
+   {t:'⑤ やね',x:'石レンガで やねを のせて、よすみに 金ブロックの かざりを つけよう。',r:[0,0]},
+   {t:'⑥ かぐを おく',x:'ソファ（あかいカーペット）、ほんだな、ランプ、ベッド（あおいカーペット）で なかを ごうかに！',r:[-1,-1]}]},
+ castle:{name:'おしろ',emo:'🏰',desc:'4ほんの とうと じょうへきに かこまれた りっぱな おしろ。おうさまの ぎょくざも あるよ。',
+  mats:[[B.SBRICK,400],[B.COBBLE,300],[B.PLANK,60],[B.WOOLR,14],[B.LOG,8],[B.LAMP,6],[B.GOLD,1]],
+  elev:['T.T.T..T.T.T','TTT......TTT','TTTTTTTTTTTT','TTTTTTTTTTTT','TTTTT..TTTTT','TTTTT..TTTTT','CCCCC..CCCCC','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① ひろい じめんを ならす',x:'19×17の おおきな ばしょを たいらにして、まるいしの なかにわを しこう。',r:[7,7]},
+   {t:'② じょうへき',x:'石レンガで ぐるっと 4だんの かべを つくろう。',r:[2,5]},
+   {t:'③ もん',x:'まえがわの まんなかを 3×3 あけて、げんぼくで わくを つくると もんに なるよ。',r:[4,6]},
+   {t:'④ よすみの とう',x:'かどに 5×5の とうを 8だん つみあげて、てっぺんは ぎざぎざに！',r:[0,1]},
+   {t:'⑤ ぎょくざの ま',x:'なかに ホールを たてて、金ブロックの ぎょくざと あかいカーペットを しこう。',r:[-1,-1]},
+   {t:'⑥ ランプかざり',x:'とうの てっぺんに ランプを おくと よるも かがやく おしろに！',r:[0,0]}]},
+ lighthouse:{name:'とうだい',emo:'🗼',desc:'うみべに たつ こうはくじまの とうだい。てっぺんの ひかりが ふねを みちびくよ。',
+  mats:[[B.WOOLR,30],[B.QUARTZ,45],[B.COBBLE,49],[B.GLASS,16],[B.LAMP,1]],
+  elev:['....QQQ.....','....WMW.....','....QQQ.....','....RRR.....','....QQQ.....','....RRR.....','....CCC.....','GGGGNNNNGGGG'],
+  steps:[
+   {t:'① うみべを さがす',x:'すなはまの ちかくに たてると とうだいらしいよ。',r:[7,7]},
+   {t:'② どだい',x:'まるいしで 7×7の どだいを つくろう。',r:[6,6]},
+   {t:'③ しましまの とう',x:'あかいカーペットと 白いいしを 3だんずつ こうごに つみあげよう。',r:[2,5]},
+   {t:'④ ひかりの へや',x:'てっぺんは ガラスばりの へやにして、まんなかに ひかるランプを おこう。',r:[1,1]},
+   {t:'⑤ やね',x:'白いいしで ふたをして、あかい とんがりを のせたら かんせい！',r:[0,0]}]},
+ library:{name:'としょかん',emo:'📚',desc:'かべじゅうが ほんだなの しずかな としょかん。つくえで ゆっくり ほんが よめるよ。',
+  mats:[[B.BRICK,120],[B.PLANK,150],[B.BOOKSHELF,30],[B.GLASS,10],[B.LAMP,2],[B.LOG,2]],
+  elev:['.PPPPPPPPPP.','.BKKKKKKKKB.','.BKKKKKKKKB.','.BWWB..BWWB.','.BBBB..BBBB.','PPPPPPPPPPPP','GGGGGGGGGGGG','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① ゆか',x:'木のいたで 11×9の ゆかを はろう。',r:[5,5]},
+   {t:'② レンガの かべ',x:'レンガで かべを 4だん。いりぐちと まどの あなも あけてね。',r:[3,4]},
+   {t:'③ ほんだな',x:'かべの うちがわに ほんだなを 3だん ならべると としょかんらしく なるよ！',r:[1,2]},
+   {t:'④ つくえと ランプ',x:'げんぼく＋木のいたで つくえを つくり、てんじょうに ランプを つけよう。',r:[-1,-1]},
+   {t:'⑤ やね',x:'木のいたで やねを のせたら かんせい！',r:[0,0]}]},
+ cafe:{name:'カフェ',emo:'☕',desc:'あかしろの ひさしが めじるしの ちいさな カフェ。テラスせきも あるよ。',
+  mats:[[B.PLANK,150],[B.LOG,12],[B.QUARTZ,8],[B.WOOLR,5],[B.GLASS,4],[B.LAMP,1]],
+  elev:['............','.PPPPPPPPP..','.RQRQRQRQR..','.LW.....WL..','.L..QQ..L...','PPPPPPPPPP..','GGGGGGGGGGGG','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① ゆか',x:'木のいたで 9×8の ゆかを はろう。',r:[5,5]},
+   {t:'② はしらと かべ',x:'かどに げんぼくの はしら、うしろと よこに かべ。まえは ひろく あけて いりぐちに！',r:[3,4]},
+   {t:'③ カウンター',x:'白いいしで カウンターを つくって ランプを かざろう。',r:[4,4]},
+   {t:'④ ひさし',x:'あかいカーペットと 白いいしを こうごに ならべて しましまの ひさしに！',r:[2,2]},
+   {t:'⑤ やねと テーブル',x:'やねを のせて、げんぼく＋木のいたの テーブルを おいたら かいてん！',r:[1,1]}]},
+ windmill:{name:'ふうしゃごや',emo:'🌾',desc:'おおきな はねが かざりの ふうしゃごや。こむぎこを ひく おしごとを してるんだって。',
+  mats:[[B.COBBLE,60],[B.PLANK,90],[B.WOOLR,25],[B.WOOLU,8],[B.LOG,1],[B.GLASS,1]],
+  elev:['P....RRR....','.P..PPPPP...','..PPPPPPP...','....PWPPP...','....PPPPP...','....CCCCC...','....C.CCC...','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① いしの どだい',x:'まるいしで 7×7の どだいと 2だんの かべを つくろう。',r:[5,6]},
+   {t:'② 木の かべ',x:'そのうえに 木のいたで かべを 6だん つみあげよう。まども つけてね。',r:[1,4]},
+   {t:'③ やね',x:'あかいカーペットで やねを のせよう。',r:[0,0]},
+   {t:'④ はね',x:'まえの かべの たかいところから ななめに 木のいたと あおいカーペットで はねを 4まい！',r:[0,2]},
+   {t:'⑤ なかみ',x:'なかに こむぎの たわら（すな）や さぎょうだいを おいたら かんせい！',r:[-1,-1]}]},
+ tower:{name:'てんぼうタワー',emo:'🗼',desc:'らせんかいだんを のぼって てっぺんへ！ まちが ぜんぶ みわたせる タワーだよ。',
+  mats:[[B.SBRICK,60],[B.PLANK,25],[B.LOG,20],[B.LAMP,4]],
+  elev:['.M..LLL..M..','.PPPPPPPPP..','.T...P...T..','.T..P....T..','.T.P.....T..','.TP......T..','.T...L...T..','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① よすみの はしら',x:'石レンガで 4ほんの はしらを 10だん つみあげよう。',r:[2,6]},
+   {t:'② らせんかいだん',x:'なかに 木のいたを 1だんずつ ぐるぐる まわしながら おいていくよ。ジャンプで のぼれるよ！',r:[2,5]},
+   {t:'③ てんぼうデッキ',x:'てっぺんに 木のいたで ゆかを はろう。のぼりぐちの あなも あけてね。',r:[1,1]},
+   {t:'④ てすりと ランプ',x:'おちないように げんぼくの てすり、よすみに ランプを つけよう。',r:[0,0]},
+   {t:'⑤ けしきを たのしむ',x:'のぼって まちを ながめてみよう！ 👁ボタンで さんにんしょうに すると もっと たのしいよ。',r:[-1,-1]}]},
+ villa:{name:'プールつきべっそう',emo:'🏖',desc:'ウッドデッキと あおい プールつきの ぜいたくな べっそう。なつやすみに ぴったり！',
+  mats:[[B.PLANK,150],[B.QUARTZ,80],[B.BRICK,35],[B.GLASS,6],[B.WATER,15],[B.LAMP,3],[B.WOOLR,2],[B.BOOKSHELF,1]],
+  elev:['............','.BBBBBBB....','.QWWQQWQ..M.','.QW..Q.Q..L.','.QQQQQQQ....','PPPPPPPPwwPP','GGGGGGGGGGGG','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① ウッドデッキ',x:'木のいたで 14×11の ひろい デッキを つくろう。',r:[5,5]},
+   {t:'② いえの かべ',x:'にしがわに 白いいし＋げんぼくのはしらで いえを たてよう。まどは おおきく！',r:[2,4]},
+   {t:'③ やね',x:'レンガで やねを のせよう。',r:[1,1]},
+   {t:'④ プール',x:'ひがしがわを 1だん ほって 白いいしで そこを つくり、みずを いれよう！',r:[5,5]},
+   {t:'⑤ ランプと かぐ',x:'プールサイドに ランプ、なかに ベッドと ほんだなを おいたら かんせい！',r:[2,3]}]},
+ farm:{name:'のうじょう',emo:'🌱',desc:'はたけと なやが ある のうじょう。さくもつが すくすく そだってるよ。',
+  mats:[[B.LOG,44],[B.PLANK,50],[B.WOOLR,25],[B.LEAF,27],[B.WATER,18],[B.SAND,3]],
+  elev:['............','......RRRRR.','......P...P.','L.....P...P.','LFwFwFPPPPP.','GDwDwDGGGGGG','GGGGGGGGGGGG','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① さくで かこむ',x:'げんぼくで 13×11の さくを つくろう。いりぐちも あけてね。',r:[3,4]},
+   {t:'② はたけ',x:'つちの うねの あいだに みずの みぞを ほろう。みずが あると さくもつが そだつよ！',r:[4,5]},
+   {t:'③ さくもつを うえる',x:'うねの うえに はっぱブロックを ならべて さくもつに みたてよう。',r:[4,4]},
+   {t:'④ なや',x:'すみに 木のいた＋げんぼくで なやを たてて、あかい やねを のせよう。',r:[1,3]},
+   {t:'⑤ わらと どうぐ',x:'なやの なかに わら（すな）や はこを おいたら のうじょうの かんせい！',r:[-1,-1]}]},
+ church:{name:'きょうかい',emo:'⛪',desc:'ステンドグラスが きれいな しずかな きょうかい。てっぺんには きんいろの じゅうじかが かがやくよ。',
+  mats:[[B.QUARTZ,180],[B.BRICK,40],[B.GLASS,12],[B.WOOLR,14],[B.WOOLU,6],[B.GOLD,6],[B.PLANK,6],[B.LAMP,2]],
+  elev:['....O.......','...OOO......','...QQQ......','.BBBBBBBBB..','.QUQQ.QQUQ..','.QWQ...QWQ..','.QQQ...QQQ..','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① 白い かべ',x:'白いいしで たかさ5だんの かべを つくろう。いりぐちは アーチがたに！',r:[4,6]},
+   {t:'② ステンドグラス',x:'よこの かべに ガラスと あか・あおの カーペットを たてに ならべて ステンドグラスふうに！',r:[4,5]},
+   {t:'③ やね',x:'レンガで やねを のせよう。まんなかを 1だん たかくすると かっこいい！',r:[3,3]},
+   {t:'④ とうと じゅうじか',x:'まえに とうを たてて、てっぺんに 金ブロックで じゅうじかを つくろう。',r:[0,2]},
+   {t:'⑤ ながいすと さいだん',x:'なかに 木のいたの ながいす、おくに 金の さいだんと あかいカーペットを しこう。',r:[-1,-1]}]},
+ bridge:{name:'はし',emo:'🌉',desc:'いけに かかる アーチばし。ランプの あかりが みずに うつって きれいだよ。',
+  mats:[[B.PLANK,21],[B.LOG,16],[B.LAMP,4],[B.WATER,15],[B.GRAVEL,25]],
+  elev:['............','....PPP.....','.M.P...P.M..','.PPP...PPP..','GG..www..GG.','GG..www..GG.','GGGGGGGGGGGG','GGGGGGGGGGGG'],
+  steps:[
+   {t:'① いけを ほる',x:'5×5くらいの あなを 2だん ほろう。そこに じゃりを しくと きれい！',r:[4,5]},
+   {t:'② みずを いれる',x:'ほった あなに みずブロックを いれよう。',r:[4,5]},
+   {t:'③ アーチを かける',x:'木のいたを 1だんずつ たかくして、やまなりの はしに しよう。',r:[1,3]},
+   {t:'④ てすりと ランプ',x:'りょうはしに げんぼくの てすりと ランプを つけたら かんせい！',r:[1,2]},
+   {t:'⑤ わたってみよう',x:'はしのうえから いけを のぞいてみよう。よるは ランプが きれいだよ！',r:[-1,-1]}]},
+};
+let boardOpen=-1,bStep=0;
+function drawBoardStep(){
+  const st=structures[boardOpen];if(!st)return;
+  const info=STRUCT_INFO[st.type],step=info.steps[bStep];
+  $('bStepT').textContent=step.t;
+  $('bStepX').textContent=step.x;
+  $('bNum').textContent=(bStep+1)+' / '+info.steps.length;
+  $('bPrev').disabled=bStep===0;
+  $('bNext').disabled=bStep===info.steps.length-1;
+  const cv=$('bCv'),g=cv.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  g.fillStyle='#87b7e4';g.fillRect(0,0,cv.width,cv.height);
+  const cell=16;
+  info.elev.forEach((row,ry)=>{
+    const inR=step.r[0]>=0&&ry>=step.r[0]&&ry<=step.r[1];
+    g.globalAlpha=(step.r[0]<0||inR)?1:0.4;
+    for(let cx=0;cx<row.length;cx++){
+      const ch=row[cx];
+      if(ch==='.')continue;
+      const tile=BCHR[ch];
+      if(tile===undefined)continue;
+      g.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,cx*cell,ry*cell,cell,cell);
+    }
+  });
+  g.globalAlpha=1;
+  if(step.r[0]>=0){
+    g.strokeStyle='#ffe14a';g.lineWidth=3;
+    g.strokeRect(1,step.r[0]*cell+1,cv.width-2,(step.r[1]-step.r[0]+1)*cell-2);
+  }
+}
+function openBoardPanel(i){
+  const st=structures[i];if(!st)return;
+  const info=STRUCT_INFO[st.type];
+  boardOpen=i;bStep=0;
+  $('bTitle').textContent=info.emo+' '+info.name+' の つくりかた';
+  $('bDesc').textContent=info.desc;
+  const mats=$('bMats');mats.innerHTML='';
+  for(const[id,n]of info.mats){
+    const el=document.createElement('div');el.className='bmat';
+    const c=document.createElement('canvas');c.width=c.height=16;
+    const cg=c.getContext('2d');cg.imageSmoothingEnabled=false;
+    const tile=BLOCKS[id].t[2];
+    cg.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,0,0,16,16);
+    el.appendChild(c);
+    const sp=document.createElement('span');sp.textContent=BLOCKS[id].name+'×'+n;
+    el.appendChild(sp);
+    mats.appendChild(el);
+  }
+  drawBoardStep();
+  $('board').style.display='flex';
+  sfx('select');
+}
+function closeBoard(){boardOpen=-1;$('board').style.display='none';}
+function openBoardAt(x,y,z){
+  const i=boards.get(x+','+y+','+z);
+  if(i===undefined)return false;
+  openBoardPanel(i);
+  return true;
+}
+function interact(){
+  if(state!=='play')return;
+  if(boardOpen>=0){closeBoard();return;}
+  const t=target();
+  if(t&&t.id===B.BOARD)openBoardAt(t.x,t.y,t.z);
+  else toast('📋 ボードに クロスヘアを あわせてね');
+}
+$('bClose').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();closeBoard();},{passive:false});
+$('bPrev').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(bStep>0){bStep--;drawBoardStep();sfx('select');}},{passive:false});
+$('bNext').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const st=structures[boardOpen];if(st&&bStep<STRUCT_INFO[st.type].steps.length-1){bStep++;drawBoardStep();sfx('select');}},{passive:false});
 // ピンチ/ダブルタップズーム抑止
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>
   document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
@@ -1392,6 +1989,10 @@ document.addEventListener('keydown',e=>{
     if(n>=1&&n<=HOTBAR.length)selectHotbar(n-1);
   }
   if(e.code==='KeyB'&&state==='play')toggleGuide();
+  if((e.code==='F5'||e.code==='KeyV')&&state==='play'){e.preventDefault();cycleView();}
+  if(e.code==='KeyE'&&state==='play')interact();
+  if(e.code==='KeyQ'&&state==='play')cyclePage();
+  if(e.code==='Escape')closeBoard();
   if(e.code==='Space')e.preventDefault();
 });
 document.addEventListener('keyup',e=>keys.delete(e.code));
@@ -1422,8 +2023,27 @@ function pollGamepad(dt,inp){
     const l=navigator.getGamepads&&navigator.getGamepads();
     if(l)for(const g of l)if(g&&g.connected){gp=g;break;}
   }catch(e){}
-  if(!gp)return;
+  if(!gp){gpPrev=[];return;}
   if(!gpSeen){gpSeen=true;document.body.classList.add('gamepad');toast('🎮 コントローラーせつぞく');}
+  const b=i=>!!(gp.buttons&&gp.buttons[i]&&gp.buttons[i].pressed);
+  const edge=i=>b(i)&&!gpPrev[i];
+  const savePrev=()=>{gpPrev=[];for(let i=0;i<12;i++)gpPrev[i]=b(i);};
+  if(state==='title'){
+    if(edge(0)||edge(9))startGame();          // A / Start ではじめる
+    savePrev();return;
+  }
+  if(state==='over'){
+    if(edge(9))goTitle();
+    savePrev();return;
+  }
+  if(state!=='play'){savePrev();return;}
+  if(edge(9)){savePrev();goTitle();return;}   // Start=ポーズ（タイトルへ）
+  if(edge(3)||edge(11))cycleView();           // Y / 右スティック押込み=視点切替
+  if(boardOpen>=0){                            // ボード表示中: B=とじる, X=とじる
+    if(edge(1)||edge(2))closeBoard();
+    savePrev();return;
+  }
+  if(edge(2))interact();                       // X=ボードをよむ/インタラクト
   const dz=v=>Math.abs(v)<0.18?0:(v-Math.sign(v)*0.18)/0.82;
   const ax=gp.axes||[];
   inp.mx+=dz(ax[0]||0);
@@ -1431,15 +2051,15 @@ function pollGamepad(dt,inp){
   const lx=dz(ax[2]||0),ly=dz(ax[3]||0);
   player.yaw+=lx*Math.abs(lx)*3.6*dt;
   player.pitch=Math.max(-1.55,Math.min(1.55,player.pitch-ly*Math.abs(ly)*2.6*dt));
-  const b=i=>!!(gp.buttons&&gp.buttons[i]&&gp.buttons[i].pressed);
   if(b(0))inp.jump=true;
   if(b(1))inp.down=true;
-  if(b(4)&&!gpPrev[4])selectHotbar(sel-1);
-  if(b(5)&&!gpPrev[5])selectHotbar(sel+1);
+  if(edge(4))selectHotbar(sel-1);
+  if(edge(5))selectHotbar(sel+1);
+  if(edge(12))cyclePage();                     // 十字キー上=パレットページ切替
   gpBreakT-=dt;gpPlaceT-=dt;
   if(b(7)){if(gpBreakT<=0){doBreak();gpBreakT=0.25;}}else gpBreakT=0;
   if(b(6)){if(gpPlaceT<=0){doPlace();gpPlaceT=0.3;}}else gpPlaceT=0;
-  gpPrev=[b(0),b(1),b(2),b(3),b(4),b(5),b(6),b(7)];
+  savePrev();
 }
 
 /* ---------------- タイトル / 開始 ---------------- */
@@ -1448,6 +2068,7 @@ function initWorld(){
   for(const[,ch]of chunks)freeMesh(ch);
   chunks.clear();edits.clear();
   const sp=findSpawn();
+  computeStructures(sp[0],sp[2]);
   player.x=sp[0];player.y=sp[1];player.z=sp[2];
   player.vx=player.vy=player.vz=0;
   $('seedLabel').textContent='シード: '+seed;
@@ -1472,8 +2093,9 @@ function buildTitleCards(){
 }
 function startGame(){
   audioInit();
-  HOTBAR=(gmode==='normal'?HB_NORMAL:HB_FULL).slice();
-  sel=0;
+  PAGES=gmode==='full'?PAGES_FULL:PAGES_NORMAL;
+  hbPage=0;HOTBAR=PAGES[0].ids.slice();
+  sel=0;viewMode=0;closeBoard();
   zombies.length=0;arrows.length=0;story=null;invulnT=0;
   player.hp=maxHp();
   flying=false;$('btnDown').style.display='none';
@@ -1499,6 +2121,7 @@ function goTitle(){
   $('title').style.display='flex';
   $('storyBox').style.display='none';
   $('guide').style.display='none';
+  closeBoard();
   buildTitleCards();
 }
 $('btnStart').addEventListener('click',startGame);
@@ -1526,6 +2149,18 @@ function render(now){
     yaw=titleYaw;pitch=-0.24;
   }else{
     eye=eyePos();yaw=player.yaw;pitch=player.pitch;
+    if(viewMode!==0){
+      // 三人称カメラ（ブロック衝突: 壁があれば距離を詰める）
+      const d=camBasis(yaw,pitch).fwd;
+      const dir=viewMode===1?[-d[0],-d[1],-d[2]]:d;
+      const want=4.2;
+      const hit=raycast(eye[0],eye[1],eye[2],dir[0],dir[1],dir[2],want+0.4);
+      let dist=want;
+      if(hit&&hit.t<want+0.4)dist=Math.max(0.55,hit.t-0.45);
+      lastCamDist=dist;
+      eye=[eye[0]+dir[0]*dist,eye[1]+dir[1]*dist,eye[2]+dir[2]*dist];
+      if(viewMode===2){yaw+=Math.PI;pitch=-pitch;}
+    }else lastCamDist=0;
   }
   const aspect=w/h;
   perspective(mP,FOV,aspect,0.1,600);
@@ -1652,7 +2287,7 @@ function frame(now){
     updateZombies(dt);
     updateArrows(dt);
     if(gmode==='zombie')storyTick(dt);
-  }else prevJumpHeld=false;
+  }else{prevJumpHeld=false;pollGamepad(dt,inp);} // タイトル/リザルトでもA・Startを受け付ける
   updateWorld(player.x,player.z);
   render(now);
   if(DEBUG){
@@ -1685,7 +2320,15 @@ window.__mc={
   nextWave,
   toggleGuide,
   goTitle,
-  stats(){return{seed,chunks:chunks.size,pos:[player.x,player.y,player.z],state,mode,gmode,charIdx,hp:player.hp,flying,zombies:zombies.length,arrows:arrows.length,wave:story?story.wave:0,inv:inv?{...inv}:null};}
+  cycleView,
+  cyclePage,
+  interact,
+  closeBoard,
+  openBoard:openBoardPanel,
+  boardVisible(){return $('board').style.display==='flex';},
+  structures(){return structures.map((s,i)=>({i,type:s.type,x:s.x0,z:s.z0,w:s.w,d:s.d,g:s.g,board:s.board}));},
+  blockAt,
+  stats(){return{seed,chunks:chunks.size,pos:[player.x,player.y,player.z],state,mode,gmode,charIdx,hp:player.hp,flying,zombies:zombies.length,arrows:arrows.length,wave:story?story.wave:0,inv:inv?{...inv}:null,viewMode,camDist:lastCamDist,hbPage,boardOpen,nStructures:structures.length,nBoards:boards.size};}
 };
 
 /* ---------------- 起動 ---------------- */
