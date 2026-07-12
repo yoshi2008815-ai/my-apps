@@ -20,7 +20,7 @@ body.playing #hud{display:block;}
 #cross::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%);}
 /* ホットバー */
 #hotbar{position:absolute;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);
- display:flex;flex-wrap:wrap;justify-content:center;max-width:min(96vw,560px);gap:4px;padding:5px;background:rgba(0,0,0,.38);border:2px solid rgba(0,0,0,.5);border-radius:8px;pointer-events:auto;}
+ display:flex;flex-wrap:wrap;justify-content:center;max-width:min(96vw,660px);gap:4px;padding:5px;background:rgba(0,0,0,.38);border:2px solid rgba(0,0,0,.5);border-radius:8px;pointer-events:auto;}
 .slot.sm{width:44px;height:44px;border-width:2px;}
 .slot .cnt{position:absolute;bottom:1px;right:3px;font-size:11px;color:#fff;text-shadow:1px 1px #000;font-weight:700;}
 .slot.empty{opacity:.45;}
@@ -122,6 +122,64 @@ body.gamepad #gpBadge{display:block;}
 #bStepX{font-size:13px;line-height:1.65;min-height:44px;}
 #bNav{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
 .slot.pageBtn{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;text-align:center;line-height:1.2;background:rgba(70,110,210,.4);}
+/* ボードパネル拡張: つかうブロック・ボタン列・凡例 */
+#bUse{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0;padding:6px 8px;background:rgba(255,225,74,.25);border:2px dashed #c89a2a;border-radius:10px;min-height:44px;}
+#bUse .ulabel{font-size:12px;font-weight:900;color:#7a4a12;}
+.buse1{display:flex;align-items:center;gap:3px;font-weight:900;font-size:15px;color:#3a2c1a;}
+.buse1 canvas{width:34px;height:34px;image-rendering:pixelated;border-radius:5px;border:2px solid #8a5a2b;}
+#bBtns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.bbig{flex:1;padding:10px 6px;font-size:14px;font-weight:900;border:none;border-radius:9px;cursor:pointer;color:#fff;min-width:110px;}
+#bBuild{background:#2e9e44;box-shadow:0 3px 0 #1c6b2c;}
+#bDock{background:#4a6ed3;box-shadow:0 3px 0 #2c4489;}
+.bbig:active{transform:translateY(2px);box-shadow:none;}
+#bLegend{font-size:11px;font-weight:700;color:#7a6a50;margin-top:6px;}
+/* ドックモード（右端カラム・ゲーム操作可） */
+:root{--dockw:0px;}
+body.docked{--dockw:min(28vw,330px);}
+#board.dock{justify-content:flex-end;align-items:stretch;background:none;pointer-events:none;}
+#board.dock #bInner{width:min(28vw,330px);min-width:225px;max-height:100%;height:100%;border-radius:0;border-width:0 0 0 4px;padding:8px 10px calc(10px + env(safe-area-inset-bottom));pointer-events:auto;}
+#board.dock #bDesc,#board.dock #bMats,#board.dock #bLegend{display:none;}
+#board.dock #bTitle{font-size:14px;}
+#board.dock #bStepT{font-size:14px;}
+#board.dock #bStepX{font-size:12px;min-height:0;}
+#board.dock .bbig{padding:8px 4px;font-size:12px;min-width:80px;}
+body.docked #btnJump{right:calc(28px + var(--dockw) + env(safe-area-inset-right));}
+body.docked #btnMode{right:calc(40px + var(--dockw) + env(safe-area-inset-right));}
+body.docked #btnDown{right:calc(136px + var(--dockw) + env(safe-area-inset-right));}
+body.docked #btnHome{right:calc(10px + var(--dockw) + env(safe-area-inset-right));}
+body.docked #btnView{right:calc(62px + var(--dockw) + env(safe-area-inset-right));}
+body.docked #hotbar{left:calc(50% - var(--dockw)/2);}
+body.docked #toast{left:calc(50% - var(--dockw)/2);}
+/* ガイド建築HUD */
+#ghud{position:absolute;top:calc(44px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:none;align-items:center;gap:8px;background:rgba(14,20,38,.82);border:2px solid rgba(255,255,255,.5);border-radius:14px;padding:6px 10px;color:#fff;pointer-events:auto;z-index:7;max-width:94vw;}
+body.docked #ghud{left:calc(50% - var(--dockw)/2);}
+#ghudIco{width:38px;height:38px;image-rendering:pixelated;border-radius:6px;border:2px solid rgba(255,255,255,.6);background:#223;}
+#ghudStep{font-size:11px;color:#ffe08a;font-weight:700;white-space:nowrap;}
+#ghudMain{font-size:14px;font-weight:900;white-space:nowrap;text-shadow:1px 1px #000;}
+#ghudStop{background:#c0392b;padding:6px 9px;font-size:11px;line-height:1.3;text-align:center;}
+#ghudBoard{background:#4a6ed3;padding:6px 9px;font-size:16px;}
+/* ゴースト設置プレビューのふきだし */
+#siteBox{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(170px + env(safe-area-inset-bottom));background:rgba(255,255,255,.95);color:#223;border-radius:14px;padding:10px 14px;display:none;pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,.45);font-size:14px;font-weight:700;text-align:center;z-index:7;line-height:1.6;}
+#siteBox .gbtn{margin:6px 5px 0;}
+#siteOk{background:#2e9e44;}
+#siteNo{background:#888;}
+/* はじめてクエスト */
+#quest{position:absolute;left:calc(10px + env(safe-area-inset-left));top:calc(100px + env(safe-area-inset-top));width:230px;background:rgba(18,22,38,.92);border:2px solid rgba(255,225,74,.6);border-radius:14px;padding:10px 12px;color:#fff;pointer-events:auto;display:none;z-index:8;}
+#questHead{font-size:14px;font-weight:900;color:#ffe08a;margin-bottom:6px;}
+.qitem{display:flex;align-items:center;gap:6px;font-size:12.5px;line-height:1.5;padding:3px 0;font-weight:700;}
+.qitem .qc{width:20px;height:20px;border-radius:6px;border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;background:rgba(0,0,0,.3);}
+.qitem.done{color:#9fe6a0;}
+.qitem.done .qc{background:#2e9e44;border-color:#9fe6a0;}
+#questBtns{display:flex;gap:6px;margin-top:8px;}
+#questBtns .gbtn{flex:1;font-size:12px;padding:7px 4px;}
+#questLater{background:#666;}
+/* おいわい */
+#bigMsg{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(0);color:#fff;font-size:clamp(28px,6vw,54px);font-weight:900;text-shadow:0 4px 0 #7a4a12,0 6px 18px rgba(0,0,0,.6);z-index:18;pointer-events:none;white-space:nowrap;}
+#bigMsg.pop{animation:bpop 2.6s ease forwards;}
+@keyframes bpop{0%{transform:translate(-50%,-50%) scale(0)}12%{transform:translate(-50%,-50%) scale(1.15)}20%{transform:translate(-50%,-50%) scale(1)}80%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+#fx{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:17;}
+.cf{position:absolute;top:-6%;width:10px;height:14px;border-radius:2px;animation:cfall linear forwards;}
+@keyframes cfall{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(115vh) rotate(720deg)}}
 #errOv{position:absolute;inset:0;background:rgba(60,0,0,.9);color:#fff;padding:20px;font-size:13px;display:none;z-index:99;white-space:pre-wrap;overflow:auto;}
 </style>
 </head>
@@ -139,17 +197,33 @@ body.gamepad #gpBadge{display:block;}
   <div id="btnJump" class="rbtn touchOnly">⬆</div>
   <div id="btnDown" class="rbtn">⬇</div>
   <div id="btnMode" class="rbtn touchOnly">⛏<br>こわす</div>
-  <div id="btnGuide" class="rbtn">📖</div>
+  <div id="btnGuide" class="rbtn">📘</div>
   <div id="btnHome" class="rbtn">⏸</div>
   <div id="btnView" class="rbtn">👁</div>
   <div id="board"><div id="bInner">
     <div id="bClose">✕ とじる</div><div id="bTitle"></div>
     <div id="bDesc"></div>
-    <div id="bMats"></div>
-    <canvas id="bCv" width="192" height="128"></canvas>
     <div id="bStepT"></div><div id="bStepX"></div>
+    <div id="bUse"><span class="ulabel">つかう<br>ブロック</span></div>
+    <canvas id="bCv" width="192" height="128"></canvas>
     <div id="bNav"><button class="gbtn" id="bPrev">◀ まえ</button><span id="bNum" style="font-size:12px;color:#7a6a50;"></span><button class="gbtn" id="bNext">つぎ ▶</button></div>
+    <div id="bBtns"><button class="bbig" id="bBuild">🔨 いっしょにつくる</button><button class="bbig" id="bDock">▶ よこにおく</button></div>
+    <div id="bLegend">🎨 いろの ひょう（この いろ ＝ この ブロック）</div>
+    <div id="bMats"></div>
   </div></div>
+  <div id="ghud">
+    <canvas id="ghudIco" width="32" height="32"></canvas>
+    <div><div id="ghudStep"></div><div id="ghudMain"></div></div>
+    <div class="gbtn" id="ghudBoard">📋</div>
+    <div class="gbtn" id="ghudStop">しじを<br>やめる</div>
+  </div>
+  <div id="siteBox">👻 ここに たてる？<br><span style="font-size:12px;font-weight:700;color:#556;">あるいて うごくと ばしょも ついてくるよ</span><br>
+    <button class="gbtn" id="siteOk">✅ ここにする！</button><button class="gbtn" id="siteNo">やめる</button></div>
+  <div id="quest">
+    <div id="questHead">📘 はじめてクエスト</div>
+    <div id="questList"></div>
+    <div id="questBtns"><button class="gbtn" id="questHouse">🏠 おうちのつくりかた</button><button class="gbtn" id="questLater">あとでやる</button></div>
+  </div>
   <div id="storyBox"><span id="storyText"></span><div style="text-align:right"><button id="storyBtn">つぎへ ▶</button></div></div>
   <div id="guide">
     <div id="guideHead">🏠 おうちの つくりかた <span id="guideClose">✕</span></div>
@@ -161,6 +235,8 @@ body.gamepad #gpBadge{display:block;}
   <div id="toast"></div>
   <div id="fps"></div>
 </div>
+<div id="fx"></div>
+<div id="bigMsg"></div>
 <div id="endOv"><div id="endInner"><div id="endEmoji"></div><div id="endMsg"></div><div id="endBtns"></div></div></div>
 <div id="title">
   <div id="titleInner">
@@ -178,7 +254,8 @@ body.gamepad #gpBadge{display:block;}
       🎮 コントローラー: 左スティックいどう・右スティックしてん・A:ジャンプ・R2:こわす・L2:おく・Y:してんきりかえ・X:ボードをよむ・Start:タイトル<br>
       ⌨️ PC: WASD+マウス / スペース:ジャンプ / 左クリックこわす・右クリックおく / すうじキー:ブロック / F5:してん / E:ボードをよむ<br>
       👁 ボタンで 一人称⇔三人称きりかえ / 🕊 ジャンプ2かいで そらとび！<br>
-      🏘 スポーンのまわりに おしろや とうだいなど 12の たてもの！いりぐちの 📋ボードで つくりかたが よめるよ
+      🏘 スポーンのまわりに おしろや とうだいなど 12の たてもの！いりぐちの 📋ボードで つくりかたが よめるよ<br>
+      🔨 ボードの「いっしょにつくる」で ゴーストの おてほんを みながら たてられる / 💡ひろばの べんりボードで しかけの つくりかたも！
     </div>
   </div>
 </div>
@@ -232,7 +309,7 @@ const ITEM_DEFS={[IT_SWORD]:{name:'木のけん',emo:'🗡️'},[IT_BOW]:{name:'
 /* ページ切替式ホットバー（パレット） */
 const PAGES_NORMAL=[
  {name:'きほん',ids:[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANK,B.LOG,B.BRICK,B.GLASS,IT_SWORD,IT_BOW]},
- {name:'かざり',ids:[B.SBRICK,B.QUARTZ,B.GOLD,B.LAMP,B.WOOLR,B.WOOLU,B.BOOKSHELF,B.SNOW,B.COBBLE,B.GRAVEL]},
+ {name:'かざり',ids:[B.SBRICK,B.QUARTZ,B.GOLD,B.LAMP,B.WOOLR,B.WOOLU,B.BOOKSHELF,B.SNOW,B.COBBLE,B.GRAVEL,B.LEAF,B.WATER]},
 ];
 const PAGES_FULL=[
  {name:'きほん',ids:[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANK,B.LOG,B.BRICK,B.GLASS,B.SBRICK,B.COBBLE]},
@@ -306,7 +383,7 @@ uniform mat4 uPV;uniform vec3 uCam;
 varying vec2 vUV;varying float vLight;varying float vDist;
 void main(){vUV=aUV;vLight=aLight;vDist=distance(aPos,uCam);gl_Position=uPV*vec4(aPos,1.0);}`,
 PREC+`varying vec2 vUV;varying float vLight;varying float vDist;
-uniform sampler2D uTex;uniform vec3 uFogCol;uniform vec2 uFogRange;uniform float uMode;uniform float uNight;
+uniform sampler2D uTex;uniform vec3 uFogCol;uniform vec2 uFogRange;uniform float uMode;uniform float uNight;uniform float uAlpha;
 void main(){
  vec4 c=texture2D(uTex,vUV);
  if(uMode<0.5){if(c.a<0.5)discard;c.a=1.0;}
@@ -314,9 +391,9 @@ void main(){
  col*=mix(vec3(1.0),vec3(0.50,0.55,0.85),uNight);
  float f=clamp((vDist-uFogRange.x)/(uFogRange.y-uFogRange.x),0.0,1.0);
  col=mix(col,uFogCol,f);
- gl_FragColor=vec4(col,c.a);
+ gl_FragColor=vec4(col,c.a*uAlpha);
 }`,['aPos','aUV','aLight']);
-const uMain=uniforms(progMain,['uPV','uCam','uTex','uFogCol','uFogRange','uMode','uNight']);
+const uMain=uniforms(progMain,['uPV','uCam','uTex','uFogCol','uFogRange','uMode','uNight','uAlpha']);
 
 // 空シェーダ（グラデーション+太陽）
 const progSky=makeProg(
@@ -356,11 +433,11 @@ void main(){
 }`,['aPos']);
 const uCloud=uniforms(progCloud,['uPV','uCenter','uTex','uTime','uNight']);
 
-// ライン（ハイライト枠）シェーダ
+// ライン（ハイライト枠・ゴースト塗り）シェーダ
 const progLine=makeProg(
-`attribute vec3 aPos;uniform mat4 uPV;uniform vec3 uOff;void main(){gl_Position=uPV*vec4(aPos+uOff,1.0);}`,
+`attribute vec3 aPos;uniform mat4 uPV;uniform vec3 uOff;uniform vec3 uScale;void main(){gl_Position=uPV*vec4(aPos*uScale+uOff,1.0);}`,
 PREC+`uniform vec4 uCol;void main(){gl_FragColor=uCol;}`,['aPos']);
-const uLine=uniforms(progLine,['uPV','uOff','uCol']);
+const uLine=uniforms(progLine,['uPV','uOff','uCol','uScale']);
 
 // 固定ジオメトリ
 const skyBuf=gl.createBuffer();
@@ -597,8 +674,9 @@ const STYPES={
  lighthouse:{w:7,d:7,h:15}, library:{w:11,d:9,h:7}, cafe:{w:9,d:8,h:6},
  windmill:{w:7,d:7,h:14}, tower:{w:7,d:7,h:14}, villa:{w:14,d:11,h:6},
  farm:{w:13,d:11,h:6}, church:{w:9,d:14,h:13}, bridge:{w:5,d:11,h:5},
+ tips:{w:13,d:4,h:4},
 };
-let structures=[],pathSet=new Map(),boards=new Map(),plaza=[0,0];
+let structures=[],pathSet=new Map(),boards=new Map(),BOARD_LIST=[],plaza=[0,0];
 function rectsOverlap(a,b,gap){return a.x0-gap<=b.x1&&a.x1+gap>=b.x0&&a.z0-gap<=b.z1&&a.z1+gap>=b.z0;}
 function siteOK(x0,z0,w,d,placed,shore){
   const cx=x0+(w>>1),cz=z0+(d>>1),h=heightAt(cx,cz);
@@ -609,15 +687,23 @@ function siteOK(x0,z0,w,d,placed,shore){
   for(const p of placed)if(rectsOverlap(r,p,4))return null;
   return h;
 }
-function addStructure(type,x0,z0,g,placed){
-  const S=STYPES[type];
-  const st={type,x0,z0,w:S.w,d:S.d,h:S.h,g};
-  st.board=[x0+(S.w>>1),g,z0+S.d+1];
-  structures.push(st);
-  placed.push({x0,z0,x1:x0+S.w-1,z1:z0+S.d+2});
-  const bi=structures.length-1,[bx,bg,bz]=st.board;
+function regBoard(st,bx,bg,bz,entry){
+  st.boards.push([bx,bg,bz]);
+  const bi=BOARD_LIST.length;BOARD_LIST.push(entry);
   boards.set(bx+','+(bg+1)+','+bz,bi);
   boards.set(bx+','+(bg+2)+','+bz,bi);
+}
+function addStructure(type,x0,z0,g,placed){
+  const S=STYPES[type];
+  const st={type,x0,z0,w:S.w,d:S.d,h:S.h,g,boards:[]};
+  structures.push(st);
+  placed.push({x0,z0,x1:x0+S.w-1,z1:z0+S.d+2});
+  const si=structures.length-1;
+  if(type==='tips'){
+    for(let k=0;k<TIPS.length;k++)regBoard(st,x0+1+k*2,g,z0+2,{tip:k});
+  }else{
+    regBoard(st,x0+(S.w>>1),g,z0+S.d+1,{s:si});
+  }
 }
 function findSite(type,ax,az,placed,shore){
   const S=STYPES[type];
@@ -640,7 +726,7 @@ function carvePath(x0,z0,x1,z1){
   put();
 }
 function computeStructures(sx,sz){
-  structures=[];pathSet=new Map();boards=new Map();
+  structures=[];pathSet=new Map();boards=new Map();BOARD_LIST=[];
   const SX=Math.floor(sx),SZ=Math.floor(sz);
   const placed=[{x0:SX-2,z0:SZ-2,x1:SX+2,z1:SZ+2}];
   plaza=[SX+13,SZ];
@@ -668,7 +754,10 @@ function computeStructures(sx,sz){
   }
   if(!lh)lh=findSite('lighthouse',plaza[0]+40,plaza[1]+40,placed,true);
   if(lh)addStructure('lighthouse',lh.x0,lh.z0,lh.g,placed);
-  for(const st of structures)if(st.type!=='fountain')carvePath(st.board[0],st.board[2]+2,plaza[0],plaza[1]);
+  // べんりボードコーナー（ふんすいひろばの ちかく）
+  const ts=findSite('tips',plaza[0]+Math.cos(-67.5*Math.PI/180)*20,plaza[1]+Math.sin(-67.5*Math.PI/180)*20,placed,false);
+  if(ts)addStructure('tips',ts.x0,ts.z0,ts.g,placed);
+  for(const st of structures)if(st.type!=='fountain')carvePath(st.boards[0][0],st.boards[0][2]+2,plaza[0],plaza[1]);
 }
 function inStructRing(wx,wz){
   for(const st of structures)
@@ -676,147 +765,158 @@ function inStructRing(wx,wz){
   return false;
 }
 /* 各建造物のブロック構築（ローカル座標: P(x,y,z) yはG基準・y0=ゆか面） */
+let _capStep=0; // ガイド建築プラン記録用の現在ステップ（通常生成では無視）
 function mkh(st,put){
   const X=st.x0,Z=st.z0,G=st.g;
   const P=(x,y,z,id)=>put(X+x,G+y,Z+z,id);
   const box=(x0,y0,z0,x1,y1,z1,id)=>{for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)P(x,y,z,id);};
   const walls=(x0,z0,x1,z1,y0,y1,id)=>{for(let y=y0;y<=y1;y++){for(let x=x0;x<=x1;x++){P(x,y,z0,id);P(x,y,z1,id);}for(let z=z0;z<=z1;z++){P(x0,y,z,id);P(x1,y,z,id);}}};
   const crenel=(x0,z0,x1,z1,y,id)=>{for(let x=x0;x<=x1;x++){if((x+z0)%2===0)P(x,y,z0,id);if((x+z1)%2===0)P(x,y,z1,id);}for(let z=z0;z<=z1;z++){if((x0+z)%2===0)P(x0,y,z,id);if((x1+z)%2===0)P(x1,y,z,id);}};
-  return{P,box,walls,crenel};
+  const stp=i=>{_capStep=i;};
+  return{P,box,walls,crenel,stp};
 }
 const BUILDERS={
- fountain(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,10,0,10,B.QUARTZ);box(1,0,1,9,0,9,B.COBBLE);box(3,0,3,7,0,7,B.QUARTZ);
-  walls(3,3,7,7,1,1,B.SBRICK);box(4,1,4,6,1,6,B.WATER);
-  P(5,1,5,B.QUARTZ);P(5,2,5,B.QUARTZ);P(5,3,5,B.QUARTZ);P(5,4,5,B.GOLD);
-  for(const[cx,cz]of[[1,1],[9,1],[1,9],[9,9]]){P(cx,1,cz,B.LOG);P(cx,2,cz,B.LOG);P(cx,3,cz,B.LAMP);}
+ fountain(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,10,0,10,B.QUARTZ);box(1,0,1,9,0,9,B.COBBLE);box(3,0,3,7,0,7,B.QUARTZ);
+  stp(1);walls(3,3,7,7,1,1,B.SBRICK);
+  stp(3);box(4,1,4,6,1,6,B.WATER);
+  stp(2);P(5,1,5,B.QUARTZ);P(5,2,5,B.QUARTZ);P(5,3,5,B.QUARTZ);P(5,4,5,B.GOLD);
+  stp(4);for(const[cx,cz]of[[1,1],[9,1],[1,9],[9,9]]){P(cx,1,cz,B.LOG);P(cx,2,cz,B.LOG);P(cx,3,cz,B.LAMP);}
   for(const x of[4,5,6]){P(x,1,0,B.LOG);P(x,1,10,B.LOG);}
   for(const z of[4,5,6]){P(0,1,z,B.LOG);P(10,1,z,B.LOG);}
   P(2,1,2,B.LEAF);P(2,1,8,B.WOOLR);P(8,1,2,B.WOOLU);P(8,1,8,B.LEAF);},
- house(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,10,0,8,B.QUARTZ);
-  walls(0,0,10,8,1,3,B.QUARTZ);
+ house(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,10,0,8,B.QUARTZ);
+  stp(1);walls(0,0,10,8,1,3,B.QUARTZ);
   for(const z of[2,3,4,5,6]){box(0,1,z,0,2,z,B.GLASS);box(10,1,z,10,2,z,B.GLASS);}
   for(const x of[1,2,3,4,6,7,8,9]){P(x,1,8,B.GLASS);P(x,2,8,B.GLASS);P(x,2,0,B.GLASS);}
   P(5,1,8,B.AIR);P(5,2,8,B.AIR);                      // ドア
-  box(0,4,0,10,4,8,B.PLANK);                           // 2Fゆか
-  walls(0,0,10,8,5,7,B.QUARTZ);
+  stp(2);box(0,4,0,10,4,8,B.PLANK);                    // 2Fゆか
+  stp(3);walls(0,0,10,8,5,7,B.QUARTZ);
   for(const x of[2,3,4,6,7,8]){P(x,6,0,B.GLASS);P(x,6,8,B.GLASS);}
   for(const z of[2,3,4,5,6]){P(0,6,z,B.GLASS);P(10,6,z,B.GLASS);}
-  box(0,8,0,10,8,8,B.SBRICK);
+  stp(4);box(0,8,0,10,8,8,B.SBRICK);
   P(0,8,0,B.GOLD);P(10,8,0,B.GOLD);P(0,8,8,B.GOLD);P(10,8,8,B.GOLD);
-  P(1,1,6,B.PLANK);P(1,2,5,B.PLANK);P(1,3,4,B.PLANK);P(1,4,3,B.AIR); // かいだん
-  P(7,1,1,B.WOOLR);P(8,1,1,B.WOOLR);P(9,1,1,B.BOOKSHELF);P(9,2,1,B.BOOKSHELF);
+  stp(2);P(1,1,6,B.PLANK);P(1,2,5,B.PLANK);P(1,3,4,B.PLANK);P(1,4,3,B.AIR); // かいだん
+  stp(5);P(7,1,1,B.WOOLR);P(8,1,1,B.WOOLR);P(9,1,1,B.BOOKSHELF);P(9,2,1,B.BOOKSHELF);
   P(4,1,2,B.LOG);P(4,2,2,B.PLANK);P(5,3,4,B.LAMP);
   P(8,5,1,B.WOOLU);P(8,5,2,B.WOOLU);P(5,7,4,B.LAMP);},
- castle(st,put){const{P,box,walls,crenel}=mkh(st,put);
-  box(0,0,0,18,0,16,B.COBBLE);
-  walls(0,0,18,16,1,4,B.SBRICK);crenel(0,0,18,16,5,B.SBRICK);
-  box(8,1,16,10,3,16,B.AIR);P(7,1,16,B.LOG);P(7,2,16,B.LOG);P(7,3,16,B.LOG);P(7,4,16,B.LOG);
+ castle(st,put){const{P,box,walls,crenel,stp}=mkh(st,put);
+  stp(0);box(0,0,0,18,0,16,B.COBBLE);
+  stp(1);walls(0,0,18,16,1,4,B.SBRICK);crenel(0,0,18,16,5,B.SBRICK);
+  stp(2);box(8,1,16,10,3,16,B.AIR);P(7,1,16,B.LOG);P(7,2,16,B.LOG);P(7,3,16,B.LOG);P(7,4,16,B.LOG);
   P(11,1,16,B.LOG);P(11,2,16,B.LOG);P(11,3,16,B.LOG);P(11,4,16,B.LOG);
   for(const[tx,tz]of[[0,0],[14,0],[0,12],[14,12]]){
-    walls(tx,tz,tx+4,tz+4,1,8,B.COBBLE);
+    stp(3);walls(tx,tz,tx+4,tz+4,1,8,B.COBBLE);
     box(tx+1,8,tz+1,tx+3,8,tz+3,B.SBRICK);
     crenel(tx,tz,tx+4,tz+4,9,B.SBRICK);
-    P(tx+2,9,tz+2,B.LAMP);}
-  box(9,1,11,9,1,15,B.SBRICK);                         // 参道
-  walls(5,4,13,10,1,4,B.SBRICK);box(5,5,4,13,5,10,B.PLANK); // キープ
+    stp(5);P(tx+2,9,tz+2,B.LAMP);}
+  stp(0);box(9,1,11,9,1,15,B.SBRICK);                  // 参道
+  stp(4);walls(5,4,13,10,1,4,B.SBRICK);box(5,5,4,13,5,10,B.PLANK); // キープ
   P(9,1,10,B.AIR);P(9,2,10,B.AIR);
   box(9,1,6,9,1,9,B.WOOLR);P(9,1,5,B.GOLD);P(9,2,5,B.WOOLR);
   P(7,2,5,B.WOOLR);P(7,3,5,B.WOOLR);P(11,2,5,B.WOOLR);P(11,3,5,B.WOOLR);
-  P(8,4,7,B.LAMP);P(10,4,7,B.LAMP);},
- lighthouse(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,6,0,6,B.COBBLE);
-  for(let y=1;y<=11;y++){const id=(((y-1)/3)|0)%2===0?B.WOOLR:B.QUARTZ;
+  stp(5);P(8,4,7,B.LAMP);P(10,4,7,B.LAMP);},
+ lighthouse(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(1);box(0,0,0,6,0,6,B.COBBLE);
+  stp(2);for(let y=1;y<=11;y++){const id=(((y-1)/3)|0)%2===0?B.WOOLR:B.QUARTZ;
     for(let x=1;x<=5;x++){P(x,y,1,id);P(x,y,5,id);}
     for(let z=1;z<=5;z++){P(1,y,z,id);P(5,y,z,id);}}
   P(3,1,5,B.AIR);P(3,2,5,B.AIR);
-  walls(1,1,5,5,12,12,B.GLASS);
+  stp(3);walls(1,1,5,5,12,12,B.GLASS);
   P(1,12,1,B.QUARTZ);P(5,12,1,B.QUARTZ);P(1,12,5,B.QUARTZ);P(5,12,5,B.QUARTZ);
   P(3,12,3,B.LAMP);
-  box(1,13,1,5,13,5,B.QUARTZ);P(3,14,3,B.WOOLR);},
- library(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,10,0,8,B.PLANK);
-  walls(0,0,10,8,1,4,B.BRICK);
+  stp(4);box(1,13,1,5,13,5,B.QUARTZ);P(3,14,3,B.WOOLR);},
+ library(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,10,0,8,B.PLANK);
+  stp(1);walls(0,0,10,8,1,4,B.BRICK);
   P(5,1,8,B.AIR);P(5,2,8,B.AIR);
   for(const x of[2,3,7,8]){P(x,2,8,B.GLASS);P(x,2,0,B.GLASS);}
   for(const z of[3,4,5]){P(0,2,z,B.GLASS);P(10,2,z,B.GLASS);}
-  box(1,1,1,9,3,1,B.BOOKSHELF);
+  stp(2);box(1,1,1,9,3,1,B.BOOKSHELF);
   box(1,1,2,1,3,3,B.BOOKSHELF);box(9,1,2,9,3,3,B.BOOKSHELF);
-  P(3,1,4,B.LOG);P(3,2,4,B.PLANK);P(7,1,4,B.LOG);P(7,2,4,B.PLANK);
+  stp(3);P(3,1,4,B.LOG);P(3,2,4,B.PLANK);P(7,1,4,B.LOG);P(7,2,4,B.PLANK);
   P(3,4,4,B.LAMP);P(7,4,4,B.LAMP);
-  box(0,5,0,10,5,8,B.PLANK);walls(0,0,10,8,5,5,B.BRICK);},
- cafe(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,8,0,7,B.PLANK);
-  walls(0,0,8,7,1,3,B.PLANK);
+  stp(4);box(0,5,0,10,5,8,B.PLANK);walls(0,0,10,8,5,5,B.BRICK);},
+ cafe(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,8,0,7,B.PLANK);
+  stp(1);walls(0,0,8,7,1,3,B.PLANK);
   for(const[cx,cz]of[[0,0],[8,0],[0,7],[8,7]])box(cx,1,cz,cx,3,cz,B.LOG);
   box(3,1,7,5,3,7,B.AIR);                              // 大きな入口
   P(2,2,7,B.GLASS);P(6,2,7,B.GLASS);P(2,2,0,B.GLASS);P(6,2,0,B.GLASS);
-  box(0,4,0,8,4,7,B.PLANK);
-  for(let x=0;x<=8;x++)P(x,4,7,(x%2===0)?B.WOOLR:B.QUARTZ);  // ひさし
-  box(1,1,2,4,1,2,B.QUARTZ);P(1,2,2,B.LAMP);           // カウンター
-  P(6,1,4,B.LOG);P(6,2,4,B.PLANK);P(2,1,5,B.LOG);P(2,2,5,B.PLANK);},
- windmill(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,6,0,6,B.COBBLE);
-  walls(0,0,6,6,1,2,B.COBBLE);walls(0,0,6,6,3,8,B.PLANK);
+  stp(4);box(0,4,0,8,4,7,B.PLANK);
+  stp(3);for(let x=0;x<=8;x++)P(x,4,7,(x%2===0)?B.WOOLR:B.QUARTZ);  // ひさし
+  stp(2);box(1,1,2,4,1,2,B.QUARTZ);P(1,2,2,B.LAMP);    // カウンター
+  stp(4);P(6,1,4,B.LOG);P(6,2,4,B.PLANK);P(2,1,5,B.LOG);P(2,2,5,B.PLANK);},
+ windmill(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,6,0,6,B.COBBLE);
+  walls(0,0,6,6,1,2,B.COBBLE);
+  stp(1);walls(0,0,6,6,3,8,B.PLANK);
   P(3,1,6,B.AIR);P(3,2,6,B.AIR);
   P(3,5,6,B.GLASS);
-  box(0,9,0,6,9,6,B.WOOLR);P(3,10,3,B.WOOLR);
-  P(3,8,7,B.LOG);                                       // ハブ
+  stp(2);box(0,9,0,6,9,6,B.WOOLR);P(3,10,3,B.WOOLR);
+  stp(3);P(3,8,7,B.LOG);                                // ハブ
   for(let k=1;k<=4;k++){P(3+k,8+k,7,B.PLANK);P(3-k,8-k,7,B.PLANK);P(3-k,8+k,7,B.WOOLU);P(3+k,8-k,7,B.WOOLU);}
-  P(2,1,2,B.PLANK);P(4,1,4,B.SAND);},
- tower(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,6,0,6,B.SBRICK);
+  stp(4);P(2,1,2,B.PLANK);P(4,1,4,B.SAND);},
+ tower(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,6,0,6,B.SBRICK);
   for(const[cx,cz]of[[0,0],[6,0],[0,6],[6,6]])box(cx,1,cz,cx,10,cz,B.SBRICK);
   walls(0,0,6,6,1,1,B.LOG);box(3,1,6,3,1,6,B.AIR);
   walls(0,0,6,6,5,5,B.SBRICK);walls(0,0,6,6,10,10,B.SBRICK);
-  const sp=[[1,1],[3,1],[5,1],[5,3],[5,5],[3,5],[1,5],[1,3]];
+  stp(1);const sp=[[1,1],[3,1],[5,1],[5,3],[5,5],[3,5],[1,5],[1,3]];
   for(let k=0;k<10;k++){const o=sp[k%8];P(o[0],k+1,o[1],B.PLANK);}
-  box(0,11,0,6,11,6,B.PLANK);
-  walls(0,0,6,6,12,12,B.LOG);
+  stp(2);box(0,11,0,6,11,6,B.PLANK);
+  stp(3);walls(0,0,6,6,12,12,B.LOG);
   for(const[cx,cz]of[[0,0],[6,0],[0,6],[6,6]])P(cx,12,cz,B.LAMP);
-  P(3,11,3,B.AIR);                                      // のぼり口
+  stp(2);P(3,11,3,B.AIR);                               // のぼり口
  },
- villa(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,13,0,10,B.PLANK);
-  walls(0,0,6,10,1,3,B.QUARTZ);
+ villa(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,13,0,10,B.PLANK);
+  stp(1);walls(0,0,6,10,1,3,B.QUARTZ);
   for(const[cx,cz]of[[0,0],[6,0],[0,10],[6,10]])box(cx,1,cz,cx,3,cz,B.LOG);
   P(6,1,5,B.AIR);P(6,2,5,B.AIR);
   P(2,2,10,B.GLASS);P(4,2,10,B.GLASS);P(2,2,0,B.GLASS);P(4,2,0,B.GLASS);
   P(0,2,4,B.GLASS);P(0,2,6,B.GLASS);
-  box(0,4,0,6,4,10,B.BRICK);
-  P(1,1,1,B.WOOLR);P(1,1,2,B.WOOLR);P(5,1,1,B.BOOKSHELF);P(3,3,5,B.LAMP);
-  walls(8,2,12,8,0,0,B.QUARTZ);                         // プールのふち
+  stp(2);box(0,4,0,6,4,10,B.BRICK);
+  stp(4);P(1,1,1,B.WOOLR);P(1,1,2,B.WOOLR);P(5,1,1,B.BOOKSHELF);P(3,3,5,B.LAMP);
+  stp(3);walls(8,2,12,8,0,0,B.QUARTZ);                  // プールのふち
   box(9,-1,3,11,-1,7,B.QUARTZ);box(9,0,3,11,0,7,B.WATER);
-  P(8,1,2,B.LOG);P(8,2,2,B.LAMP);P(12,1,8,B.LOG);P(12,2,8,B.LAMP);},
- farm(st,put){const{P,box,walls}=mkh(st,put);
-  walls(0,0,12,10,1,1,B.LOG);P(6,1,10,B.AIR);
-  for(let z=1;z<=9;z++)for(const x of[1,3,5]){P(x,0,z,B.DIRT);P(x,1,z,B.LEAF);}
-  for(let z=1;z<=9;z++)for(const x of[2,4]){P(x,0,z,B.WATER);}
-  walls(7,2,11,8,1,3,B.PLANK);
+  stp(4);P(8,1,2,B.LOG);P(8,2,2,B.LAMP);P(12,1,8,B.LOG);P(12,2,8,B.LAMP);},
+ farm(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);walls(0,0,12,10,1,1,B.LOG);P(6,1,10,B.AIR);
+  stp(1);for(let z=1;z<=9;z++)for(const x of[1,3,5])P(x,0,z,B.DIRT);
+  for(let z=1;z<=9;z++)for(const x of[2,4])P(x,0,z,B.WATER);
+  stp(2);for(let z=1;z<=9;z++)for(const x of[1,3,5])P(x,1,z,B.LEAF);
+  stp(3);walls(7,2,11,8,1,3,B.PLANK);
   for(const[cx,cz]of[[7,2],[11,2],[7,8],[11,8]])box(cx,1,cz,cx,3,cz,B.LOG);
   P(7,1,5,B.AIR);P(7,2,5,B.AIR);
   box(7,4,2,11,4,8,B.WOOLR);
-  P(10,1,7,B.PLANK);P(10,1,3,B.SAND);P(10,2,3,B.SAND);P(9,1,3,B.SAND);},
- church(st,put){const{P,box,walls}=mkh(st,put);
-  box(0,0,0,8,0,13,B.QUARTZ);
-  box(4,0,2,4,0,11,B.WOOLR);
-  walls(0,0,8,13,1,5,B.QUARTZ);
+  stp(4);P(10,1,7,B.PLANK);P(10,1,3,B.SAND);P(10,2,3,B.SAND);P(9,1,3,B.SAND);},
+ church(st,put){const{P,box,walls,stp}=mkh(st,put);
+  stp(0);box(0,0,0,8,0,13,B.QUARTZ);
+  stp(4);box(4,0,2,4,0,11,B.WOOLR);
+  stp(0);walls(0,0,8,13,1,5,B.QUARTZ);
   box(3,1,13,5,2,13,B.AIR);P(4,3,13,B.AIR);
-  const sg=[B.GLASS,B.WOOLU,B.GLASS,B.WOOLR];
+  stp(1);const sg=[B.GLASS,B.WOOLU,B.GLASS,B.WOOLR];
   for(const z of[3,6,9])for(let y=1;y<=4;y++){P(0,y,z,sg[y-1]);P(8,y,z,sg[y-1]);}
-  box(0,6,0,8,6,13,B.BRICK);box(3,7,0,5,7,13,B.BRICK);
-  for(const z of[4,6,8]){P(2,1,z,B.PLANK);P(6,1,z,B.PLANK);}
+  stp(2);box(0,6,0,8,6,13,B.BRICK);box(3,7,0,5,7,13,B.BRICK);
+  stp(4);for(const z of[4,6,8]){P(2,1,z,B.PLANK);P(6,1,z,B.PLANK);}
   P(4,1,2,B.GOLD);
   P(1,1,2,B.LOG);P(1,2,2,B.LAMP);P(7,1,2,B.LOG);P(7,2,2,B.LAMP);
-  walls(3,11,5,13,1,8,B.QUARTZ);box(3,9,11,5,9,13,B.QUARTZ); // とう
+  stp(3);walls(3,11,5,13,1,8,B.QUARTZ);box(3,9,11,5,9,13,B.QUARTZ); // とう
   P(4,10,12,B.GOLD);P(4,11,12,B.GOLD);P(3,11,12,B.GOLD);P(5,11,12,B.GOLD);P(4,12,12,B.GOLD);},
- bridge(st,put){const{P,box}=mkh(st,put);
-  box(0,-2,3,4,-2,7,B.GRAVEL);box(0,-1,3,4,0,7,B.WATER);
-  box(1,1,0,3,1,2,B.PLANK);box(1,2,3,3,2,3,B.PLANK);
+ bridge(st,put){const{P,box,stp}=mkh(st,put);
+  stp(0);box(0,-2,3,4,-2,7,B.GRAVEL);
+  stp(1);box(0,-1,3,4,0,7,B.WATER);
+  stp(2);box(1,1,0,3,1,2,B.PLANK);box(1,2,3,3,2,3,B.PLANK);
   box(1,3,4,3,3,6,B.PLANK);box(1,2,7,3,2,7,B.PLANK);box(1,1,8,3,1,10,B.PLANK);
-  for(const x of[0,4]){box(x,2,0,x,2,2,B.LOG);P(x,3,3,B.LOG);box(x,4,4,x,4,6,B.LOG);P(x,3,7,B.LOG);box(x,2,8,x,2,10,B.LOG);}
+  stp(3);for(const x of[0,4]){box(x,2,0,x,2,2,B.LOG);P(x,3,3,B.LOG);box(x,4,4,x,4,6,B.LOG);P(x,3,7,B.LOG);box(x,2,8,x,2,10,B.LOG);}
   P(0,3,0,B.LAMP);P(4,3,0,B.LAMP);P(0,3,10,B.LAMP);P(4,3,10,B.LAMP);},
+ tips(st,put){const{P,box}=mkh(st,put);
+  box(0,0,0,12,0,3,B.COBBLE);
+  for(const x of[0,12]){P(x,1,3,B.LOG);P(x,2,3,B.LOG);P(x,3,3,B.LAMP);}
+  for(let x=1;x<=11;x++)P(x,1,0,B.PLANK);
+  P(3,1,0,B.LEAF);P(9,1,0,B.LEAF);},
 };
 function terraformStruct(st,put){
   for(let x=st.x0-1;x<=st.x0+st.w;x++)for(let z=st.z0-1;z<=st.z0+st.d;z++){
@@ -836,13 +936,14 @@ function stampStructures(x0,z0,data){
     if(st.x0-1>x0+15||st.x0+st.w<x0||st.z0-1>z0+15||st.z0+st.d+2<z0)continue;
     terraformStruct(st,putW);
     BUILDERS[st.type](st,putW);
-    const[bx,bg,bz]=st.board;
-    for(let y=Math.max(1,bg-5);y<bg;y++)putW(bx,y,bz,B.DIRT);   // 土台
-    putW(bx,bg,bz,B.COBBLE);
-    putW(bx,bg+1,bz,B.BOARD);
-    putW(bx,bg+2,bz,B.BOARD);
-    for(let y=bg+3;y<=Math.min(CHY-1,bg+6);y++)putW(bx,y,bz,B.AIR); // 埋まり防止
-    putW(bx,bg+1,bz+1,B.AIR);putW(bx,bg+2,bz+1,B.AIR);              // 正面をあける
+    for(const[bx,bg,bz]of st.boards){
+      for(let y=Math.max(1,bg-5);y<bg;y++)putW(bx,y,bz,B.DIRT);   // 土台
+      putW(bx,bg,bz,B.COBBLE);
+      putW(bx,bg+1,bz,B.BOARD);
+      putW(bx,bg+2,bz,B.BOARD);
+      for(let y=bg+3;y<=Math.min(CHY-1,bg+6);y++)putW(bx,y,bz,B.AIR); // 埋まり防止
+      putW(bx,bg+1,bz+1,B.AIR);putW(bx,bg+2,bz+1,B.AIR);              // 正面をあける
+    }
   }
 }
 
@@ -938,6 +1039,7 @@ function setBlockWorld(wx,wy,wz,id){
   if(lz===0)markDirty(cx,cz-1);if(lz===15)markDirty(cx,cz+1);
   if(lx===0&&lz===0)markDirty(cx-1,cz-1);if(lx===15&&lz===0)markDirty(cx+1,cz-1);
   if(lx===0&&lz===15)markDirty(cx-1,cz+1);if(lx===15&&lz===15)markDirty(cx+1,cz+1);
+  guideDirty=true; // ガイド建築の再チェック
   meshDirtyNow(); // 応答性のため即リメッシュ
   return true;
 }
@@ -1132,7 +1234,7 @@ function updatePlayer(dt,inp){
   }else{
     if(inp.jump){
       if(p.inWater){p.vy=Math.min(p.vy+34*dt,3.0);}
-      else if(p.onGround){p.vy=8.2*ch.jmp;sfx('jump');}
+      else if(p.onGround){p.vy=8.2*ch.jmp;sfx('jump');questMark('jump');}
     }
     p.vy-=(p.inWater?5.5:26)*dt;
     p.vy=Math.max(p.vy,p.inWater?-3.2:-23);
@@ -1213,6 +1315,7 @@ function doBreak(){
   setBlockWorld(t.x,t.y,t.z,B.AIR);
   if(inv){const g0=gainFor(t.id);if(g0!==null){inv[g0]=(inv[g0]||0)+1;refreshCounts();}}
   sfx('break');
+  guideOnBreak(t.x,t.y,t.z);
 }
 function doPlace(){
   if(state!=='play')return;
@@ -1233,6 +1336,7 @@ function doPlace(){
   setBlockWorld(x,y,z,it);
   if(inv){inv[it]--;refreshCounts();}
   sfx('place');
+  guideOnPlace(x,y,z,it);
 }
 function doAction(){mode==='break'?doBreak():doPlace();}
 
@@ -1282,6 +1386,11 @@ function sfx(k){
   else if(k==='wave'){tone(330,330,0.12,'square',0.12);setTimeout(()=>tone(440,440,0.14,'square',0.12),130);}
   else if(k==='win'){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,f,0.18,'square',0.12),i*160));}
   else if(k==='lose'){[392,330,262,196].forEach((f,i)=>setTimeout(()=>tone(f,f*0.9,0.22,'sawtooth',0.14),i*180));}
+  else if(k==='pikon'){tone(880,1320,0.09,'square',0.12);setTimeout(()=>tone(1320,1560,0.07,'square',0.08),70);}
+  else if(k==='kira'){tone(1560,2090,0.12,'sine',0.1);setTimeout(()=>tone(2090,2640,0.15,'sine',0.08),70);}
+  else if(k==='wrong'){tone(210,160,0.16,'square',0.09);}
+  else if(k==='stepclear'){[660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,f,0.13,'square',0.1),i*110));}
+  else if(k==='fanfare'){[523,659,784,1047,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,f,0.17,'square',0.12),i*140));}
 }
 
 /* ---------------- エンティティ（ゾンビ・矢） ---------------- */
@@ -1784,7 +1893,8 @@ function toggleGuide(){
   if(on)drawGuide();
   sfx('select');
 }
-$('btnGuide').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();toggleGuide();},{passive:false});
+$('btnGuide').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();
+  showQuest($('quest').style.display!=='block');sfx('select');},{passive:false});
 $('guideClose').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();$('guide').style.display='none';},{passive:false});
 $('gPrev').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(gStep>0){gStep--;drawGuide();sfx('select');}},{passive:false});
 $('gNext').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(gStep<GUIDE.length-1){gStep++;drawGuide();sfx('select');}},{passive:false});
@@ -1903,75 +2013,662 @@ const STRUCT_INFO={
    {t:'④ てすりと ランプ',x:'りょうはしに げんぼくの てすりと ランプを つけたら かんせい！',r:[1,2]},
    {t:'⑤ わたってみよう',x:'はしのうえから いけを のぞいてみよう。よるは ランプが きれいだよ！',r:[-1,-1]}]},
 };
-let boardOpen=-1,bStep=0;
-function drawBoardStep(){
-  const st=structures[boardOpen];if(!st)return;
-  const info=STRUCT_INFO[st.type],step=info.steps[bStep];
-  $('bStepT').textContent=step.t;
-  $('bStepX').textContent=step.x;
-  $('bNum').textContent=(bStep+1)+' / '+info.steps.length;
-  $('bPrev').disabled=bStep===0;
-  $('bNext').disabled=bStep===info.steps.length-1;
+/* --- ガイド建築プラン（ビルダー実行を記録して ブロック×ステップを取得） --- */
+const PLAN_CACHE={};
+function getPlan(type){
+  if(PLAN_CACHE[type])return PLAN_CACHE[type];
+  const S=STYPES[type],nSteps=STRUCT_INFO[type].steps.length;
+  const st={type,x0:0,z0:0,w:S.w,d:S.d,h:S.h,g:0};
+  const m=new Map();
+  _capStep=0;
+  BUILDERS[type](st,(x,y,z,id)=>m.set(x+','+y+','+z,{id,s:Math.min(_capStep,nSteps-1)}));
+  _capStep=0;
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+  const use=[];for(let i=0;i<nSteps;i++)use.push(new Map());
+  const blocks=[];
+  for(const[k,v]of m){
+    if(v.id===B.AIR)continue;
+    const c=k.split(','),px=+c[0],py=+c[1],pz=+c[2];
+    blocks.push({x:px,y:py,z:pz,id:v.id,s:v.s});
+    x0=Math.min(x0,px);x1=Math.max(x1,px);y0=Math.min(y0,py);y1=Math.max(y1,py);z0=Math.min(z0,pz);z1=Math.max(z1,pz);
+    const u=use[v.s];u.set(v.id,(u.get(v.id)||0)+1);
+  }
+  const p={m,blocks,use,x0,x1,y0,y1,z0,z1,nSteps};
+  PLAN_CACHE[type]=p;
+  return p;
+}
+/* --- べんりボード（ゲームでできる しかけ・Tips） --- */
+const TIPS=[
+ {name:'みずの しかけ',emo:'💧',desc:'みずブロックで たき・プール・すいろが つくれるよ。みずは とうめいで きれい！',
+  steps:[
+   {t:'① たきを つくろう',x:'たかい がけの よこに みずブロックを たてに ならべると たきに！ したに プールを ほると もっと すてき。',use:[B.WATER],
+    g:['SSw.....','SSw.....','SSw.....','SSw.....','GGwwwGGG','GGGGGGGG']},
+   {t:'② プールを つくろう',x:'じめんを 2だん ほって、そこと ふちを 白いいしに して みずを いれよう。とびこんで およげるよ！',use:[B.WATER,B.QUARTZ],
+    g:['........','........','QQQQQQQQ','QwwwwwwQ','QwwwwwwQ','QQQQQQQQ']},
+   {t:'③ すいろを つなごう',x:'みぞを 1だん ほって みずを いれると すいろに。いえの まわりに ながすと おほりみたいで かっこいい！',use:[B.WATER],
+    g:['........','........','........','........','GwwwwwwG','GGGGGGGG']}]},
+ {name:'ひかるランプで ライトアップ',emo:'💡',desc:'ひかるランプは おいた ばしょが あかるく かがやく とくべつな ブロック！',
+  steps:[
+   {t:'① ゆかうめランプ',x:'ゆかの ところどころを ランプに かえると ひかる ゆかに！ おしろの ろうかに ぴったり。',use:[B.LAMP,B.PLANK],
+    g:['........','........','........','........','PPMPPMPP','GGGGGGGG']},
+   {t:'② かんせつしょうめい',x:'かべや てんじょうに ランプを うめこむと やわらかい あかりに。ガラスごしに すると もっと おしゃれ！',use:[B.LAMP,B.BRICK,B.GLASS],
+    g:['BBMBBMBB','BBWBBWBB','B......B','B......B','B......B','GGGGGGGG']},
+   {t:'③ がいとうを たてよう',x:'げんぼく2つの うえに ランプを のせると がいとうに。みちに ならべると まちが ぐっと それらしくなる！',use:[B.LOG,B.LAMP],
+    g:['..M..M..','..L..L..','..L..L..','GGGGGGGG']}]},
+ {name:'ガラスの つかいかた',emo:'🪟',desc:'ガラスは むこうが みえる ブロック。ひかりも とおるから まどに ぴったり！',
+  steps:[
+   {t:'① てんまど',x:'やねの いちぶを ガラスに かえると おひさまの ひかりが へやに はいるよ。',use:[B.GLASS,B.BRICK],
+    g:['BBWWWBBB','B......B','B......B','B......B','GGGGGGGG']},
+   {t:'② すいちゅうトンネル',x:'うみや いけの なかに ガラスの トンネルを つくると みずのなかを さんぽできる！ さかなに なったきぶん。',use:[B.GLASS],
+    g:['wwwwwwww','wWWWWWWw','wW....Ww','wW....Ww','wWWWWWWw','GGGGGGGG']},
+   {t:'③ ステンドグラスふう',x:'ガラスと あか・あおの カーペットを まぜて ならべると ステンドグラスみたいに！ きょうかいの まどで つかわれてるよ。',use:[B.GLASS,B.WOOLR,B.WOOLU],
+    g:['..WUW...','..RWR...','..WUW...','..RWR...','GGGGGGGG']}]},
+ {name:'ひみつの へや',emo:'🚪',desc:'ほんだなの うしろに かくしべやを つくろう。しってる ひとだけの ひみつきち！',
+  steps:[
+   {t:'① かべに あなを あける',x:'いえの かべの いちぶを 2×2で こわして いりぐちを つくろう。',use:[],
+    g:['BBBBBBBB','BBB..BBB','BBB..BBB','GGGGGGGG']},
+   {t:'② なかに へやを つくる',x:'おくに ちいさな へやを ほりひろげよう。ランプを おかないと まっくらだよ！',use:[B.LAMP],
+    g:['BBBBBBBB','B..M...B','B......B','GGGGGGGG']},
+   {t:'③ ほんだなで かくす',x:'いりぐちを ほんだなで ふさげば かんせい！ はいるときは ほんだなを こわして、でたら また おけば バレない。',use:[B.BOOKSHELF],
+    g:['BBBBBBBB','BBBKKBBB','BBBKKBBB','GGGGGGGG']}]},
+ {name:'たかいところから ながめよう',emo:'🕊',desc:'そらとびと さんにんしょうで まちを ながめると たのしいよ！',
+  steps:[
+   {t:'① そらとびの しかた',x:'ジャンプボタンを 2かい すばやく おすと そらとび！ ⬆で うえ、⬇で した。もういちど 2かいおしで もどるよ。',use:[],
+    g:['....M...','....T...','....T...','GG..T.GG','GGGGGGGG']},
+   {t:'② さんにんしょうに しよう',x:'みぎうえの 👁ボタンで じぶんの すがたが みえる さんにんしょうに きりかわるよ。',use:[],
+    g:['........','...P....','..PPP...','..PPP...','GGGGGGGG']},
+   {t:'③ そらから まちを みよう',x:'そらとびで たかく のぼって まちを ぐるっと みまわそう。おきにいりの けしきを さがしてね！',use:[],
+    g:['P..M..P.','PP.T.PPP','PPPTPPPP','GGGGGGGG']}]},
+ {name:'のぼれる かいだん',emo:'🪜',desc:'はしごが なくても だいじょうぶ！ ブロックの おきかたで どこへでも のぼれるよ。',
+  steps:[
+   {t:'① かいだんを つくる',x:'ブロックを 1マスずつ ずらして 1だんずつ たかく おくと、ジャンプなしで のぼれる かいだんに！',use:[B.PLANK],
+    g:['.....P..','....PP..','...PPP..','..PPPP..','GGGGGGGG']},
+   {t:'② ジャンプづみ',x:'うえに いきたいときは、ジャンプした しゅんかんに ましたに ブロックを おくと せが のびるみたいに たかく なれる！',use:[B.DIRT],
+    g:['........','...D....','...D....','...D....','GGGGGGGG']},
+   {t:'③ らせんかいだん',x:'せまい ばしょなら はしらの まわりに ぐるぐる まわしながら おくと らせんかいだんに。てんぼうタワーの なかで みられるよ！',use:[B.PLANK,B.SBRICK],
+    g:['..TP....','.PT.....','..TP....','.PT.....','GGGGGGGG']}]},
+];
+/* --- ボードパネル本体 --- */
+let boardOpen=-1,bTipOpen=-1,boardKind='s',bStep=0,bDocked=false,bTimer=0,bBlink=true;
+function curSteps(){
+  if(boardKind==='tip')return TIPS[bTipOpen]?TIPS[bTipOpen].steps:null;
+  const st=structures[boardOpen];return st?STRUCT_INFO[st.type].steps:null;
+}
+function boardShown(){return boardOpen>=0||bTipOpen>=0;}
+function drawStructDiagram(type,stepIdx){
+  const plan=getPlan(type);
   const cv=$('bCv'),g=cv.getContext('2d');
+  const W=plan.x1-plan.x0+1,D=plan.z1-plan.z0+1,H=plan.y1-plan.y0+1;
+  const cell=12,gap=16,top=14;
+  cv.width=W*2*cell+gap+4;
+  cv.height=top+Math.max(D,H+1)*cell+3;
   g.imageSmoothingEnabled=false;
-  g.fillStyle='#87b7e4';g.fillRect(0,0,cv.width,cv.height);
-  const cell=16;
-  info.elev.forEach((row,ry)=>{
-    const inR=step.r[0]>=0&&ry>=step.r[0]&&ry<=step.r[1];
-    g.globalAlpha=(step.r[0]<0||inR)?1:0.4;
-    for(let cx=0;cx<row.length;cx++){
-      const ch=row[cx];
-      if(ch==='.')continue;
-      const tile=BCHR[ch];
-      if(tile===undefined)continue;
-      g.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,cx*cell,ry*cell,cell,cell);
-    }
-  });
+  g.fillStyle='#9cc8ee';g.fillRect(0,0,cv.width,cv.height);
+  g.fillStyle='rgba(255,255,255,.8)';g.fillRect(0,0,cv.width,12);
+  g.fillStyle='#444';g.font='bold 10px sans-serif';
+  g.fillText('うえから',2,10);g.fillText('まえから',W*cell+gap+2,10);
+  const ex0=W*cell+gap;
+  // 集計: 上面図（最上ブロック）・正面図（手前ブロック）
+  const topB=new Map(),elevB=new Map();
+  for(const b of plan.blocks){
+    if(b.s>stepIdx)continue;
+    let k=(b.x-plan.x0)*64+(b.z-plan.z0);
+    const t0=topB.get(k);
+    if(!t0||b.y>t0.y)topB.set(k,b);
+    k=(b.x-plan.x0)*64+(b.y-plan.y0);
+    const e0=elevB.get(k);
+    if(!e0||b.z>e0.z)elevB.set(k,b);
+  }
+  const hi=[];
+  const put=(px,py,tile,b)=>{
+    g.globalAlpha=b.s===stepIdx?1:0.42;
+    g.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,px,py,cell,cell);
+    g.globalAlpha=1;
+    if(b.s===stepIdx)hi.push([px,py]);
+  };
+  for(const[k,b]of topB)put((b.x-plan.x0)*cell,top+(b.z-plan.z0)*cell,BLOCKS[b.id].t[0],b);
+  // 正面図: じめんの ライン
+  g.globalAlpha=0.6;
+  for(let x=0;x<W;x++)g.drawImage(atlasCanvas,(T.GRASS_SIDE%16)*16,0,16,16,ex0+x*cell,top+H*cell,cell,cell);
   g.globalAlpha=1;
-  if(step.r[0]>=0){
-    g.strokeStyle='#ffe14a';g.lineWidth=3;
-    g.strokeRect(1,step.r[0]*cell+1,cv.width-2,(step.r[1]-step.r[0]+1)*cell-2);
+  for(const[k,b]of elevB)put(ex0+(b.x-plan.x0)*cell,top+(plan.y1-b.y)*cell,BLOCKS[b.id].t[2],b);
+  // いまつくる部分の きょうちょう（点滅）
+  g.strokeStyle=bBlink?'#ffe14a':'#ff8820';g.lineWidth=2;
+  for(const[px,py]of hi){
+    if(bBlink){g.fillStyle='rgba(255,255,255,.38)';g.fillRect(px,py,cell,cell);}
+    g.strokeRect(px+0.5,py+0.5,cell-1,cell-1);
   }
 }
-function openBoardPanel(i){
-  const st=structures[i];if(!st)return;
-  const info=STRUCT_INFO[st.type];
-  boardOpen=i;bStep=0;
-  $('bTitle').textContent=info.emo+' '+info.name+' の つくりかた';
-  $('bDesc').textContent=info.desc;
+function drawTipDiagram(step){
+  const cv=$('bCv'),g=cv.getContext('2d');
+  const rows=step.g,W=Math.max(...rows.map(r=>r.length)),cell=20;
+  cv.width=W*cell+4;cv.height=rows.length*cell+4;
+  g.imageSmoothingEnabled=false;
+  g.fillStyle='#9cc8ee';g.fillRect(0,0,cv.width,cv.height);
+  rows.forEach((row,ry)=>{
+    for(let cx=0;cx<row.length;cx++){
+      const tile=BCHR[row[cx]];
+      if(tile===undefined)continue;
+      g.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,2+cx*cell,2+ry*cell,cell,cell);
+    }
+  });
+}
+function fillUseRow(pairs){
+  const u=$('bUse');
+  u.innerHTML='<span class="ulabel">つかう<br>ブロック</span>';
+  if(!pairs||!pairs.length){
+    const sp=document.createElement('span');sp.style.cssText='font-size:12px;font-weight:700;color:#7a6a50;';
+    sp.textContent='ブロックは つかわないよ（みて まなぼう）';
+    u.appendChild(sp);return;
+  }
+  for(const[id,n]of pairs){
+    const el=document.createElement('div');el.className='buse1';
+    const c=document.createElement('canvas');c.width=c.height=16;
+    const cg=c.getContext('2d');cg.imageSmoothingEnabled=false;
+    const tile=BLOCKS[id].t[2];
+    cg.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,0,0,16,16);
+    el.appendChild(c);
+    const sp=document.createElement('span');sp.textContent=BLOCKS[id].name+(n?'×'+n:'');
+    el.appendChild(sp);
+    u.appendChild(el);
+  }
+}
+function drawBoardStep(){
+  const steps=curSteps();if(!steps)return;
+  const step=steps[bStep];
+  $('bStepT').textContent=step.t;
+  $('bStepX').textContent=step.x;
+  $('bNum').textContent=(bStep+1)+' / '+steps.length;
+  $('bPrev').disabled=bStep===0;
+  $('bNext').disabled=bStep===steps.length-1;
+  if(boardKind==='tip'){
+    drawTipDiagram(step);
+    fillUseRow((step.use||[]).map(id=>[id,0]));
+  }else{
+    const st=structures[boardOpen];
+    drawStructDiagram(st.type,bStep);
+    fillUseRow([...getPlan(st.type).use[bStep]]);
+  }
+}
+function fillMats(pairs){
   const mats=$('bMats');mats.innerHTML='';
-  for(const[id,n]of info.mats){
+  for(const[id,n]of pairs){
     const el=document.createElement('div');el.className='bmat';
     const c=document.createElement('canvas');c.width=c.height=16;
     const cg=c.getContext('2d');cg.imageSmoothingEnabled=false;
     const tile=BLOCKS[id].t[2];
     cg.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,0,0,16,16);
     el.appendChild(c);
-    const sp=document.createElement('span');sp.textContent=BLOCKS[id].name+'×'+n;
+    const sp=document.createElement('span');sp.textContent=BLOCKS[id].name+(n?'×'+n:'');
     el.appendChild(sp);
     mats.appendChild(el);
   }
+}
+function applyDockUI(){
+  const show=boardShown();
+  $('board').style.display=show?'flex':'none';
+  $('board').classList.toggle('dock',bDocked);
+  document.body.classList.toggle('docked',show&&bDocked);
+  $('bDock').textContent=bDocked?'⬜ もとにもどす':'▶ よこにおく';
+}
+function showBoardCommon(){
+  bStep=0;
   drawBoardStep();
-  $('board').style.display='flex';
+  applyDockUI();
+  clearInterval(bTimer);
+  bTimer=setInterval(()=>{bBlink=!bBlink;if(boardShown())drawBoardStep();},480);
+  sfx('select');
+  questMark('board');
+}
+function openBoardPanel(i){
+  const st=structures[i];if(!st||st.type==='tips')return;
+  const info=STRUCT_INFO[st.type];
+  boardOpen=i;bTipOpen=-1;boardKind='s';
+  $('bTitle').textContent=info.emo+' '+info.name+' の つくりかた';
+  $('bDesc').textContent=info.desc;
+  const plan=getPlan(st.type),tot=new Map();
+  for(const u of plan.use)for(const[id,n]of u)tot.set(id,(tot.get(id)||0)+n);
+  fillMats([...tot]);
+  $('bLegend').style.display='';
+  $('bBuild').style.display='';
+  $('bBuild').textContent=savedGuides[i]?'🔨 つづきを つくる':'🔨 いっしょに つくる';
+  showBoardCommon();
+}
+function openTipPanel(k){
+  const info=TIPS[k];if(!info)return;
+  bTipOpen=k;boardOpen=-1;boardKind='tip';
+  $('bTitle').textContent=info.emo+' '+info.name;
+  $('bDesc').textContent=info.desc;
+  fillMats([]);
+  $('bLegend').style.display='none';
+  $('bBuild').style.display='none';
+  showBoardCommon();
+}
+function closeBoard(){
+  boardOpen=-1;bTipOpen=-1;
+  $('board').style.display='none';
+  document.body.classList.remove('docked');
+  clearInterval(bTimer);bTimer=0;
+}
+function toggleDock(){
+  bDocked=!bDocked;
+  applyDockUI();
+  toast(bDocked?'▶ ボードを よこに おいたよ！あそびながら みられるよ':'ボードを もとに もどしたよ');
   sfx('select');
 }
-function closeBoard(){boardOpen=-1;$('board').style.display='none';}
+function bStepMove(d){
+  const steps=curSteps();if(!steps)return;
+  const ns=bStep+d;
+  if(ns<0||ns>=steps.length)return;
+  bStep=ns;drawBoardStep();sfx('select');
+}
 function openBoardAt(x,y,z){
-  const i=boards.get(x+','+y+','+z);
-  if(i===undefined)return false;
-  openBoardPanel(i);
+  const bi=boards.get(x+','+y+','+z);
+  if(bi===undefined)return false;
+  const e=BOARD_LIST[bi];
+  if(e.tip!==undefined)openTipPanel(e.tip);else openBoardPanel(e.s);
   return true;
 }
 function interact(){
   if(state!=='play')return;
-  if(boardOpen>=0){closeBoard();return;}
+  if(boardShown()&&!bDocked){closeBoard();return;}
   const t=target();
   if(t&&t.id===B.BOARD)openBoardAt(t.x,t.y,t.z);
+  else if(boardShown())closeBoard();
   else toast('📋 ボードに クロスヘアを あわせてね');
 }
 $('bClose').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();closeBoard();},{passive:false});
-$('bPrev').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(bStep>0){bStep--;drawBoardStep();sfx('select');}},{passive:false});
-$('bNext').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();const st=structures[boardOpen];if(st&&bStep<STRUCT_INFO[st.type].steps.length-1){bStep++;drawBoardStep();sfx('select');}},{passive:false});
+$('bPrev').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();bStepMove(-1);},{passive:false});
+$('bNext').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();bStepMove(1);},{passive:false});
+$('bDock').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();toggleDock();},{passive:false});
+$('bBuild').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();guideStartFromBoard();},{passive:false});
+
+/* ---------------- ガイド建築（いっしょにつくる） ---------------- */
+let guide=null,savedGuides={},guideDirty=false,sparkles=[];
+let ghostVB=null,ghostIB=null,ghostN=0,redVB=null,redN=0,wlVB=null,wlN=0;
+function freeGhostBuffers(){ghostN=0;redN=0;wlN=0;}
+function bigMsgShow(msg){
+  const el=$('bigMsg');
+  el.textContent=msg;
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
+const CF_COLORS=['#ff5252','#ffd740','#69f0ae','#40c4ff','#e040fb','#ffab40'];
+function confetti(n){
+  const fx=$('fx');
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');
+    s.className='cf';
+    s.style.left=(Math.random()*100)+'vw';
+    s.style.background=CF_COLORS[i%CF_COLORS.length];
+    s.style.animationDuration=(1.6+Math.random()*1.6)+'s';
+    s.style.animationDelay=(Math.random()*0.5)+'s';
+    fx.appendChild(s);
+    setTimeout(()=>s.remove(),3800);
+  }
+}
+function grantMaterials(type){
+  if(!inv)return;
+  const p=getPlan(type);
+  for(const u of p.use)for(const[id,n]of u)inv[id]=(inv[id]||0)+n;
+  refreshCounts();
+  toast('🎁 つくるのに ひつような そざいを もらったよ！');
+}
+function guideStartFromBoard(){
+  if(boardKind!=='s'||boardOpen<0||state!=='play')return;
+  const si=boardOpen,st=structures[si];
+  const saved=savedGuides[si];
+  closeBoard();
+  if(saved){beginGuideBuild(si,saved.ox,saved.oy,saved.oz,true);return;}
+  guide={si,type:st.type,phase:'site',ox:0,oy:0,oz:0};
+  updateSiteGhost();
+  $('siteBox').style.display='block';
+  toast('👻 あるいて いい ばしょを さがそう');
+  sfx('select');
+}
+function updateSiteGhost(){
+  if(!guide||guide.phase!=='site')return;
+  const p=getPlan(guide.type);
+  const W=p.x1-p.x0+1,D=p.z1-p.z0+1;
+  const dist=Math.max(W,D)/2+4;
+  const fx=Math.sin(player.yaw),fz=-Math.cos(player.yaw);
+  const ax=player.x+fx*dist,az=player.z+fz*dist;
+  const ox=Math.round(ax-(p.x0+p.x1+1)/2),oz=Math.round(az-(p.z0+p.z1+1)/2);
+  const hs=[heightAt(ox+p.x0,oz+p.z0),heightAt(ox+p.x1,oz+p.z0),heightAt(ox+p.x0,oz+p.z1),
+            heightAt(ox+p.x1,oz+p.z1),heightAt(Math.round(ox+(p.x0+p.x1)/2),Math.round(oz+(p.z0+p.z1)/2))].sort((a,b)=>a-b);
+  let g=hs[2];
+  g=Math.max(Math.max(SEA-1,1-p.y0),Math.min(CHY-3-p.y1,Math.min(44,g)));
+  guide.ox=ox;guide.oz=oz;guide.oy=g;
+}
+function siteConfirm(){
+  if(!guide||guide.phase!=='site')return;
+  $('siteBox').style.display='none';
+  beginGuideBuild(guide.si,guide.ox,guide.oy,guide.oz,false);
+}
+function guideCancelSite(){
+  guide=null;
+  $('siteBox').style.display='none';
+  toast('また いつでも いっしょに つくれるよ！');
+}
+function beginGuideBuild(si,ox,oy,oz,resume){
+  const st=structures[si],type=st.type;
+  const plan=getPlan(type);
+  guide={si,type,phase:'build',ox,oy,oz,step:-1,targets:[],rem:0};
+  savedGuides[si]={ox,oy,oz};
+  grantMaterials(type);
+  $('ghud').style.display='flex';
+  questMark('guide');
+  const info=STRUCT_INFO[type];
+  toast((resume?'つづきから！ ':'')+info.emo+' '+info.name+'を いっしょに つくろう！');
+  sfx('stepclear');
+  computeStepTargets();
+  guideRecheck(true);
+  updateGhud();
+  guideSelectBlock();
+}
+function computeStepTargets(){
+  if(!guide)return;
+  const p=getPlan(guide.type),g=guide.oy,list=[];
+  if(guide.step<0){
+    for(let lz=p.z0;lz<=p.z1;lz++)for(let lx=p.x0;lx<=p.x1;lx++)for(let ly=Math.max(1,p.y0);ly<=p.y1+2;ly++){
+      const e=p.m.get(lx+','+ly+','+lz);
+      if(e&&e.id!==B.AIR)continue;                       // 建てる場所は各ステップで対応
+      const cur=blockAt(guide.ox+lx,g+ly,guide.oz+lz);
+      if(cur!==B.AIR&&cur!==B.WATER&&!BLOCKS[cur].unbreakable)
+        list.push({x:guide.ox+lx,y:g+ly,z:guide.oz+lz,clear:true,done:false});
+    }
+  }else{
+    for(const b of p.blocks)if(b.s===guide.step)
+      list.push({x:guide.ox+b.x,y:g+b.y,z:guide.oz+b.z,id:b.id,done:false});
+  }
+  guide.targets=list;
+}
+function guideRecheck(silent){
+  if(!guide||guide.phase!=='build')return;
+  let rem=0;
+  for(const t of guide.targets){
+    const cur=blockAt(t.x,t.y,t.z);
+    t.done=t.clear?(cur===B.AIR||cur===B.WATER):(cur===t.id);
+    if(!t.done)rem++;
+  }
+  guide.rem=rem;
+  if(rem===0){guideAdvance(silent);return;}
+  rebuildGhostBuffers();
+  updateGhud();
+}
+function guideAdvance(silent){
+  if(!guide)return;
+  const p=getPlan(guide.type),doneStep=guide.step,hadTargets=guide.targets.length>0;
+  if(doneStep>=p.nSteps-1){guideComplete();return;}
+  if(!silent&&hadTargets){
+    if(doneStep>=0){bigMsgShow(`ステップ ${doneStep+1}/${p.nSteps} クリア！`);confetti(16);sfx('stepclear');}
+    else{toast('✅ せいち かんりょう！つぎは たてるよ！');sfx('stepclear');}
+  }
+  guide.step++;
+  computeStepTargets();
+  if(!silent&&guide.targets.length){
+    const s=STRUCT_INFO[guide.type].steps[guide.step];
+    if(doneStep>=0)toast('👉 つぎは '+s.t);
+    guideSelectBlock();
+  }
+  if(bDocked&&boardOpen===guide.si){bStep=Math.max(0,guide.step);drawBoardStep();}
+  guideRecheck(silent);
+}
+function guideComplete(){
+  const info=STRUCT_INFO[guide.type];
+  delete savedGuides[guide.si];
+  guide=null;guideDirty=false;
+  $('ghud').style.display='none';
+  freeGhostBuffers();
+  bigMsgShow('かんせい！🎉 '+info.emo+' '+info.name);
+  confetti(60);
+  sfx('fanfare');
+}
+function guideStop(){
+  if(!guide)return;
+  if(guide.phase==='site'){guideCancelSite();return;}
+  guide=null;guideDirty=false;
+  $('ghud').style.display='none';
+  freeGhostBuffers();
+  toast('ガイドを やめたよ。ボードの「つづきをつくる」で さいかいできるよ！');
+  sfx('select');
+}
+function updateGhud(){
+  if(!guide||guide.phase!=='build')return;
+  const p=getPlan(guide.type);
+  $('ghudStep').textContent=guide.step<0?'じゅんび':`ステップ ${guide.step+1}/${p.nSteps}`;
+  const ico=$('ghudIco'),g=ico.getContext('2d');
+  g.clearRect(0,0,32,32);g.imageSmoothingEnabled=false;
+  if(guide.step<0){
+    g.fillStyle='rgba(226,72,58,.95)';g.fillRect(1,1,30,30);
+    g.fillStyle='#fff';g.font='bold 19px sans-serif';g.textAlign='center';g.fillText('⛏',16,23);
+    $('ghudMain').textContent=`あかい ブロックを こわそう（のこり ${guide.rem}こ）`;
+  }else{
+    const cnt=new Map();
+    for(const t of guide.targets)if(!t.done&&!t.clear)cnt.set(t.id,(cnt.get(t.id)||0)+1);
+    let best=null,bn=0;
+    for(const[id,n]of cnt)if(n>bn){bn=n;best=id;}
+    if(best!==null){
+      const tile=BLOCKS[best].t[2];
+      g.drawImage(atlasCanvas,(tile%16)*16,((tile/16)|0)*16,16,16,0,0,32,32);
+      $('ghudMain').textContent=`いま おくブロック: ${BLOCKS[best].name}（のこり ${guide.rem}こ）`;
+    }else $('ghudMain').textContent='…';
+  }
+}
+function guideNeedBlock(){
+  if(!guide||guide.phase!=='build'||guide.step<0)return null;
+  const cnt=new Map();
+  for(const t of guide.targets)if(!t.done&&!t.clear)cnt.set(t.id,(cnt.get(t.id)||0)+1);
+  let best=null,bn=0;
+  for(const[id,n]of cnt)if(n>bn){bn=n;best=id;}
+  return best;
+}
+function guideSelectBlock(){
+  if(!guide||guide.phase!=='build')return;
+  if(guide.step<0){setMode('break');return;}
+  const best=guideNeedBlock();
+  if(best===null)return;
+  for(let pg=0;pg<PAGES.length;pg++){
+    const ix=PAGES[pg].ids.indexOf(best);
+    if(ix>=0){
+      if(pg!==hbPage){hbPage=pg;HOTBAR=PAGES[pg].ids.slice();buildHotbar();}
+      selectHotbar(ix);
+      if(IS_TOUCH)setMode('place');
+      return;
+    }
+  }
+}
+function guideTargetAt(x,y,z){
+  if(!guide||guide.phase!=='build')return null;
+  for(const t of guide.targets)if(t.x===x&&t.y===y&&t.z===z)return t;
+  return null;
+}
+function guideOnPlace(x,y,z,id){
+  questMark('place');
+  const t=guideTargetAt(x,y,z);
+  if(t&&!t.clear){
+    if(t.id===id){sparkles.push({x,y,z,t0:performance.now()});sfx('pikon');}
+    else{toast(`ここは「${BLOCKS[t.id].name}」を おく ばしょだよ！`);sfx('wrong');}
+  }
+  guideDirty=true;
+}
+function guideOnBreak(x,y,z){
+  questMark('break');
+  const t=guideTargetAt(x,y,z);
+  if(t&&t.clear)sfx('pikon');
+  guideDirty=true;
+}
+function rebuildGhostBuffers(){
+  if(!guide||guide.phase!=='build'){freeGhostBuffers();return;}
+  const V=[],I=[],R=[],L=[];
+  let n=0,shown=0;
+  for(const t of guide.targets){
+    if(t.done)continue;
+    if(++shown>700)break;
+    const cur=blockAt(t.x,t.y,t.z);
+    if(t.clear||(cur!==B.AIR&&cur!==B.WATER)){
+      // 赤マーク: このブロックを こわす
+      const a=-0.02,b=1.02,x=t.x,y=t.y,z=t.z;
+      const P=[[a,a,a],[b,a,a],[b,a,b],[a,a,b],[a,b,a],[b,b,a],[b,b,b],[a,b,b]].map(q=>[x+q[0],y+q[1],z+q[2]]);
+      for(const q of[[0,1,2,3],[7,6,5,4],[4,5,1,0],[3,2,6,7],[0,3,7,4],[5,6,2,1]])
+        R.push(...P[q[0]],...P[q[1]],...P[q[2]],...P[q[0]],...P[q[2]],...P[q[3]]);
+    }else{
+      // 半透明ゴーストブロック + 白パルス枠
+      const def=BLOCKS[t.id];
+      for(let f=0;f<6;f++){
+        const F=FACES[f],tile=def.t[f===2?0:f===3?1:2],tx=tile%16,ty=(tile/16)|0;
+        for(let k=0;k<4;k++){
+          const c=F.c[k];
+          let cu,cv;
+          if(F.n[1]!==0){cu=c[0];cv=c[2];}
+          else{cu=F.n[0]!==0?c[2]:c[0];cv=1-c[1];}
+          V.push(t.x+0.04+c[0]*0.92,t.y+0.04+c[1]*0.92,t.z+0.04+c[2]*0.92,
+                 (tx+0.004+cu*0.992)/16,(ty+0.004+cv*0.992)/16,1.5);
+        }
+        I.push(n,n+1,n+2,n,n+2,n+3);
+        n+=4;
+      }
+      const wa=-0.012,wb=1.012,x=t.x,y=t.y,z=t.z;
+      const W2=[[wa,wa,wa],[wb,wa,wa],[wb,wa,wb],[wa,wa,wb],[wa,wb,wa],[wb,wb,wa],[wb,wb,wb],[wa,wb,wb]];
+      for(const e of[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]])
+        L.push(x+W2[e[0]][0],y+W2[e[0]][1],z+W2[e[0]][2],x+W2[e[1]][0],y+W2[e[1]][1],z+W2[e[1]][2]);
+    }
+  }
+  if(!ghostVB){ghostVB=gl.createBuffer();ghostIB=gl.createBuffer();redVB=gl.createBuffer();wlVB=gl.createBuffer();}
+  gl.bindBuffer(gl.ARRAY_BUFFER,ghostVB);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(V),gl.DYNAMIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ghostIB);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new IdxArr(I),gl.DYNAMIC_DRAW);
+  ghostN=I.length;
+  gl.bindBuffer(gl.ARRAY_BUFFER,redVB);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(R),gl.DYNAMIC_DRAW);
+  redN=R.length/3;
+  gl.bindBuffer(gl.ARRAY_BUFFER,wlVB);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(L),gl.DYNAMIC_DRAW);
+  wlN=L.length/3;
+}
+function renderGuideFX(now,pv){
+  const t=now*0.001;
+  if(guide&&guide.phase==='build'){
+    if(ghostN){
+      gl.uniform1f(uMain.uAlpha,0.42+0.20*Math.sin(t*4.4));
+      gl.bindBuffer(gl.ARRAY_BUFFER,ghostVB);
+      gl.vertexAttribPointer(0,3,gl.FLOAT,false,24,0);
+      gl.vertexAttribPointer(1,2,gl.FLOAT,false,24,12);
+      gl.vertexAttribPointer(2,1,gl.FLOAT,false,24,20);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ghostIB);
+      gl.drawElements(gl.TRIANGLES,ghostN,IDX_TYPE,0);
+      gl.uniform1f(uMain.uAlpha,1);
+    }
+    gl.useProgram(progLine);
+    gl.uniformMatrix4fv(uLine.uPV,false,pv);
+    gl.uniform3f(uLine.uOff,0,0,0);
+    gl.uniform3f(uLine.uScale,1,1,1);
+    setAttribs(1);
+    if(redN){
+      gl.uniform4f(uLine.uCol,1,0.16,0.1,0.30+0.12*Math.sin(t*5));
+      gl.bindBuffer(gl.ARRAY_BUFFER,redVB);
+      gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+      gl.drawArrays(gl.TRIANGLES,0,redN);
+    }
+    if(wlN){
+      gl.uniform4f(uLine.uCol,1,1,1,0.45+0.40*Math.sin(t*5));
+      gl.bindBuffer(gl.ARRAY_BUFFER,wlVB);
+      gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+      gl.drawArrays(gl.LINES,0,wlN);
+    }
+  }
+  if(guide&&guide.phase==='site'){
+    const p=getPlan(guide.type);
+    gl.useProgram(progLine);
+    gl.uniformMatrix4fv(uLine.uPV,false,pv);
+    gl.bindBuffer(gl.ARRAY_BUFFER,lineBuf);
+    setAttribs(1);
+    gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+    gl.uniform3f(uLine.uOff,guide.ox+p.x0,guide.oy+Math.min(p.y0,0),guide.oz+p.z0);
+    gl.uniform3f(uLine.uScale,p.x1-p.x0+1,p.y1-Math.min(p.y0,0)+1,p.z1-p.z0+1);
+    gl.uniform4f(uLine.uCol,1,0.9,0.2,0.55+0.35*Math.sin(t*4));
+    gl.drawArrays(gl.LINES,0,24);
+    // 設置面の わく（数本かさねて 太く みせる）
+    gl.uniform4f(uLine.uCol,1,1,1,0.9);
+    for(let k=0;k<4;k++){
+      gl.uniform3f(uLine.uOff,guide.ox+p.x0,guide.oy+0.05+k*0.12,guide.oz+p.z0);
+      gl.uniform3f(uLine.uScale,p.x1-p.x0+1,0.01,p.z1-p.z0+1);
+      gl.drawArrays(gl.LINES,0,24);
+    }
+  }
+  if(sparkles.length){
+    gl.useProgram(progLine);
+    gl.uniformMatrix4fv(uLine.uPV,false,pv);
+    gl.bindBuffer(gl.ARRAY_BUFFER,lineBuf);
+    setAttribs(1);
+    gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);
+    for(let i=sparkles.length-1;i>=0;i--){
+      const s=sparkles[i],a=(now-s.t0)/450;
+      if(a>=1){sparkles.splice(i,1);continue;}
+      const sc=1+a*0.9;
+      gl.uniform3f(uLine.uOff,s.x+0.5-sc/2,s.y+0.5-sc/2,s.z+0.5-sc/2);
+      gl.uniform3f(uLine.uScale,sc,sc,sc);
+      gl.uniform4f(uLine.uCol,1,1,0.72,1-a);
+      gl.drawArrays(gl.LINES,0,24);
+    }
+  }
+}
+$('ghudStop').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();guideStop();},{passive:false});
+$('ghudIco').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();guideSelectBlock();toast('✋ ブロックを えらんだよ！');},{passive:false});
+$('ghudBoard').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();
+  if(!guide||guide.phase!=='build')return;
+  bDocked=true;
+  openBoardPanel(guide.si);
+  bStep=Math.max(0,guide.step);
+  drawBoardStep();
+},{passive:false});
+$('siteOk').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();siteConfirm();},{passive:false});
+$('siteNo').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();guideCancelSite();},{passive:false});
+
+/* ---------------- はじめてクエスト ---------------- */
+const QUESTS=[
+ {id:'walk', label:'ジョイスティックで あるいてみよう'},
+ {id:'jump', label:'ジャンプしてみよう'},
+ {id:'break',label:'ブロックを こわしてみよう'},
+ {id:'place',label:'ブロックを おいてみよう'},
+ {id:'board',label:'たてものの 📋ボードを よんでみよう'},
+ {id:'guide',label:'「いっしょにつくる」で たててみよう'},
+];
+let questDone={};
+try{questDone=JSON.parse(store.get('mc_quest')||'{}')||{};}catch(e){questDone={};}
+let walkAcc=0;
+function questAllDone(){return QUESTS.every(q=>questDone[q.id]);}
+function buildQuestList(){
+  const l=$('questList');l.innerHTML='';
+  QUESTS.forEach((q,i)=>{
+    const d=document.createElement('div');
+    d.className='qitem'+(questDone[q.id]?' done':'');
+    d.innerHTML=`<span class="qc">${questDone[q.id]?'✓':(i+1)}</span><span>${q.label}</span>`;
+    l.appendChild(d);
+  });
+}
+function questMark(id){
+  if(questDone[id])return;
+  if(state!=='play')return;
+  questDone[id]=true;
+  store.set('mc_quest',JSON.stringify(questDone));
+  sfx('pikon');
+  buildQuestList();
+  const q=QUESTS.find(q=>q.id===id);
+  if(q)toast('✓ クエストたっせい: '+q.label);
+  if(questAllDone()&&!store.get('mc_questFin')){
+    store.set('mc_questFin','1');
+    setTimeout(()=>{bigMsgShow('はじめてクエスト ぜんぶクリア！🎉');confetti(50);sfx('fanfare');},600);
+  }
+}
+function showQuest(on){
+  $('quest').style.display=on?'block':'none';
+  if(on){buildQuestList();$('guide').style.display='none';}
+}
+$('questLater').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();showQuest(false);sfx('select');},{passive:false});
+$('questHouse').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();audioInit();showQuest(false);toggleGuide();},{passive:false});
 // ピンチ/ダブルタップズーム抑止
 ['gesturestart','gesturechange','gestureend'].forEach(ev=>
   document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
@@ -2039,9 +2736,20 @@ function pollGamepad(dt,inp){
   if(state!=='play'){savePrev();return;}
   if(edge(9)){savePrev();goTitle();return;}   // Start=ポーズ（タイトルへ）
   if(edge(3)||edge(11))cycleView();           // Y / 右スティック押込み=視点切替
-  if(boardOpen>=0){                            // ボード表示中: B=とじる, X=とじる
+  if(boardShown()&&!bDocked){                  // 全画面ボード: B/X=とじる 十字=ステップ
     if(edge(1)||edge(2))closeBoard();
+    if(edge(14))bStepMove(-1);
+    if(edge(15))bStepMove(1);
     savePrev();return;
+  }
+  if(boardShown()&&bDocked){                   // ドック中: あそびながら 十字=ステップ B=とじる
+    if(edge(14))bStepMove(-1);
+    if(edge(15))bStepMove(1);
+    if(edge(1))closeBoard();
+  }
+  if(guide&&guide.phase==='site'){             // ゴースト設置: A=けってい B=やめる
+    if(edge(0)){siteConfirm();savePrev();return;}
+    if(edge(1))guideCancelSite();
   }
   if(edge(2))interact();                       // X=ボードをよむ/インタラクト
   const dz=v=>Math.abs(v)<0.18?0:(v-Math.sign(v)*0.18)/0.82;
@@ -2067,6 +2775,7 @@ function initWorld(){
   N=makeNoise(seed);
   for(const[,ch]of chunks)freeMesh(ch);
   chunks.clear();edits.clear();
+  savedGuides={};
   const sp=findSpawn();
   computeStructures(sp[0],sp[2]);
   player.x=sp[0];player.y=sp[1];player.z=sp[2];
@@ -2104,6 +2813,14 @@ function startGame(){
   document.body.classList.add('playing');
   buildHotbar();
   initInv();
+  guide=null;guideDirty=false;sparkles.length=0;freeGhostBuffers();
+  $('ghud').style.display='none';
+  $('siteBox').style.display='none';
+  showQuest(false);
+  if(!store.get('mc_questSeen')&&!questAllDone()){
+    store.set('mc_questSeen','1');
+    setTimeout(()=>{if(state==='play')showQuest(true);},900);
+  }
   const zb=gmode==='zombie';
   $('hearts').style.display=zb?'block':'none';
   $('waveInfo').style.display=zb?'block':'none';
@@ -2117,6 +2834,10 @@ function goTitle(){
   state='title';story=null;
   zombies.length=0;arrows.length=0;
   setFly(false,'quiet');
+  guide=null;guideDirty=false;sparkles.length=0;freeGhostBuffers();
+  $('ghud').style.display='none';
+  $('siteBox').style.display='none';
+  showQuest(false);
   document.body.classList.remove('playing');
   $('title').style.display='flex';
   $('storyBox').style.display='none';
@@ -2193,6 +2914,7 @@ function render(now){
   gl.uniform3fv(uMain.uFogCol,fogCol);
   gl.uniform2f(uMain.uFogRange,fogN,fogF);
   gl.uniform1f(uMain.uMode,0);
+  gl.uniform1f(uMain.uAlpha,1);
   gl.uniform1f(uMain.uNight,night);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D,atlasTex);
@@ -2226,6 +2948,7 @@ function render(now){
       gl.useProgram(progLine);
       gl.uniformMatrix4fv(uLine.uPV,false,mPV);
       gl.uniform3f(uLine.uOff,t.x,t.y,t.z);
+      gl.uniform3f(uLine.uScale,1,1,1);
       gl.uniform4f(uLine.uCol,0.05,0.05,0.05,0.9);
       gl.bindBuffer(gl.ARRAY_BUFFER,lineBuf);
       setAttribs(1);
@@ -2252,10 +2975,12 @@ function render(now){
   gl.drawArrays(gl.TRIANGLES,0,6);
   gl.useProgram(progMain);
   gl.uniform1f(uMain.uMode,1);
+  gl.uniform1f(uMain.uAlpha,1);
   gl.bindTexture(gl.TEXTURE_2D,atlasTex);
   setAttribs(3);
   visible.sort((a,b)=>b[1]-a[1]);
   for(const[ch]of visible)if(ch.meshW)bindDraw(ch.meshW);
+  renderGuideFX(now,mPV);
   gl.depthMask(true);
   gl.disable(gl.BLEND);
   gl.enable(gl.CULL_FACE);
@@ -2283,6 +3008,11 @@ function frame(now){
     inp.jumpEdge=inp.jump&&!prevJumpHeld;
     prevJumpHeld=inp.jump;
     updatePlayer(dt,inp);
+    if(guide){
+      if(guide.phase==='site')updateSiteGhost();
+      else if(guideDirty){guideDirty=false;guideRecheck(false);}
+    }
+    if(!questDone.walk){walkAcc+=Math.hypot(player.vx,player.vz)*dt;if(walkAcc>6)questMark('walk');}
     invulnT-=dt;
     updateZombies(dt);
     updateArrows(dt);
@@ -2325,10 +3055,25 @@ window.__mc={
   interact,
   closeBoard,
   openBoard:openBoardPanel,
+  openTip:openTipPanel,
+  toggleDock,
+  bStepMove,
   boardVisible(){return $('board').style.display==='flex';},
-  structures(){return structures.map((s,i)=>({i,type:s.type,x:s.x0,z:s.z0,w:s.w,d:s.d,g:s.g,board:s.board}));},
+  structures(){return structures.map((s,i)=>({i,type:s.type,x:s.x0,z:s.z0,w:s.w,d:s.d,g:s.g,board:s.boards[0],boards:s.boards}));},
+  boardsList(){return BOARD_LIST.map((e,i)=>({i,s:e.s,tip:e.tip}));},
+  plan(type){const p=getPlan(type);return{nSteps:p.nSteps,blocks:p.blocks.length,x0:p.x0,x1:p.x1,y0:p.y0,y1:p.y1,z0:p.z0,z1:p.z1,use:p.use.map(u=>[...u])};},
+  guideStart(i){openBoardPanel(i);guideStartFromBoard();},
+  siteConfirm,
+  guideStop,
+  guideInfo(){return guide?{si:guide.si,type:guide.type,phase:guide.phase,step:guide.step,rem:guide.rem,ox:guide.ox,oy:guide.oy,oz:guide.oz,nTargets:guide.targets.length}:null;},
+  guideTargets(){return guide?guide.targets.filter(t=>!t.done).slice(0,80).map(t=>({x:t.x,y:t.y,z:t.z,id:t.id,clear:!!t.clear})):[];},
+  setBlock:setBlockWorld,
+  showQuest,
+  quest(){return{...questDone};},
+  resetQuest(){questDone={};store.set('mc_quest','{}');try{localStorage.removeItem('mc_questSeen');localStorage.removeItem('mc_questFin');}catch(e){}buildQuestList();},
+  nTips:TIPS.length,
   blockAt,
-  stats(){return{seed,chunks:chunks.size,pos:[player.x,player.y,player.z],state,mode,gmode,charIdx,hp:player.hp,flying,zombies:zombies.length,arrows:arrows.length,wave:story?story.wave:0,inv:inv?{...inv}:null,viewMode,camDist:lastCamDist,hbPage,boardOpen,nStructures:structures.length,nBoards:boards.size};}
+  stats(){return{seed,chunks:chunks.size,pos:[player.x,player.y,player.z],state,mode,gmode,charIdx,hp:player.hp,flying,zombies:zombies.length,arrows:arrows.length,wave:story?story.wave:0,inv:inv?{...inv}:null,viewMode,camDist:lastCamDist,hbPage,boardOpen,bTipOpen,docked:bDocked,guidePhase:guide?guide.phase:null,guideStep:guide?guide.step:null,guideRem:guide?guide.rem:0,nStructures:structures.length,nBoards:boards.size};}
 };
 
 /* ---------------- 起動 ---------------- */
