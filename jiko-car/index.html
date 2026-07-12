@@ -680,6 +680,9 @@ const CARS=[
   {id:'shovel',name:'しょべるかー',w:66,l:120,color:'#f5b31e',arch:'shovel',norand:true},
   {id:'carrier',name:'きゃりあかー',w:62,l:232,color:'#3a7bd9',arch:'carrier'},
   {id:'garbage',name:'ごみしゅうしゅうしゃ',w:62,l:158,color:'#f2f6f9',arch:'garbage'},
+  {id:'wrecker',name:'れっかーしゃ',w:60,l:206,color:'#e8552a',arch:'wrecker'},
+  {id:'crane',name:'くれーんしゃ',w:66,l:240,color:'#f5b31e',arch:'crane',norand:true},
+  {id:'limo',name:'りむじん',w:56,l:250,color:'#f7f9fc',arch:'limo'},
 ];
 let SKIP_SHADOW=false; // used to bake shadow-less sprites for the top-down jump
 function carShadow(c,w,l){
@@ -1392,11 +1395,240 @@ function drawGarbageTop(c,s){
   c.beginPath();c.moveTo(w*.38,by+bl-4);c.lineTo(w*.38,ty2+l*.045);c.stroke();
   taillight(c,-hw*.88,hl-l*.032,w*.18,l*.026);taillight(c,hw*.70,hl-l*.032,w*.18,l*.026);
 }
+function drawWreckerTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  // truck wheels (front + rear duals)
+  wheel(c,-hw*.94,-l*.425,w*.17,l*.055);wheel(c,hw*.94,-l*.425,w*.17,l*.055);
+  wheel(c,-hw*.94,-l*.17,w*.18,l*.055);wheel(c,hw*.94,-l*.17,w*.18,l*.055);
+  wheel(c,-hw*.94,-l*.075,w*.18,l*.055);wheel(c,hw*.94,-l*.075,w*.18,l*.055);
+  // cab
+  rr(c,-hw*.92,-hl,w*.92,l*.115,w*.16);
+  c.fillStyle=bodyGrad(c,w*.92,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  glassPanel(c,-w*.36,-hl+l*.037,w*.72,l*.034,w*.09);
+  rr(c,-w*.33,-hl+l*.076,w*.66,l*.032,6);
+  c.fillStyle=shade(col,.22);c.fill();c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1;c.stroke();
+  // amber beacon bar on the cab roof
+  rr(c,-w*.20,-hl+l*.081,w*.40,l*.022,3);c.fillStyle='#c8cdd6';c.fill();
+  rr(c,-w*.17,-hl+l*.083,w*.34,l*.018,3);
+  const ab=c.createLinearGradient(0,-hl+l*.083,0,-hl+l*.101);
+  ab.addColorStop(0,'#ffd76e');ab.addColorStop(1,'#e8960e');
+  c.fillStyle=ab;c.fill();
+  c.fillStyle='rgba(255,255,255,.5)';
+  rr(c,-w*.15,-hl+l*.085,w*.30,l*.006,2);c.fill();
+  mirrors(c,w,-hl+l*.04,col);
+  headlight(c,-hw*.55,-hl+2,w*.19,l*.026);headlight(c,hw*.36,-hl+2,w*.19,l*.026);
+  // flat working bed
+  rr(c,-w*.44,-hl+l*.135,w*.88,l*.375,4);
+  const wb=c.createLinearGradient(-w*.44,0,w*.44,0);
+  wb.addColorStop(0,'#9aa1ad');wb.addColorStop(.45,'#dde2e9');wb.addColorStop(1,'#8d94a1');
+  c.fillStyle=wb;c.fill();c.strokeStyle='#5f6672';c.lineWidth=1.6;c.stroke();
+  c.strokeStyle='rgba(50,56,66,.28)';c.lineWidth=1.6;
+  for(let i=1;i<5;i++){
+    const yy=-hl+l*.135+i*l*.075;
+    c.beginPath();c.moveTo(-w*.40,yy);c.lineTo(w*.40,yy);c.stroke();
+  }
+  // red/white caution band on the bed tail
+  for(let i=0;i<6;i++){
+    c.fillStyle=i%2?'#ffffff':'#e03131';
+    c.fillRect(-w*.42+i*w*.14,-hl+l*.487,w*.14,l*.02);
+  }
+  // steel boom over the bed, reaching back over the towed car's nose
+  c.beginPath();
+  c.moveTo(-w*.15,-hl+l*.19);c.lineTo(w*.15,-hl+l*.19);
+  c.lineTo(w*.085,-hl+l*.565);c.lineTo(-w*.085,-hl+l*.565);
+  c.closePath();
+  const sb=c.createLinearGradient(-w*.15,0,w*.15,0);
+  sb.addColorStop(0,'#4a505c');sb.addColorStop(.5,'#7e8694');sb.addColorStop(1,'#454b56');
+  c.fillStyle=sb;c.fill();c.strokeStyle='#31363f';c.lineWidth=1.6;c.stroke();
+  // winch drum + cable
+  rr(c,-w*.12,-hl+l*.215,w*.24,l*.035,3);c.fillStyle='#31363f';c.fill();
+  c.strokeStyle='#e8edf4';c.lineWidth=2;
+  c.beginPath();c.moveTo(0,-hl+l*.25);c.lineTo(0,-hl+l*.585);c.stroke();
+  // tow straps to the little car
+  c.strokeStyle='#e8b13a';c.lineWidth=2.4;c.lineCap='round';
+  c.beginPath();c.moveTo(0,-hl+l*.585);c.lineTo(-w*.26,-hl+l*.645);c.stroke();
+  c.beginPath();c.moveTo(0,-hl+l*.585);c.lineTo(w*.28,-hl+l*.645);c.stroke();
+  c.beginPath();c.arc(0,-hl+l*.588,w*.045,0,TAU);
+  c.fillStyle='#e8b13a';c.fill();c.strokeStyle='#8a6408';c.lineWidth=1.2;c.stroke();
+  // towed little car (nose lifted onto the underlift, slightly askew)
+  c.save();
+  c.translate(w*.03,l*.30);c.rotate(.055);
+  const mw=w*.80,ml=l*.355,mhw=mw/2,mhl=ml/2,mc='#57b7e8';
+  if(!SKIP_SHADOW){
+    c.fillStyle='rgba(10,20,30,.22)';
+    c.beginPath();c.ellipse(2,ml*.05,mw*.62,ml*.54,0,0,TAU);c.fill();
+  }
+  wheel(c,-mhw*.94,-ml*.28,mw*.17,ml*.15);wheel(c,mhw*.94,-ml*.28,mw*.17,ml*.15);
+  wheel(c,-mhw*.94,ml*.30,mw*.17,ml*.15);wheel(c,mhw*.94,ml*.30,mw*.17,ml*.15);
+  carBodyPath(c,mw,ml,.62,.76);
+  c.fillStyle=bodyGrad(c,mw,mc);c.fill();
+  c.strokeStyle=shade(mc,-.5);c.lineWidth=1.4;c.stroke();
+  glassPanel(c,-mw*.42,-ml*.17,mw*.84,ml*.42,mw*.18);
+  rr(c,-mw*.34,-ml*.045,mw*.68,ml*.19,mw*.12);
+  const mg=c.createLinearGradient(-mw*.34,0,mw*.34,0);
+  mg.addColorStop(0,shade(mc,-.08));mg.addColorStop(.45,shade(mc,.26));mg.addColorStop(1,shade(mc,-.14));
+  c.fillStyle=mg;c.fill();c.strokeStyle='rgba(0,0,0,.2)';c.lineWidth=1;c.stroke();
+  taillight(c,-mhw*.52,mhl-ml*.055,mw*.19,ml*.04);taillight(c,mhw*.33,mhl-ml*.055,mw*.19,ml*.04);
+  // underlift crossbar beneath the lifted nose
+  rr(c,-mw*.60,-mhl-ml*.02,mw*1.2,ml*.09,3);
+  c.fillStyle='#454b56';c.fill();c.strokeStyle='#2c313a';c.lineWidth=1.2;c.stroke();
+  rr(c,-mw*.58,-mhl+ml*.005,mw*.14,ml*.05,2);c.fillStyle='#5d6470';c.fill();
+  rr(c,mw*.44,-mhl+ml*.005,mw*.14,ml*.05,2);c.fill();
+  c.restore();
+}
+function drawCraneTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  // 4 axles
+  [-.42,-.30,.26,.40].forEach(f=>{
+    wheel(c,-hw*.94,l*f,w*.18,l*.05);wheel(c,hw*.94,l*f,w*.18,l*.05);
+  });
+  // outrigger beams with pads
+  [-l*.24,l*.335].forEach(yy=>{
+    [-1,1].forEach(sd=>{
+      rr(c,sd>0?hw*.78:-hw*.78-w*.26,yy,w*.26,l*.028,3);
+      c.fillStyle='#6f7683';c.fill();c.strokeStyle='#4c525c';c.lineWidth=1.2;c.stroke();
+      c.beginPath();c.arc(sd*(hw*.78+w*.26),yy+l*.014,w*.055,0,TAU);
+      c.fillStyle='#3a3f47';c.fill();c.strokeStyle='#23262d';c.lineWidth=1.2;c.stroke();
+    });
+  });
+  // carrier frame
+  rr(c,-w*.42,-hl+l*.02,w*.84,l*.955,10);
+  c.fillStyle=bodyGrad(c,w*.84,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  // deck plating hints
+  c.strokeStyle='rgba(90,70,0,.18)';c.lineWidth=1.4;
+  [-l*.17,l*.06,l*.30].forEach(yy=>{c.beginPath();c.moveTo(-w*.38,yy);c.lineTo(w*.38,yy);c.stroke();});
+  // front driving cab (full width)
+  rr(c,-w*.45,-hl,w*.90,l*.105,w*.14);
+  c.fillStyle=bodyGrad(c,w*.90,col);c.fill();
+  c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  glassPanel(c,-w*.36,-hl+l*.032,w*.72,l*.032,w*.09);
+  rr(c,-w*.33,-hl+l*.068,w*.66,l*.028,6);
+  c.fillStyle=shade(col,.22);c.fill();c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1;c.stroke();
+  mirrors(c,w,-hl+l*.036,col);
+  headlight(c,-hw*.55,-hl+2,w*.19,l*.023);headlight(c,hw*.36,-hl+2,w*.19,l*.023);
+  // caution stripes on the front bumper line
+  for(let i=0;i<6;i++){
+    c.fillStyle=i%2?'#ffffff':'#e03131';
+    c.fillRect(-w*.36+i*w*.12,-hl+l*.098,w*.12,l*.014);
+  }
+  // slewing ring (turntable)
+  c.beginPath();c.arc(0,-l*.10,w*.30,0,TAU);
+  c.fillStyle=shade(col,-.18);c.fill();c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+  c.beginPath();c.arc(0,-l*.10,w*.235,0,TAU);
+  c.fillStyle=shade(col,.05);c.fill();c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1;c.stroke();
+  c.fillStyle='rgba(0,0,0,.35)';
+  for(let i=0;i<10;i++){
+    const a=i*TAU/10;
+    c.beginPath();c.arc(Math.cos(a)*w*.265,-l*.10+Math.sin(a)*w*.265,1.6,0,TAU);c.fill();
+  }
+  // counterweight
+  rr(c,-w*.30,-l*.015,w*.60,l*.05,4);
+  c.fillStyle='#6f7683';c.fill();c.strokeStyle='#4c525c';c.lineWidth=1.4;c.stroke();
+  // crane operator cab (beside the boom)
+  rr(c,w*.155,-l*.155,w*.27,l*.105,5);
+  c.fillStyle=shade(col,.15);c.fill();c.strokeStyle=shade(col,-.45);c.lineWidth=1.4;c.stroke();
+  glassPanel(c,w*.185,-l*.145,w*.21,l*.06,4);
+  c.beginPath();c.arc(w*.29,-l*.065,w*.045,0,TAU);
+  c.fillStyle='#ffb020';c.fill();c.strokeStyle='#a86a00';c.lineWidth=1.2;c.stroke();
+  // telescopic boom laid back over the deck (3 sections)
+  const bseg=(x,y,sw,sl,amt)=>{
+    rr(c,x,y,sw,sl,sw*.28);
+    const g=c.createLinearGradient(x,0,x+sw,0);
+    g.addColorStop(0,shade(col,amt-.26));g.addColorStop(.5,shade(col,amt+.20));g.addColorStop(1,shade(col,amt-.30));
+    c.fillStyle=g;c.fill();
+    c.strokeStyle=shade(col,-.55);c.lineWidth=1.5;c.stroke();
+  };
+  bseg(-w*.17,-l*.14,w*.34,l*.40,0);
+  bseg(-w*.13,l*.22,w*.26,l*.15,.04);
+  bseg(-w*.095,l*.33,w*.19,l*.125,.08);
+  c.fillStyle='rgba(0,0,0,.3)';
+  c.fillRect(-w*.17,l*.225,w*.34,l*.012);
+  c.fillRect(-w*.13,l*.335,w*.26,l*.011);
+  // boom head + hook block on a short cable
+  rr(c,-w*.115,l*.455,w*.23,l*.028,4);
+  c.fillStyle='#454b56';c.fill();c.strokeStyle='#2c313a';c.lineWidth=1.4;c.stroke();
+  c.strokeStyle='#e8edf4';c.lineWidth=2;
+  c.beginPath();c.moveTo(0,l*.483);c.lineTo(0,l*.505);c.stroke();
+  rr(c,-w*.05,l*.505,w*.10,l*.026,3);
+  c.fillStyle='#e03131';c.fill();c.strokeStyle='#8f1d1d';c.lineWidth=1.2;c.stroke();
+  c.strokeStyle='#e8b13a';c.lineWidth=2.6;c.lineCap='round';
+  c.beginPath();c.arc(0,l*.548,w*.035,-.3,Math.PI*1.15);c.stroke();
+  taillight(c,-w*.40,hl-l*.028,w*.17,l*.02);taillight(c,w*.23,hl-l*.028,w*.17,l*.02);
+}
+function drawLimoTop(c,s){
+  const w=s.w,l=s.l,hw=w/2,hl=l/2,col=s.color;
+  carShadow(c,w,l);
+  wheel(c,-hw*.94,-l*.40,w*.16,l*.052);wheel(c,hw*.94,-l*.40,w*.16,l*.052);
+  wheel(c,-hw*.94,l*.40,w*.16,l*.052);wheel(c,hw*.94,l*.40,w*.16,l*.052);
+  carBodyPath(c,w,l,.60,.74);
+  c.fillStyle=bodyGrad(c,w,col);c.fill();
+  c.strokeStyle='#9aa2ae';c.lineWidth=1.6;c.stroke();
+  // silver side trim + hood/trunk contour lines
+  c.save();carBodyPath(c,w,l,.60,.74);c.clip();
+  c.fillStyle='rgba(150,160,175,.5)';
+  c.fillRect(-hw,-l*.335,w*.035,l*.67);
+  c.fillRect(hw-w*.035,-l*.335,w*.035,l*.67);
+  c.strokeStyle='rgba(0,0,0,.12)';c.lineWidth=1.4;
+  [-1,1].forEach(sd=>{
+    c.beginPath();c.moveTo(sd*w*.22,-hl+5);c.quadraticCurveTo(sd*w*.28,-l*.42,sd*w*.28,-l*.375);c.stroke();
+  });
+  c.beginPath();c.moveTo(-w*.32,hl-l*.055);c.lineTo(w*.32,hl-l*.055);c.stroke();
+  c.restore();
+  // windshield + very long glass canopy
+  glassPanel(c,-w*.40,-l*.355,w*.80,l*.07,w*.12);
+  glassPanel(c,-w*.43,-l*.265,w*.86,l*.565,w*.18);
+  // roof
+  rr(c,-w*.35,-l*.205,w*.70,l*.445,w*.13);
+  const rg=c.createLinearGradient(-w*.35,0,w*.35,0);
+  rg.addColorStop(0,shade(col,-.08));rg.addColorStop(.45,shade(col,.24));rg.addColorStop(1,shade(col,-.14));
+  c.fillStyle=rg;c.fill();c.strokeStyle='rgba(0,0,0,.2)';c.lineWidth=1.2;c.stroke();
+  // side window dividers: a whole row of little windows
+  c.fillStyle=col;
+  for(let i=1;i<7;i++){
+    const yy=-l*.265+i*l*.0807;
+    c.fillRect(-w*.43,yy,w*.09,3.4);
+    c.fillRect(w*.34,yy,w*.09,3.4);
+  }
+  c.strokeStyle='rgba(0,0,0,.10)';c.lineWidth=1.2;
+  for(let i=1;i<7;i++){
+    const yy=-l*.265+i*l*.0807+1.7;
+    c.beginPath();c.moveTo(-w*.43,yy);c.lineTo(-w*.35,yy);c.stroke();
+    c.beginPath();c.moveTo(w*.35,yy);c.lineTo(w*.43,yy);c.stroke();
+  }
+  // sunroof
+  rr(c,-w*.15,-l*.16,w*.30,l*.075,5);
+  const sr=c.createLinearGradient(0,-l*.16,0,-l*.085);
+  sr.addColorStop(0,'#5b87a8');sr.addColorStop(1,'#1e3348');
+  c.fillStyle=sr;c.fill();c.strokeStyle='rgba(0,0,0,.3)';c.lineWidth=1;c.stroke();
+  // rear glass
+  glassPanel(c,-w*.36,l*.315,w*.72,l*.055,w*.1);
+  // hood emblem (gold star in a ring)
+  c.beginPath();c.arc(0,-l*.425,w*.055,0,TAU);
+  c.fillStyle='#f4f6f9';c.fill();c.strokeStyle='#c9a227';c.lineWidth=1.6;c.stroke();
+  c.save();c.translate(0,-l*.425);starPath(c,w*.032);c.fillStyle='#c9a227';c.fill();c.restore();
+  // little fender flags
+  [-1,1].forEach(sd=>{
+    const fx=sd*w*.30,fy=-hl+l*.012;
+    c.strokeStyle='#8f97a5';c.lineWidth=1.6;
+    c.beginPath();c.moveTo(fx,fy);c.lineTo(fx,fy+l*.03);c.stroke();
+    c.fillStyle='#e03131';
+    c.beginPath();c.moveTo(fx,fy);c.lineTo(fx+sd*w*.14,fy+l*.008);c.lineTo(fx,fy+l*.017);c.closePath();c.fill();
+  });
+  mirrors(c,w,-l*.34,col);
+  headlight(c,-hw*.52,-hl+1.5,w*.2,l*.022);headlight(c,hw*.32,-hl+1.5,w*.2,l*.022);
+  rr(c,-w*.14,-hl+2,w*.28,l*.014,2);c.fillStyle='#252830';c.fill();
+  taillight(c,-hw*.5,hl-l*.026,w*.19,l*.018);taillight(c,hw*.31,hl-l*.026,w*.19,l*.018);
+}
 function drawCarTop(c,s){
   ({sedan:drawSedan,van:drawVan,bus:drawBus,fire:drawFire,truck:drawTruck,
     dump:drawDump,shinkansen:drawShinkansenTop,densha:drawDenshaTop,
     tanker:drawTankerTop,shovel:drawShovelTop,carrier:drawCarrierTop,
-    garbage:drawGarbageTop})[s.arch](c,s);
+    garbage:drawGarbageTop,wrecker:drawWreckerTop,crane:drawCraneTop,
+    limo:drawLimoTop})[s.arch](c,s);
 }
 const SPRITES={},SPRITES_AIR={};
 function makeSprite(spec,noShadow){
@@ -2026,6 +2258,9 @@ function drawCarSide(c,s,wheelRot,bounce){
   if(arch==='shinkansen'){wxs=[-L*.42,-L*.33,L*.14,L*.23];wr=7;}
   if(arch==='densha'){wxs=[-L*.42,-L*.33,L*.28,L*.37];wr=7;}
   if(arch==='shovel'){wxs=[];wr=0;}
+  if(arch==='wrecker'){wxs=[L*.35,L*.10,L*.005];wr=11;}
+  if(arch==='crane'){wxs=[-L*.33,-L*.21,L*.25,L*.37];wr=12;}
+  if(arch==='limo'){wxs=[-L*.385,L*.355];wr=10;}
   const railcar=(arch==='shinkansen'||arch==='densha');
   c.save();
   c.save();c.translate(0,bounce||0);
@@ -2512,6 +2747,186 @@ function drawCarSide(c,s,wheelRot,bounce){
     // dark chassis frame closing the gap between the packer and the cab
     c.fillStyle='rgba(20,26,34,.85)';
     c.fillRect(-L*.40,-12,L*.84,4.5);
+  }else if(arch==='wrecker'){
+    // flatbed deck (low) behind the cab
+    rr(c,-L*.13,-27,L*.36,7,2);
+    const wd=c.createLinearGradient(0,-27,0,-20);
+    wd.addColorStop(0,'#dde2e9');wd.addColorStop(1,'#9aa1ad');
+    c.fillStyle=wd;c.fill();c.strokeStyle='#5f6672';c.lineWidth=1.4;c.stroke();
+    // headboard
+    rr(c,L*.195,-42,5,22,2);c.fillStyle='#6f7683';c.fill();
+    c.strokeStyle='#4c525c';c.lineWidth=1.2;c.stroke();
+    // boom rising toward the tail
+    c.beginPath();
+    c.moveTo(L*.13,-27);c.lineTo(L*.045,-27);
+    c.lineTo(-L*.185,-44);c.lineTo(-L*.135,-48);
+    c.closePath();
+    const wbg=c.createLinearGradient(0,-48,0,-27);
+    wbg.addColorStop(0,'#8b93a1');wbg.addColorStop(1,'#4a505c');
+    c.fillStyle=wbg;c.fill();c.strokeStyle='#31363f';c.lineWidth=1.6;c.stroke();
+    // winch cable + hook down to the little car's nose
+    c.strokeStyle='#f4f7fb';c.lineWidth=2.6;
+    c.beginPath();c.moveTo(-L*.16,-45);c.lineTo(-L*.148,-29);c.stroke();
+    c.strokeStyle='#e8b13a';c.lineWidth=2.6;c.lineCap='round';
+    c.beginPath();c.arc(-L*.15,-26,3.2,-.4,Math.PI*1.05);c.stroke();
+    // underlift bar reaching under the nose
+    c.strokeStyle='#454b56';c.lineWidth=4.5;
+    c.beginPath();c.moveTo(-L*.115,-13);c.lineTo(-L*.155,-18);c.stroke();
+    // cab (front)
+    c.beginPath();
+    c.moveTo(L*.24,-8);c.lineTo(L*.24,-46);
+    c.quadraticCurveTo(L*.24,-48,L*.28,-48);
+    c.lineTo(L*.37,-48);
+    c.quadraticCurveTo(L*.44,-46,L*.465,-31);
+    c.quadraticCurveTo(L*.5,-28,L*.5,-17);
+    c.quadraticCurveTo(L*.5,-8,L*.46,-8);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,col,-48,-8);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[L*.29,-44],[L*.36,-44],[L*.435,-30],[L*.29,-30]]);
+    // amber beacon on the cab roof
+    rr(c,L*.295,-53,9,5,2);c.fillStyle='#ffb020';c.fill();
+    c.strokeStyle='#a86a00';c.lineWidth=1;c.stroke();
+    c.fillStyle='rgba(255,255,255,.55)';rr(c,L*.305,-52.5,3.5,2,1);c.fill();
+    // white door stripe
+    c.fillStyle='rgba(255,255,255,.85)';c.fillRect(L*.245,-26,L*.22,4.5);
+    // ---- towed little car: nose in the air, rear wheels rolling ----
+    const TC=L*.34;
+    c.save();
+    c.translate(-L*.415,-9);c.rotate(-.19);
+    c.beginPath();
+    c.moveTo(-TC*.16,0);
+    c.lineTo(-TC*.17,-12);
+    c.quadraticCurveTo(-TC*.10,-14,-TC*.02,-14);
+    c.quadraticCurveTo(TC*.05,-23,TC*.20,-23);
+    c.lineTo(TC*.34,-23);
+    c.quadraticCurveTo(TC*.46,-21,TC*.52,-13);
+    c.quadraticCurveTo(TC*.70,-12,TC*.78,-9);
+    c.quadraticCurveTo(TC*.83,-8,TC*.83,-4);
+    c.lineTo(TC*.83,0);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,'#57b7e8',-23,0);c.fill();
+    c.strokeStyle=shade('#57b7e8',-.5);c.lineWidth=1.4;c.stroke();
+    glassSide(c,[[TC*.22,-20.5],[TC*.33,-20.5],[TC*.44,-13.5],[TC*.22,-13.5]]);
+    glassSide(c,[[TC*.04,-20.5],[TC*.18,-20.5],[TC*.18,-13.5],[TC*.04,-13.5]]);
+    rr(c,TC*.78,-8.5,3.5,3.5,1.5);c.fillStyle='#ffe9a8';c.fill();
+    rr(c,-TC*.165,-10.5,3,3.5,1.5);c.fillStyle='#d92c2c';c.fill();
+    // rear wheel rolls on the road; the front one dangles in the air
+    c.save();c.translate(0,9);sideWheel(c,0,9,wheelRot||0);c.restore();
+    c.save();c.translate(TC*.60,9);sideWheel(c,0,9,(wheelRot||0)*.25);c.restore();
+    c.restore();
+  }else if(arch==='crane'){
+    // carrier frame
+    rr(c,-L*.44,-31,L*.90,16,4);
+    c.fillStyle=sideBodyGrad(c,col,-31,-15);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    // hazard skirt stripes
+    c.save();rr(c,-L*.43,-20,L*.88,4.5,2);c.clip();
+    for(let i=0;i<22;i++){
+      c.fillStyle=i%2?'#ffffff':'#e03131';
+      c.fillRect(-L*.43+i*L*.04,-20,L*.04,4.5);
+    }
+    c.restore();
+    // outrigger legs with pads
+    [-L*.285,L*.10].forEach(x=>{
+      c.strokeStyle='#6f7683';c.lineWidth=4;c.lineCap='round';
+      c.beginPath();c.moveTo(x,-16);c.lineTo(x-7,-4);c.stroke();
+      rr(c,x-13,-4,12,3.5,1.5);c.fillStyle='#454b56';c.fill();
+    });
+    // front cab
+    c.beginPath();
+    c.moveTo(L*.26,-8);c.lineTo(L*.26,-45);
+    c.quadraticCurveTo(L*.26,-47,L*.30,-47);
+    c.lineTo(L*.38,-47);
+    c.quadraticCurveTo(L*.45,-45,L*.47,-30);
+    c.quadraticCurveTo(L*.5,-27,L*.5,-17);
+    c.quadraticCurveTo(L*.5,-8,L*.46,-8);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,col,-47,-8);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[L*.305,-43],[L*.37,-43],[L*.44,-29],[L*.305,-29]]);
+    // turret + operator cab
+    rr(c,-L*.075,-56,L*.21,25,4);
+    c.fillStyle=sideBodyGrad(c,col,-56,-31);c.fill();
+    c.strokeStyle=shade(col,-.5);c.lineWidth=1.6;c.stroke();
+    glassSide(c,[[-L*.045,-53],[L*.075,-53],[L*.075,-37],[-L*.045,-37]]);
+    // counterweight
+    rr(c,-L*.155,-49,L*.075,15,2);
+    c.fillStyle='#6f7683';c.fill();c.strokeStyle='#4c525c';c.lineWidth=1.2;c.stroke();
+    // beacon
+    rr(c,-L*.01,-61,8,5,2);c.fillStyle='#ffb020';c.fill();
+    c.strokeStyle='#a86a00';c.lineWidth=1;c.stroke();
+    // telescopic boom laid toward the tail, slightly raised
+    c.save();c.translate(L*.045,-52);c.rotate(.07);
+    const bs2=(x,sw,hh,amt)=>{
+      rr(c,x,-hh/2,sw,hh,3);
+      const g=c.createLinearGradient(0,-hh/2,0,hh/2);
+      g.addColorStop(0,shade(col,amt+.26));g.addColorStop(.55,shade(col,amt));g.addColorStop(1,shade(col,amt-.28));
+      c.fillStyle=g;c.fill();
+      c.strokeStyle=shade(col,-.55);c.lineWidth=1.4;c.stroke();
+    };
+    bs2(-L*.40,L*.42,13,0);
+    bs2(-L*.53,L*.155,10,.05);
+    bs2(-L*.625,L*.115,7.5,.1);
+    c.fillStyle='rgba(0,0,0,.3)';
+    c.fillRect(-L*.405,-6.5,3,13);
+    c.fillRect(-L*.535,-5,3,10);
+    c.restore();
+    // hook block hanging from the boom tip
+    const bx=L*.045-Math.cos(.07)*L*.61,by2=-52-Math.sin(.07)*L*.61;
+    c.strokeStyle='#e8edf4';c.lineWidth=2;
+    c.beginPath();c.moveTo(bx,by2+4);c.lineTo(bx,-30);c.stroke();
+    rr(c,bx-5,-30,10,8,2);c.fillStyle='#e03131';c.fill();
+    c.strokeStyle='#8f1d1d';c.lineWidth=1.2;c.stroke();
+    c.strokeStyle='#e8b13a';c.lineWidth=2.6;c.lineCap='round';
+    c.beginPath();c.arc(bx,-17,4.5,-.3,Math.PI*1.1);c.stroke();
+    // own taillight at the carrier rear
+    rr(c,-L*.44,-24,5,5,2);c.fillStyle='#d92c2c';c.fill();
+  }else if(arch==='limo'){
+    const roofY=-40;
+    c.beginPath();
+    c.moveTo(-L*.46,-8);
+    c.quadraticCurveTo(-L*.5,-9,-L*.5,-16);
+    c.lineTo(-L*.485,-24);
+    c.lineTo(-L*.40,-26);
+    c.quadraticCurveTo(-L*.365,roofY+1,-L*.30,roofY);
+    c.lineTo(L*.285,roofY);
+    c.quadraticCurveTo(L*.345,roofY+2,L*.395,-27);
+    c.lineTo(L*.46,-24);
+    c.quadraticCurveTo(L*.5,-22,L*.5,-14);
+    c.quadraticCurveTo(L*.5,-8,L*.44,-8);
+    c.closePath();
+    c.fillStyle=sideBodyGrad(c,col,roofY,-8);c.fill();
+    c.strokeStyle='#9aa2ae';c.lineWidth=1.6;c.stroke();
+    // windshield + rear glass on the slopes
+    glassSide(c,[[L*.255,roofY+2],[L*.295,roofY+2],[L*.385,-27.5],[L*.30,-27.5]]);
+    glassSide(c,[[-L*.335,roofY+2],[-L*.295,roofY+2],[-L*.30,-27.5],[-L*.375,-27.5]]);
+    // a whole row of passenger windows
+    for(let i=0;i<5;i++){
+      const x=-L*.27+i*L*.105;
+      glassSide(c,[[x,roofY+2],[x+L*.075,roofY+2],[x+L*.075,-27.5],[x,-27.5]]);
+    }
+    // door lines + handles
+    c.strokeStyle='rgba(0,0,0,.25)';c.lineWidth=1.3;
+    for(let i=0;i<5;i++){
+      const x=-L*.285+i*L*.105;
+      c.beginPath();c.moveTo(x,-27);c.lineTo(x,-11);c.stroke();
+      if(i%2){rr(c,x+L*.02,-24.5,6,2.4,1.2);c.fillStyle='rgba(0,0,0,.35)';c.fill();}
+    }
+    // silver trim lines
+    c.strokeStyle='rgba(170,180,195,.9)';c.lineWidth=1.8;
+    c.beginPath();c.moveTo(-L*.44,-26.8);c.lineTo(L*.42,-26.8);c.stroke();
+    c.strokeStyle='rgba(170,180,195,.6)';c.lineWidth=1.4;
+    c.beginPath();c.moveTo(-L*.46,-10.5);c.lineTo(L*.45,-10.5);c.stroke();
+    // fender flag + emblem
+    c.strokeStyle='#8f97a5';c.lineWidth=1.6;
+    c.beginPath();c.moveTo(L*.445,-26);c.lineTo(L*.445,-34);c.stroke();
+    c.fillStyle='#e03131';
+    c.beginPath();c.moveTo(L*.445,-34);c.lineTo(L*.485,-31.8);c.lineTo(L*.445,-29.6);c.closePath();c.fill();
+    c.beginPath();c.arc(L*.41,-24,2.6,0,TAU);
+    c.fillStyle='#f4f6f9';c.fill();c.strokeStyle='#c9a227';c.lineWidth=1.4;c.stroke();
+    // mirror
+    rr(c,L*.285,-31,5,5,1.5);c.fillStyle=shade(col,-.2);c.fill();
   }
   // lights + bumpers (common, road vehicles only)
   if(!railcar&&arch!=='shovel'){
@@ -2519,7 +2934,9 @@ function drawCarSide(c,s,wheelRot,bounce){
     const hg=c.createLinearGradient(0,-19,0,-14);
     hg.addColorStop(0,'#fff');hg.addColorStop(1,'#ffd977');
     c.fillStyle=hg;c.fill();c.strokeStyle='rgba(90,70,10,.35)';c.lineWidth=1;c.stroke();
-    rr(c,-L*.5,-20,5,5,2);c.fillStyle='#d92c2c';c.fill();
+    if(arch!=='wrecker'&&arch!=='crane'){
+      rr(c,-L*.5,-20,5,5,2);c.fillStyle='#d92c2c';c.fill();
+    }
   }
   c.restore(); // un-bounce
   if(arch==='shovel'){
