@@ -134,6 +134,17 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
   100%{transform:translateX(-50%) scale(1);opacity:1;}
 }
 #toast.ouch{background:rgba(232,90,70,.94);}
+/* gamepad: focus ring for controller menu navigation */
+.pfocus{
+  position:relative;z-index:2;
+  animation:pfpulse 1.1s ease-in-out infinite;
+}
+@keyframes pfpulse{
+  0%,100%{box-shadow:0 0 0 4px #fff,0 0 0 10px #2f8fe8,0 12px 22px rgba(20,60,140,.4);}
+  50%{box-shadow:0 0 0 4px #fff,0 0 0 14px #7cc0ff,0 12px 22px rgba(20,60,140,.4);}
+}
+/* while the controller is in use, fade the on-screen action buttons (touch instantly restores) */
+body.padctl #btn-jump,body.padctl #btn-throw{opacity:.22 !important;filter:grayscale(.5);}
 #lives{display:flex;gap:3px;justify-content:center;margin-top:3px;}
 #lives .hh{display:block;position:relative;}
 #lives .hh svg{width:clamp(17px,4.4vw,23px);height:clamp(17px,4.4vw,23px);display:block;transition:filter .25s,opacity .25s;}
@@ -315,6 +326,20 @@ h2.head{font-size:clamp(24px,6vw,34px);font-weight:900;color:#2c5f9e;}
       <div id="newrec" class="hidden">しんきろく！</div>
       <button class="btn big" id="btn-retry">もういちど</button>
       <button class="btn small blue" id="btn-change">くるまを かえる</button>
+    </div>
+  </div>
+
+  <div id="screen-pause" class="screen hidden">
+    <div class="panel" style="max-width:440px;">
+      <svg viewBox="0 0 24 24" style="width:58px;height:58px;">
+        <circle cx="12" cy="12" r="11" fill="#ffd23f" stroke="#e8961e" stroke-width="1.6"/>
+        <rect x="8" y="7" width="2.8" height="10" rx="1.2" fill="#8a5a00"/>
+        <rect x="13.2" y="7" width="2.8" height="10" rx="1.2" fill="#8a5a00"/>
+      </svg>
+      <h2 class="head">きゅうけいちゅう</h2>
+      <button class="btn big" id="btn-resume">つづける</button>
+      <button class="btn small blue" id="btn-quit">やめて タイトルへ</button>
+      <p class="hint">スタートボタンでも つづけられるよ</p>
     </div>
   </div>
 </div>
@@ -3441,6 +3466,7 @@ function update(dt,t){
       if(p.drag)drag=p.x;
       else steer=p.x<W/2?-1:1;
     });
+    if(pad.on&&pad.ax)steer=pad.ax; // controller: analog amount steers proportionally
     if(keys.left)steer=-1;
     if(keys.right)steer=1;
     const onIce=(world.zoneKind==='ice'&&world.airT<=0);
@@ -3657,7 +3683,7 @@ function hitSideVehicle(o){
 function updateSide(dt,t,demo){
   const SS=sideScale(),gy=sideGroundY(),px=sidePlayerX();
   // jump physics (variable jump while held)
-  const held=keys.jump||pointers.size>0;
+  const held=keys.jump||pointers.size>0||(pad.on&&pad.a);
   const airborne=world.jumpY>0||world.jumpVy>0;
   if(airborne){
     const g=(world.jumpVy>0&&held&&world.jumpT<.32)?520:1500;
@@ -3678,6 +3704,7 @@ function updateSide(dt,t,demo){
     pointers.forEach(p=>{if(p.drag)dragT=p.x;});
     if(keys.left)ax=-1;
     if(keys.right)ax=1;
+    if(pad.on&&pad.ax)ax=pad.ax; // stick: analog air control
     if(dragT!==null){ // finger drag: car follows the finger sideways
       world.sideX+=((dragT-px)-world.sideX)*Math.min(1,dt*9);
       world.sideVx*=Math.max(0,1-dt*4);
@@ -4629,8 +4656,9 @@ function renderSideScene(t){
   drawCarSideAt(ctx,selCar,pxx,gy-jy,SS,d*.11,bounce,tilt);
   ctx.globalAlpha=1;
   // whoosh streaks while steering sideways in the air
-  if(jy>0&&state==='play'&&(Math.abs(world.sideVx)>120||keys.left||keys.right)){
-    const dir=(Math.abs(world.sideVx)>120?world.sideVx:((keys.right?1:0)-(keys.left?1:0)))>0?1:-1;
+  const leanIn=((keys.right?1:0)-(keys.left?1:0))||(pad.on?pad.ax:0);
+  if(jy>0&&state==='play'&&(Math.abs(world.sideVx)>120||leanIn)){
+    const dir=(Math.abs(world.sideVx)>120?world.sideVx:leanIn)>0?1:-1;
     ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=3.5;ctx.lineCap='round';
     for(let i=0;i<3;i++){
       const yy=gy-jy-(8+i*15)*SS;
@@ -4652,7 +4680,7 @@ function renderSideScene(t){
 }
 
 /* ============================== screens / flow ============================== */
-const SCREENS=['screen-title','screen-cars','screen-courses','screen-diff','screen-over'];
+const SCREENS=['screen-title','screen-cars','screen-courses','screen-diff','screen-over','screen-pause'];
 function showScreen(id){
   SCREENS.forEach(s=>$('#'+s).classList.toggle('hidden',s!==id));
   $('#hud').classList.toggle('hidden',!(id===null));
@@ -4669,11 +4697,15 @@ function setState(s){
   else if(s==='courses')showScreen('screen-courses');
   else if(s==='diff')showScreen('screen-diff');
   else if(s==='over')showScreen('screen-over');
+  else if(s==='paused')showScreen('screen-pause');
   else showScreen(null);
   if(s!=='play'&&s!=='ready'){stopEngine();stopSiren();}
-  // BGM: quiet loop on menus, silence during countdown / results
+  // BGM: quiet loop on menus, silence during countdown / results / pause
   if(s==='title'||s==='cars'||s==='courses'||s==='diff')startBgm('menu');
-  else if(s==='ready'||s==='over')stopBgm();
+  else if(s==='ready'||s==='over'||s==='paused')stopBgm();
+  // controller focus follows the visible screen
+  setPadFocus(null);
+  if(pad.using&&PAD_MENUS[s])padEnsureFocus();
 }
 function bestFor(id){return bests[id+':'+diff.id]|0;}
 function startGame(){
@@ -4961,11 +4993,11 @@ $('#btn-change').addEventListener('click',()=>{sndTap();resetWorld(true);setStat
 $('#btn-home').addEventListener('click',()=>{sndTap();resetWorld(true);setState('title');});
 $('#btn-throw').addEventListener('pointerdown',e=>{
   e.preventDefault();e.stopPropagation();
-  initAudio();throwItem();
+  initAudio();setUsingPad(false);throwItem();
 });
 $('#btn-jump').addEventListener('pointerdown',e=>{
   e.preventDefault();e.stopPropagation();
-  initAudio();doJump();keys.jump=true;
+  initAudio();setUsingPad(false);doJump();keys.jump=true;
 });
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>{
   $('#btn-jump').addEventListener(ev,()=>{keys.jump=false;});
@@ -4983,10 +5015,26 @@ $('#btn-music').addEventListener('click',()=>{
   sndTap();
 });
 
+/* pause (Start button on a controller, Esc/P on a keyboard) */
+function pauseGame(){
+  if(state!=='play')return;
+  sndTap();
+  setState('paused');
+}
+function resumeGame(){
+  if(state!=='paused')return;
+  sndTap();
+  setState('play');
+  startEngine();startSiren();startBgm('play');
+}
+$('#btn-resume').addEventListener('click',()=>{initAudio();resumeGame();});
+$('#btn-quit').addEventListener('click',()=>{sndTap();resetWorld(true);setState('title');});
+
 /* ============================== input ============================== */
 const app=$('#app');
 app.addEventListener('pointerdown',e=>{
   initAudio();
+  setUsingPad(false); // any touch instantly brings the on-screen buttons back
   if((state==='play'||state==='ready'||state==='crash')&&e.target===canvas){
     e.preventDefault();
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,
@@ -5031,6 +5079,10 @@ window.addEventListener('keydown',e=>{
     e.preventDefault();
   }
   if((e.key==='Enter'||e.key==='x'||e.key==='X')&&!e.repeat)throwItem();
+  if((e.key==='Escape'||e.key==='p'||e.key==='P')&&!e.repeat){
+    if(state==='play')pauseGame();
+    else if(state==='paused')resumeGame();
+  }
 });
 window.addEventListener('keyup',e=>{
   if(e.key==='ArrowLeft')keys.left=false;
@@ -5040,6 +5092,149 @@ window.addEventListener('keyup',e=>{
 document.addEventListener('gesturestart',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('dblclick',e=>e.preventDefault());
+
+/* ============================== gamepad (Bluetooth controller) ============================== */
+/* standard mapping: axes[0]=left stick X, buttons 0=A 1=B 2=X 9=Start 12-15=dpad */
+const PAD_DEAD=.18;
+const pad={on:false,using:false,ax:0,ay:0,a:false,prev:{},rep:{},lastAct:false,focusEl:null};
+const PAD_MENUS={title:1,cars:1,courses:1,diff:1,over:1,paused:1};
+function padGetPad(){
+  try{
+    const gps=navigator.getGamepads?navigator.getGamepads():[];
+    for(const g of gps)if(g&&g.connected)return g;
+  }catch(e){}
+  return null;
+}
+function padFound(){showToast('\u{1F3AE} コントローラーせつぞく');}
+function padLost(){
+  showToast('コントローラーが きれたよ');
+  setUsingPad(false);
+  pad.ax=0;pad.ay=0;pad.a=false;pad.prev={};pad.rep={};
+}
+function setUsingPad(v){
+  if(pad.using===v)return;
+  pad.using=v;
+  document.body.classList.toggle('padctl',v);
+  if(!v)setPadFocus(null);
+  else if(PAD_MENUS[state])padEnsureFocus();
+}
+function padFocusables(){
+  let sels=null;
+  if(state==='title')sels=['#btn-start'];
+  else if(state==='cars')sels=['#car-grid .card','#btn-cars-back','#btn-cars-next'];
+  else if(state==='courses')sels=['#course-grid .card','#btn-courses-back','#btn-courses-next'];
+  else if(state==='diff')sels=['#diff-list .diffcard','#lives-row .lifecard','#btn-diff-back','#btn-go'];
+  else if(state==='over')sels=['#btn-retry','#btn-change'];
+  else if(state==='paused')sels=['#btn-resume','#btn-quit'];
+  if(!sels)return[];
+  const out=[];
+  sels.forEach(s=>document.querySelectorAll(s).forEach(el=>out.push(el)));
+  return out;
+}
+function setPadFocus(el){
+  if(pad.focusEl===el)return;
+  if(pad.focusEl)pad.focusEl.classList.remove('pfocus');
+  pad.focusEl=el||null;
+  if(el){
+    el.classList.add('pfocus');
+    try{el.scrollIntoView({block:'nearest'});}catch(e){}
+  }
+}
+function padDefaultFocus(){
+  if(state==='title')return $('#btn-start');
+  if(state==='cars')return document.querySelector('#car-grid .card.sel')||document.querySelector('#car-grid .card');
+  if(state==='courses')return document.querySelector('#course-grid .card.sel')||document.querySelector('#course-grid .card');
+  if(state==='diff')return document.querySelector('#diff-list .diffcard.sel')||document.querySelector('#diff-list .diffcard');
+  if(state==='over')return $('#btn-retry');
+  if(state==='paused')return $('#btn-resume');
+  return null;
+}
+function padEnsureFocus(){
+  const els=padFocusables();
+  if(pad.focusEl&&els.indexOf(pad.focusEl)>=0)return true;
+  setPadFocus(padDefaultFocus());
+  return false;
+}
+function padMove(dx,dy){
+  if(!padEnsureFocus())return; // first press just reveals the ring
+  const cur=pad.focusEl;
+  if(!cur)return;
+  const els=padFocusables();
+  const r0=cur.getBoundingClientRect();
+  const cx=r0.left+r0.width/2,cy=r0.top+r0.height/2;
+  let best=null,bd=1e9;
+  for(const el of els){
+    if(el===cur)continue;
+    const r=el.getBoundingClientRect();
+    if(!r.width&&!r.height)continue;
+    const vx=r.left+r.width/2-cx,vy=r.top+r.height/2-cy;
+    const fwd=vx*dx+vy*dy;      // must lie in the pressed direction
+    if(fwd<6)continue;
+    const d=fwd+(Math.abs(vx*dy)+Math.abs(vy*dx))*2.4; // prefer straight ahead
+    if(d<bd){bd=d;best=el;}
+  }
+  if(best){setPadFocus(best);blip(760,900,.05,'square',.05);}
+}
+function padConfirm(){
+  padEnsureFocus();
+  if(pad.focusEl)pad.focusEl.click();
+}
+function padBack(){
+  if(state==='cars')$('#btn-cars-back').click();
+  else if(state==='courses')$('#btn-courses-back').click();
+  else if(state==='diff')$('#btn-diff-back').click();
+  else if(state==='over')$('#btn-change').click();
+  else if(state==='paused')resumeGame();
+}
+function padNavTick(name,pressed,dt,fn){
+  if(!pressed){pad.rep[name]=-1;return;}
+  if(pad.rep[name]===-1||pad.rep[name]===undefined){fn();pad.rep[name]=.3;} // first press
+  else{
+    pad.rep[name]-=dt;
+    if(pad.rep[name]<=0){fn();pad.rep[name]=.12;} // key repeat
+  }
+}
+function pollPad(dt){
+  const gp=padGetPad();
+  if(!gp){
+    if(pad.on){pad.on=false;padLost();}
+    return;
+  }
+  if(!pad.on){pad.on=true;padFound();}
+  const b=i=>!!(gp.buttons&&gp.buttons[i]&&gp.buttons[i].pressed);
+  const dz=v=>{v=v||0;return Math.abs(v)<PAD_DEAD?0:Math.sign(v)*(Math.abs(v)-PAD_DEAD)/(1-PAD_DEAD);};
+  const ax=dz(gp.axes&&gp.axes[0]),ay=dz(gp.axes&&gp.axes[1]);
+  const cur={
+    left:b(14)||ax<-.45,right:b(15)||ax>.45,
+    up:b(12)||ay<-.45,down:b(13)||ay>.45,
+    a:b(0),b:b(1),x:b(2),start:b(9)
+  };
+  pad.ax=b(14)?-1:(b(15)?1:ax);
+  pad.ay=ay;
+  pad.a=cur.a;
+  const act=ax!==0||ay!==0||cur.left||cur.right||cur.up||cur.down||cur.a||cur.b||cur.x||cur.start;
+  if(act&&!pad.lastAct){setUsingPad(true);initAudio();}
+  pad.lastAct=act;
+  const edge=k=>cur[k]&&!pad.prev[k];
+  if(edge('start')){
+    if(state==='play')pauseGame();
+    else if(state==='paused')resumeGame();
+  }
+  if(PAD_MENUS[state]){
+    padNavTick('left',cur.left,dt,()=>padMove(-1,0));
+    padNavTick('right',cur.right,dt,()=>padMove(1,0));
+    padNavTick('up',cur.up,dt,()=>padMove(0,-1));
+    padNavTick('down',cur.down,dt,()=>padMove(0,1));
+    if(edge('a'))padConfirm();
+    if(edge('b'))padBack();
+  }else{
+    if(edge('a'))doJump();               // A = jump (held A = higher jump in side mode)
+    if(edge('b')||edge('x'))throwItem(); // B / X = throw the star item
+  }
+  pad.prev=cur;
+}
+window.addEventListener('gamepadconnected',()=>{if(!pad.on&&padGetPad()){pad.on=true;padFound();}});
+window.addEventListener('gamepaddisconnected',()=>{if(pad.on&&!padGetPad()){pad.on=false;padLost();}});
 
 /* ============================== boot ============================== */
 resize();
@@ -5127,13 +5322,22 @@ window.__test={
   bgmMode:()=>bgm?bgm.mode:'',
   bgmBar:()=>bgm?bgm.bar:-1,
   bgmNotes:()=>bgmNotesScheduled,
-  bgmEnabled:()=>bgmEnabled
+  bgmEnabled:()=>bgmEnabled,
+  padOn:()=>pad.on,
+  padUsing:()=>pad.using,
+  padFocus:()=>{
+    const el=pad.focusEl;
+    if(!el)return null;
+    return el.id||el.dataset.car||el.dataset.course||el.dataset.diff||el.dataset.lives||'el';
+  },
+  go:(car,co,d)=>{if(car)selectCar(car);if(co)selectCourse(co);if(d)selectDiff(d);startGame();}
 };
 let last=performance.now();
 function frame(now){
   requestAnimationFrame(frame);
   let dt=(now-last)/1000;last=now;
   dt=Math.min(dt,.05);
+  pollPad(dt);
   update(dt,now/1000);
   render(now/1000);
 }
