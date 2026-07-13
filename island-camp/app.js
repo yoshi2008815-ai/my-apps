@@ -63,27 +63,38 @@ function saveIslands(){
 }
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 
-/* ---------- 写真は IndexedDB に保存 ---------- */
-const PhotoDB = (() => {
+/* ---------- 写真・動画・ドキュメントは IndexedDB に保存 ----------
+   photos: 島の写真 / media: アルバムの写真・動画（+サムネ） / files: ドキュメント */
+const AppDB = (() => {
   let dbp;
+  const STORES = ['photos', 'media', 'files'];
   function open(){
     if (dbp) return dbp;
     dbp = new Promise((res, rej) => {
-      const r = indexedDB.open('island-camp-photos', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('photos');
+      const r = indexedDB.open('island-camp-photos', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
+      };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
     });
     return dbp;
   }
-  async function tx(mode){ return (await open()).transaction('photos', mode).objectStore('photos'); }
-  return {
-    async put(id, blob){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.put(blob,id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
-    async get(id){ const s = await tx('readonly'); return new Promise((res,rej)=>{const r=s.get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); },
-    async del(id){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
-    async all(){ const s = await tx('readonly'); return new Promise((res,rej)=>{const out={}; const r=s.openCursor(); r.onsuccess=e=>{const c=e.target.result; if(c){out[c.key]=c.value; c.continue();} else res(out);}; r.onerror=()=>rej(r.error);}); }
-  };
+  function make(store){
+    async function tx(mode){ return (await open()).transaction(store, mode).objectStore(store); }
+    return {
+      async put(id, blob){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.put(blob,id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
+      async get(id){ const s = await tx('readonly'); return new Promise((res,rej)=>{const r=s.get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); },
+      async del(id){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
+      async all(){ const s = await tx('readonly'); return new Promise((res,rej)=>{const out={}; const r=s.openCursor(); r.onsuccess=e=>{const c=e.target.result; if(c){out[c.key]=c.value; c.continue();} else res(out);}; r.onerror=()=>rej(r.error);}); }
+    };
+  }
+  return { photos: make('photos'), media: make('media'), files: make('files') };
 })();
+const PhotoDB = AppDB.photos;
+const MediaDB = AppDB.media;
+const FileDB  = AppDB.files;
 
 /* ---------- 状態 ---------- */
 const STATE = {
@@ -731,62 +742,7 @@ $('#pFav').addEventListener('click', () => {
   is.fav = !is.fav; saveIslands(); renderIndexPanel(); openIsland(is.id);
 });
 
-/* ---------- アルバム（全島の写真＋一括/選択ダウンロード） ---------- */
-const ALBUM = { sel: new Set(), urls: {} };
-
-async function openAlbum(){
-  const body = $('#albumBody');
-  ALBUM.sel.clear();
-  updateAlbumDl();
-  let total = 0, html = '';
-  for (const is of STATE.islands){
-    if (!is.photos || !is.photos.length) continue;
-    total += is.photos.length;
-    html += `<div class="album-isl"><h3>🏝 ${esc(is.name)}（${is.photos.length}枚）</h3><div class="album-grid">`
-      + is.photos.map(pid => `<div class="album-ph" data-pid="${pid}" data-isl="${is.id}">
-          <img data-pid="${pid}" alt=""><span class="ck">✓</span></div>`).join('')
-      + `</div></div>`;
-  }
-  body.innerHTML = total ? html
-    : `<div class="album-empty">まだ写真がありません。<br>島を開いて「📷 写真」の＋から追加できます。</div>`;
-  $('#albumCount').textContent = total ? `${total}枚` : '';
-  $('#album').classList.remove('hidden');
-  // 画像を読み込み
-  for (const el of body.querySelectorAll('img[data-pid]')){
-    const blob = await PhotoDB.get(el.dataset.pid);
-    if (blob){ const u = URL.createObjectURL(blob); ALBUM.urls[el.dataset.pid] = u; el.src = u; }
-  }
-  // ✓ = 選択トグル、写真本体 = 拡大表示
-  body.querySelectorAll('.album-ph').forEach(ph => {
-    ph.querySelector('.ck').addEventListener('click', ev => {
-      ev.stopPropagation();
-      const pid = ph.dataset.pid;
-      ALBUM.sel.has(pid) ? ALBUM.sel.delete(pid) : ALBUM.sel.add(pid);
-      ph.classList.toggle('sel', ALBUM.sel.has(pid));
-      updateAlbumDl();
-    });
-    ph.addEventListener('click', () => openLightbox(ph.dataset.pid, ph.dataset.isl));
-  });
-}
-function closeAlbum(){
-  $('#album').classList.add('hidden');
-  for (const u of Object.values(ALBUM.urls)) URL.revokeObjectURL(u);
-  ALBUM.urls = {};
-}
-function updateAlbumDl(){
-  const n = ALBUM.sel.size;
-  $('#albumDl').textContent = n ? `⬇ 選択した${n}枚をDL` : '⬇ まとめてDL';
-  $('#albumSelAll').textContent = n ? '選択解除' : '全選択';
-}
-function openLightbox(pid, islId){
-  const is = islandById(islId);
-  $('#lbImg').src = ALBUM.urls[pid] || '';
-  $('#lbCap').textContent = is ? `🏝 ${is.name}` : '';
-  const a = $('#lbDl');
-  a.href = ALBUM.urls[pid] || '';
-  a.download = `${is ? is.name : 'photo'}_${pid.slice(-5)}.jpg`;
-  $('#lightbox').classList.remove('hidden');
-}
+/* ---------- アルバム・動画・ドキュメントの本体は media.js ---------- */
 
 // ZIP作成（無圧縮STORE・UTF-8ファイル名対応・ライブラリ不要）
 async function makeZip(files){
@@ -822,52 +778,32 @@ async function makeZip(files){
   return new Blob([...parts, ...central, eocd.buffer], {type:'application/zip'});
 }
 
-async function downloadPhotos(){
-  const items = [], counters = {};
-  for (const is of STATE.islands){
-    for (const pid of (is.photos||[])){
-      if (ALBUM.sel.size && !ALBUM.sel.has(pid)) continue;
-      const blob = await PhotoDB.get(pid);
-      if (!blob) continue;
-      counters[is.name] = (counters[is.name]||0) + 1;
-      const ext = (blob.type.split('/')[1]||'jpg').replace('jpeg','jpg');
-      items.push({name:`${is.name}_${String(counters[is.name]).padStart(2,'0')}.${ext}`, blob});
-    }
-  }
-  if (!items.length){ toast('ダウンロードする写真がありません'); return; }
-  toast('ZIPを作成中…');
-  const zip = await makeZip(items);
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(zip);
-  a.download = `island-camp-photos-${new Date().toISOString().slice(0,10)}.zip`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-  toast(`${items.length}枚をZIPでダウンロードしました`);
-}
-
-$('#albumBtn').onclick = openAlbum;
-$('#albumClose').onclick = closeAlbum;
-$('#albumSelAll').onclick = () => {
-  const all = [...document.querySelectorAll('.album-ph')];
-  if (ALBUM.sel.size){ ALBUM.sel.clear(); all.forEach(p => p.classList.remove('sel')); }
-  else { all.forEach(p => { ALBUM.sel.add(p.dataset.pid); p.classList.add('sel'); }); }
-  updateAlbumDl();
-};
-$('#albumDl').onclick = downloadPhotos;
-$('#lbClose').onclick = () => $('#lightbox').classList.add('hidden');
-$('#lightbox').addEventListener('click', e => { if (e.target.id === 'lightbox') e.currentTarget.classList.add('hidden'); });
-
 /* ---------- データ入出力 ---------- */
+async function packDB(db){
+  const all = await db.all();
+  const out = {};
+  for (const [k, blob] of Object.entries(all)){
+    try { out[k] = await blobToDataURL(blob); } catch(e){}
+  }
+  return out;
+}
 async function exportData(){
-  const photos = await PhotoDB.all();
-  const photoData = {};
-  for (const [k,blob] of Object.entries(photos)){ photoData[k] = await blobToDataURL(blob); }
-  const payload = { version:1, exportedAt:new Date().toISOString(), islands:STATE.islands, photos:photoData };
+  toast('バックアップを作成中…（動画が多いと時間がかかります）');
+  const payload = {
+    version: 2, exportedAt: new Date().toISOString(),
+    islands: STATE.islands,
+    photos: await packDB(PhotoDB),
+    albums: window.Albums ? window.Albums.list() : [],
+    media:  await packDB(MediaDB),
+    docs:   window.Docs ? window.Docs.list() : [],
+    files:  await packDB(FileDB)
+  };
   const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `island-camp-backup-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
   toast('バックアップを書き出しました');
 }
 async function importData(file){
@@ -878,6 +814,10 @@ async function importData(file){
     STATE.islands = p.islands;
     saveIslands();
     if(p.photos){ for(const [k,durl] of Object.entries(p.photos)){ await PhotoDB.put(k, dataURLtoBlob(durl)); } }
+    if(p.media){  for(const [k,durl] of Object.entries(p.media)){  await MediaDB.put(k, dataURLtoBlob(durl)); } }
+    if(p.files){  for(const [k,durl] of Object.entries(p.files)){  await FileDB.put(k, dataURLtoBlob(durl)); } }
+    if(p.albums && window.Albums) window.Albums.replace(p.albums);
+    if(p.docs && window.Docs) window.Docs.replace(p.docs);
     renderMap(); renderIndexPanel(); $('#dataModal').classList.remove('open'); toast('読み込み完了');
   } catch(e){ toast('読み込みに失敗しました'); }
 }

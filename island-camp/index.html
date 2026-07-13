@@ -303,34 +303,93 @@
     font-weight:800; padding:5px 11px; border-radius:10px; font-variant-numeric:tabular-nums}
   .myk-phones{display:flex; flex-direction:column}
 
-  /* ===== アルバム ===== */
+  /* ===== アルバム（LINE風） ===== */
   .album{position:fixed; inset:0; z-index:70; background:var(--bg); display:flex; flex-direction:column}
   .album.hidden{display:none}
-  .album-head{display:flex; align-items:center; gap:8px; padding:12px 16px; background:#fff; box-shadow:var(--shadow-sm); flex-wrap:wrap}
-  .album-head h2{margin:0; font-size:1.02rem; font-weight:900}
+  .album-view{display:flex; flex-direction:column; flex:1; min-height:0}
+  .album-view.hidden{display:none}
+  .album-head{display:flex; align-items:center; gap:8px; padding:12px 16px; background:#fff; box-shadow:var(--shadow-sm); flex-wrap:wrap; position:relative}
+  .album-head h2{margin:0; font-size:1.02rem; font-weight:900; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .album-head h2 span{font-size:.74rem; color:var(--sub); font-weight:700}
   .album-body{flex:1; overflow-y:auto; padding:12px 16px 40px}
-  .album-isl{margin-top:18px}
-  .album-isl h3{font-size:.88rem; font-weight:900; color:var(--accent2); margin:0 0 8px}
+  /* アルバム一覧カード */
+  .alb-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+  .alb-card{cursor:pointer; border-radius:16px; overflow:hidden; background:#fff; border:1px solid var(--line);
+    box-shadow:var(--shadow-sm); transition:transform .12s, box-shadow .12s}
+  .alb-card:hover{transform:translateY(-2px); box-shadow:var(--shadow-md)}
+  .alb-cover{aspect-ratio:1; background:#eaf2f4; display:flex; align-items:center; justify-content:center;
+    font-size:2rem; color:#b9ccd3; position:relative; overflow:hidden}
+  .alb-cover img,.alb-cover video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+  .alb-cover .vd{position:absolute; left:8px; bottom:8px; background:rgba(0,0,0,.55); color:#fff;
+    font-size:.7rem; padding:2px 8px; border-radius:999px; font-weight:700}
+  .alb-card.new .alb-cover{background:#f4fbfa; border-bottom:2px dashed var(--line); color:var(--accent2); font-size:2.3rem}
+  .alb-info{padding:9px 11px 11px}
+  .alb-name{font-weight:800; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .alb-meta{font-size:.68rem; color:var(--sub); margin-top:2px; font-weight:700}
+  .alb-sec-h{font-size:.8rem; color:var(--accent2); font-weight:800; margin:22px 2px 10px}
+  /* アルバム内グリッド */
   .album-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px}
   .album-ph{position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:#e6eef1;
     cursor:pointer; border:3px solid transparent; transition:border-color .12s}
-  .album-ph img{width:100%; height:100%; object-fit:cover; display:block}
+  .album-ph img,.album-ph video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; pointer-events:none}
   .album-ph.sel{border-color:var(--accent)}
-  .album-ph .ck{position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%;
-    background:rgba(255,255,255,.92); border:1.5px solid var(--line); display:flex; align-items:center;
+  .album-ph .ck{position:absolute; top:6px; left:6px; width:24px; height:24px; border-radius:50%; z-index:2;
+    background:rgba(255,255,255,.92); border:1.5px solid var(--line); display:none; align-items:center;
     justify-content:center; font-size:.72rem; color:transparent; box-shadow:var(--shadow-sm)}
+  .selmode .album-ph .ck{display:flex}
   .album-ph.sel .ck{background:var(--accent); color:#fff; border-color:transparent}
-  .album-empty{text-align:center; color:var(--sub); padding:70px 20px; font-size:.9rem; line-height:1.8}
-  /* ライトボックス */
+  .album-ph .vd{position:absolute; left:6px; bottom:6px; z-index:2; background:rgba(0,0,0,.55); color:#fff;
+    font-size:.66rem; padding:2px 8px; border-radius:999px; font-weight:700}
+  .album-empty{text-align:center; color:var(--sub); padding:70px 20px; font-size:.9rem; line-height:1.9}
+  /* 選択バー */
+  .album-selbar{display:flex; align-items:center; gap:8px; padding:8px 16px; background:#fff7ea;
+    border-bottom:1px solid #ffe3bb; font-size:.78rem; font-weight:700; flex-wrap:wrap}
+  .album-selbar.hidden{display:none}
+  /* アルバムメニュー（アクションシート） */
+  .sheet{position:absolute; top:52px; right:14px; background:#fff; border-radius:14px; z-index:9;
+    box-shadow:var(--shadow-lg); border:1px solid var(--line); overflow:hidden; min-width:190px}
+  .sheet.hidden{display:none}
+  .sheet button{display:block; width:100%; padding:13px 18px; background:none; border:none;
+    font-family:inherit; font-size:.84rem; font-weight:700; cursor:pointer; text-align:left; color:var(--ink)}
+  .sheet button:hover{background:var(--panel2)}
+  .sheet button.danger{color:var(--pin)}
+  /* ドラッグ&ドロップ */
+  .dropveil{position:absolute; inset:10px; border:3px dashed var(--accent2); border-radius:18px;
+    background:rgba(16,155,144,.08); z-index:8; display:none; align-items:center; justify-content:center;
+    font-weight:900; color:var(--accent2); pointer-events:none; font-size:1.05rem}
+  .album.dragging .dropveil{display:flex}
+  /* ライトボックス（ビューア：写真・動画） */
   .lightbox{position:fixed; inset:0; z-index:75; background:rgba(10,25,30,.93); display:flex;
     flex-direction:column; align-items:center; justify-content:center; padding:20px}
   .lightbox.hidden{display:none}
-  .lightbox img{max-width:92vw; max-height:72vh; border-radius:14px; box-shadow:var(--shadow-lg)}
+  .lb-stage{display:flex; align-items:center; justify-content:center; max-width:94vw; max-height:74vh}
+  .lb-stage img,.lb-stage video{max-width:92vw; max-height:72vh; border-radius:14px; box-shadow:var(--shadow-lg)}
+  .lb-loading{color:#9fc3cc; font-size:.9rem}
   .lb-bar{display:flex; align-items:center; gap:14px; margin-top:16px; color:#fff; font-size:.86rem; font-weight:700}
   .lb-bar a{text-decoration:none}
   .lb-close{position:absolute; top:16px; right:16px; background:rgba(255,255,255,.16); color:#fff; border:none;
-    width:42px; height:42px; border-radius:50%; font-size:1rem; cursor:pointer; font-family:inherit}
+    width:42px; height:42px; border-radius:50%; font-size:1rem; cursor:pointer; font-family:inherit; z-index:3}
+  .lb-nav{position:absolute; top:50%; transform:translateY(-50%); width:46px; height:46px; border-radius:50%;
+    border:none; background:rgba(255,255,255,.16); color:#fff; font-size:1.5rem; cursor:pointer; z-index:3;
+    font-family:inherit; transition:opacity .15s}
+  .lb-nav:hover{background:rgba(255,255,255,.3)}
+  .lb-nav.prev{left:14px}
+  .lb-nav.next{right:14px}
+  .lb-nav.off{opacity:.2; pointer-events:none}
+  /* ===== ドキュメント ===== */
+  .doc-list{display:flex; flex-direction:column; gap:8px; max-width:720px; margin:0 auto}
+  .doc-item{display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line);
+    border-radius:14px; padding:12px 14px; cursor:pointer; box-shadow:var(--shadow-sm); transition:box-shadow .12s}
+  .doc-item:hover{box-shadow:var(--shadow-md)}
+  .doc-ic{font-size:1.6rem; flex:none}
+  .doc-nm{flex:1; min-width:0; font-weight:700; font-size:.86rem; word-break:break-all; line-height:1.4}
+  .doc-meta{display:block; font-size:.68rem; color:var(--sub); margin-top:2px; font-weight:600}
+  .doc-act{display:flex; gap:6px; flex:none}
+  .doc-act button{background:var(--panel2); border:1px solid var(--line); border-radius:10px; width:36px; height:36px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink); font-size:.9rem; font-family:inherit}
+  .doc-act button:hover{background:#e4f0f2}
+  /* 島の写真タブ：タップで拡大できることを示す */
+  .gallery .ph img{cursor:zoom-in}
 
   /* ===== 左ペイン：年次別インデックス ===== */
   .idx-head{padding:18px 16px 12px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px}
@@ -375,6 +434,7 @@
       </div>
       <div class="spacer"></div>
       <button class="btn ghost" id="albumBtn" title="アルバム">📸</button>
+      <button class="btn ghost" id="docsBtn" title="ドキュメント">📁</button>
       <button class="btn ghost" id="addIslandBtn" title="島を追加">＋島</button>
       <button class="btn ghost" id="menuBtn" title="データ">⋯</button>
     </div>
@@ -443,33 +503,77 @@
   <div class="card" id="formCard"></div>
 </div>
 
-<!-- アルバム（全島の写真） -->
+<!-- アルバム（LINE風：一覧 → 中身 → ビューア） -->
 <div class="album hidden" id="album">
-  <div class="album-head">
-    <h2>📸 アルバム <span id="albumCount"></span></h2>
-    <div class="spacer"></div>
-    <button class="btn" id="albumSelAll">全選択</button>
-    <button class="btn accent" id="albumDl">⬇ まとめてDL</button>
-    <button class="btn ghost" id="albumClose">✕</button>
+  <!-- ホーム：アルバム一覧 -->
+  <div class="album-view" id="albumHome">
+    <div class="album-head">
+      <h2>📸 アルバム</h2>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="albumClose">✕</button>
+    </div>
+    <div class="album-body" id="albumHomeBody"></div>
   </div>
-  <div class="album-body" id="albumBody"></div>
+  <!-- 詳細：写真・動画グリッド -->
+  <div class="album-view hidden" id="albumDetail">
+    <div class="album-head">
+      <button class="btn ghost" id="albumBack">‹ 一覧</button>
+      <h2 id="albumDetailName"></h2>
+      <div class="spacer"></div>
+      <button class="btn accent" id="albumAddBtn">＋ 追加</button>
+      <button class="btn" id="albumSelBtn">選択</button>
+      <button class="btn ghost" id="albumMenuBtn">⋯</button>
+      <div class="sheet hidden" id="albumSheet">
+        <button id="sheetRename">✏ 名前を変更</button>
+        <button id="sheetDlAll">⬇ 全部をZIPでDL</button>
+        <button id="sheetDelete" class="danger">🗑 アルバムを削除</button>
+      </div>
+    </div>
+    <div class="album-selbar hidden" id="albumSelBar">
+      <button class="btn" id="selAll">全選択</button>
+      <span id="selCount">0件を選択中</span>
+      <div class="spacer"></div>
+      <button class="btn" id="selDl">⬇ DL</button>
+      <button class="btn" id="selDel" style="color:var(--pin)">🗑 削除</button>
+    </div>
+    <div class="album-body" id="albumDetailBody"></div>
+    <input type="file" id="mediaInput" accept="image/*,video/*" multiple class="hidden">
+  </div>
+  <div class="dropveil">⬇ ここにドロップして追加</div>
 </div>
 
-<!-- ライトボックス（写真の拡大表示） -->
+<!-- ドキュメント（PDF・Word・Excel などを貼るページ） -->
+<div class="album hidden" id="docs">
+  <div class="album-head">
+    <h2>📁 ドキュメント <span id="docsCount"></span></h2>
+    <div class="spacer"></div>
+    <button class="btn accent" id="docsAddBtn">＋ 追加</button>
+    <button class="btn ghost" id="docsClose">✕</button>
+  </div>
+  <div class="album-body" id="docsBody"></div>
+  <input type="file" id="docsInput" multiple class="hidden"
+    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/csv">
+  <div class="dropveil">⬇ ここにドロップして追加</div>
+</div>
+
+<!-- ライトボックス（写真の拡大・動画の再生） -->
 <div class="lightbox hidden" id="lightbox">
   <button class="lb-close" id="lbClose">✕</button>
-  <img id="lbImg" alt="">
-  <div class="lb-bar"><span id="lbCap"></span><a class="btn accent" id="lbDl" download>⬇ この写真を保存</a></div>
+  <button class="lb-nav prev" id="lbPrev">‹</button>
+  <button class="lb-nav next" id="lbNext">›</button>
+  <div class="lb-stage" id="lbStage"></div>
+  <div class="lb-bar"><span id="lbCap"></span><a class="btn accent" id="lbDl" download>⬇ 保存</a></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <!-- ?v= はSWキャッシュ版数と連動（更新時に必ず上げる：ブラウザキャッシュ対策） -->
-<script src="./geo.js?v=15"></script>
-<script src="./data.js?v=15"></script>
-<script src="./islemap.js?v=15"></script>
-<script src="./app.js?v=15"></script>
-<script src="./miyake.js?v=15"></script>
+<script src="./geo.js?v=16"></script>
+<script src="./data.js?v=16"></script>
+<script src="./islemap.js?v=16"></script>
+<script src="./app.js?v=16"></script>
+<script src="./media.js?v=16"></script>
+<script src="./miyake.js?v=16"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
