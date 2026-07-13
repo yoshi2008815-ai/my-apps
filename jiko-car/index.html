@@ -5436,7 +5436,9 @@ const kart={
 };
 let kartFlow=null; // null | {pi:0|1}
 const kkeys={p1l:false,p1r:false,p2l:false,p2r:false};
-const RHN=205; // nominal road half width (rel-unit conversions)
+const RHN=300; // nominal road half width (rel-unit conversions; larger = wider course, smaller karts in rel units)
+const KWF=1.5; // 3D road width factor (x view width) - extra-wide mario-kart course
+const KWS=1.02; // 3D sprite projection base (keeps kart/billboard sizes readable)
 const KLANES=[-.6,-.2,.2,.6]; // kart-road lane separators (5 visual lanes)
 const KCF=[.12,.28,.45,.6,.75]; // centrifugal strength per difficulty star
 let kartAutoTest=false;
@@ -5517,7 +5519,12 @@ function ktCurv(z){ // curvature: rel-units per 100px of travel
   return (ktU(z+80)-ktU(z-80))/160*100;
 }
 window.__ktest={
-  kw:()=>1.02,
+  kw:()=>KWF,
+  slipT:()=>kart.racers[0]?+(kart.racers[0].slipT||0).toFixed(2):0,
+  boostT:()=>kart.racers[0]?+(kart.racers[0].boostT||0).toFixed(2):0,
+  slips:()=>kart.slipCount||0,
+  pop:()=>kart.rankPop?kart.rankPop.txt:'',
+  rels:()=>kart.racers.map(r=>({z:Math.round(r.z),rel:+r.rel.toFixed(2),cpu:!!r.cpu,fin:r.finished})),
   track:()=>ktrack&&ktrack.secs.map(s=>({len:Math.round(s.len),from:+s.from.toFixed(2),to:+s.to.toFixed(2),kind:s.kind})),
   curv:(dz)=>ktCurv((kart.racers[0]?kart.racers[0].z:0)+(dz||0)),
   racer:i=>{const r=kart.racers[i];return r?{z:Math.round(r.z),rel:+r.rel.toFixed(3),sp:Math.round(r.sp),spinT:+r.spinT.toFixed(2),fin:r.finished,rumble:+(r.rumbleT||0).toFixed(2)}:null;},
@@ -6032,8 +6039,8 @@ window.addEventListener('keyup',e=>{
 function kartRacerBase(ch,spec,cpu,pi){
   return {ch,spec,cpu,pi,z:0,rel:0,sp:0,tilt:0,spin:0,spinT:0,invT:0,items:0,
     throwCd:cpu?rand(3,6):0,steer:0,dragDX:0,finished:false,fRank:0,
-    jumpT:0,jumpCd:0,
-    persona:rand(.93,1.04),ph:rand(0,TAU),homeRel:0};
+    jumpT:0,jumpCd:0,slipT:0,boostT:0,
+    persona:rand(.88,1.0),ph:rand(0,TAU),homeRel:0};
 }
 function kartGoalPx(){return [500,650,800,1000,1200][((diff&&diff.id)||3)-1]*14;}
 function kartCommonStart(){
@@ -6047,6 +6054,7 @@ function kartCommonStart(){
   kart.phase='count';kart.countT=3.3;kart.lastN=4;
   kart.finCount=0;kart.doneT=0;kart.winner=null;
   kart.balls=[];kart.attacks=[];kart.confetti=[];kart.viewIdx=0;
+  kart.prevRank=0;kart.rankPop=null;kart.popCd=0;kart.slipCount=0;
   world.nextItemZ=PY+500;
   world.nextChevZ=0;
   world.rumbleCount=0;
@@ -6165,7 +6173,7 @@ function kartSteering(dt){
     const prev=r.rel;
     const rh=kart.versus?vsRoadHalf():roadHalf;
     if(r.dragDX)r.rel+=r.dragDX/rh;
-    else if(r.steer)r.rel+=r.steer*1.15*dt;
+    else if(r.steer)r.rel+=r.steer*1.6*dt; // brisk lane changes so overtaking is easy
     if(r.spinT>0)r.rel=prev+(r.rel-prev)*.3;
     r.tilt=lerp(r.tilt,clamp((r.rel-prev)/Math.max(dt,.001)*.5,-.18,.18),Math.min(1,dt*10));
   });
@@ -6186,12 +6194,31 @@ function cpuDrive(r,dt,t){
   if(danger!==null)target=r.rel+(r.rel<=danger?-.55:.55);
   else if(bestItem!==null)target=bestItem;
   target+=clamp(ktCurv(r.z+180)*1.15,-.34,.34); // racing line: hug the inside of the curve
+  // spread out laterally: karts repel so they never line up into a wall
+  for(const o of kart.racers){
+    if(o===r||o.finished)continue;
+    const dz2=Math.abs(o.z-r.z);
+    if(dz2<300&&Math.abs(o.rel-r.rel)<.55){
+      const sgn=r.rel>o.rel?1:(r.rel<o.rel?-1:(r.ph>o.ph?1:-1));
+      target+=sgn*.85*(1-dz2/300);
+    }
+  }
+  // never cut in right in front of the player - always leave a passing gap
+  // (range stops at 220 so the 220-340 draft zone still allows slipstreaming)
+  const pl0=kart.racers[0];
+  if(!kart.versus&&r!==pl0&&pl0&&!pl0.finished){
+    const dzp=r.z-pl0.z;
+    if(dzp>-40&&dzp<220&&Math.abs(target-pl0.rel)<.38){
+      const dir=(target-pl0.rel)||(r.rel-pl0.rel)||1;
+      target=pl0.rel+(dir>=0?1:-1)*.55;
+    }
+  }
   target=clamp(target,-.88,.88);
   if(course.twoway)target=clamp(target,-.88,.12);
   const prev=r.rel;
   r.rel+=clamp(target-r.rel,-1,1)*Math.min(1,dt*2.0);
   r.tilt=clamp((r.rel-prev)/Math.max(dt,.001)*.35,-.18,.18);
-  if(diff.id>=3&&r.items>0&&r.throwCd<=0){
+  if(diff.id>=4&&r.items>0&&r.throwCd<=0){ // CPUs only fight back on star 4-5
     for(const o of kart.racers){
       if(o===r||o.finished)continue;
       const dz=o.z-r.z;
@@ -6228,18 +6255,45 @@ function updateKart(dt,t){
       target=baseSpeed()*(r.cpu?r.persona:1.05);
       if(r.cpu&&!kart.versus){
         const pz=R[0].z;
-        if(r.z<pz-260)target*=1.13;
-        else if(r.z>pz+430)target*=.86;
+        if(r.z<pz-260)target*=1.07; // gentle catch-up only
+        else if(r.z>pz+180)target*=lerp(1,.84,clamp((r.z-pz-180)/400,0,1)); // leaders ease off gradually so the player can always come back
+        // hard cap: the player's cruise (x1.05) always outruns the fastest CPU
+        target=Math.min(target,baseSpeed()*(diff.id===1?.90:(diff.id>=4?1.03:1.0)));
+        // string out: never tailgate another kart in the same line (prevents 3-wide walls)
+        for(const o of R){
+          if(o===r||o.finished)continue;
+          const dzq=o.z-r.z;
+          if(dzq>0&&dzq<190&&Math.abs(o.rel-r.rel)<.5){target*=.93;break;}
+        }
       }
+      // slipstream: tuck in behind another kart for ~1s, then a whoosh burst
+      if(!r.cpu&&r.spinT<=0&&r.boostT<=0){
+        let draft=false;
+        for(const o of R){
+          if(o===r||o.finished)continue;
+          const dz=o.z-r.z;
+          if(dz>50&&dz<340&&Math.abs(o.rel-r.rel)<.22){draft=true;break;}
+        }
+        if(draft){
+          r.slipT+=dt;
+          if(r.slipT>=.95){
+            r.slipT=0;r.boostT=1.5;
+            kart.slipCount=(kart.slipCount||0)+1;
+            sndDash();
+          }
+        }else r.slipT=Math.max(0,r.slipT-dt*1.6);
+      }
+      if(r.boostT>0){r.boostT-=dt;target*=1.2;}
       if(r.spinT>0)target*=.22;
       if(Math.abs(r.rel)>.98)target*=.55; // curb rumble slows the kart
     }
-    r.sp=lerp(r.sp,target,Math.min(1,dt*2.4));
+    r.sp=lerp(r.sp,target,Math.min(1,dt*(r.boostT>0?3.4:2.4)));
     const u0=ktU(r.z);
     r.z+=r.sp*dt;
     // centrifugal drift: the road slides away under the kart in curves
     if(running&&!r.finished&&r.spinT<=0)r.rel-=(ktU(r.z)-u0)*KCF[((diff&&diff.id)||3)-1];
-    if(r.spinT>0){r.spinT-=dt;r.spin+=dt*11;if(r.spinT<=0)r.spin=0;}
+    if(r.spinT>0){r.spinT-=dt;r.spin+=dt*11;
+      if(r.spinT<=0){r.spin=0;if(!r.cpu)r.boostT=Math.max(r.boostT,1.5);}} // mercy boost after a spin
     if(r.invT>0)r.invT-=dt;
     if(r.throwCd>0)r.throwCd-=dt;
     if(r.jumpT>0)r.jumpT-=dt;
@@ -6370,6 +6424,19 @@ function updateKart(dt,t){
       if(!r.cpu)sndFanfare();
     }
   }
+  // overtake celebration: rank pop (e.g. 4th -> 3rd)
+  if(!kart.versus&&kart.phase==='run'&&R[0]&&!R[0].finished){
+    const rk=kartRank(R[0]);
+    if(kart.prevRank&&rk<kart.prevRank&&(kart.popCd||0)<=0){
+      kart.rankPop={t:0,txt:kart.prevRank+'い→'+rk+'い！'};
+      kart.popCd=1.6;
+      blip(660,990,.1,'square',.12);
+      blip(880,1320,.12,'square',.12,.08);
+    }
+    kart.prevRank=rk;
+  }
+  if(kart.popCd>0)kart.popCd-=dt;
+  if(kart.rankPop){kart.rankPop.t+=dt;if(kart.rankPop.t>1.3)kart.rankPop=null;}
   if(kart.phase==='run'){
     const done=kart.versus?(R[0].finished||R[1].finished):R[0].finished;
     if(done){
@@ -6508,6 +6575,23 @@ function drawRaceHUD(t){
   ctx.fillText(txt,W-18,by+24);
   ctx.textAlign='left';ctx.textBaseline='alphabetic';
   if(H>560)drawTrackMap(W-80,by+82,64,150,R[0]);
+  // overtake pop: "4th -> 3rd!"
+  if(kart.rankPop){
+    const kk=kart.rankPop.t;
+    const sc=kk<.18?(.3+(kk/.18)*.9):(kk<.42?1.2-(kk-.18)*.85:1);
+    ctx.save();
+    ctx.translate(W/2,H*.30);
+    ctx.scale(sc,sc);
+    ctx.globalAlpha=kk>1?Math.max(0,1-(kk-1)/.3):1;
+    ctx.font='900 56px sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.lineWidth=12;ctx.strokeStyle='rgba(255,255,255,.95)';
+    ctx.strokeText(kart.rankPop.txt,0,0);
+    ctx.fillStyle='#e8551e';
+    ctx.fillText(kart.rankPop.txt,0,0);
+    ctx.restore();
+    ctx.globalAlpha=1;ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  }
 }
 function updateRaceChip(){
   const R=kart.racers;
@@ -7623,10 +7707,10 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
   const inW=!!course.water||(course.seaDive&&isWaterZ(P.z));
   const night=!!course.night;
   const horY=Math.round(vh*(course.space?.34:.40));
-  const KW=vw*1.02; // wide mario-kart style course
+  const KW=vw*KWF; // extra-wide mario-kart style course
   const bend=ktrack
-    ?z=>clamp((ktU(z)-ktU(camZ))*1.12,-3.6,3.6)
-    :z=>clamp((roadCenterAt(z)-roadCenterAt(camZ))/roadHalf*1.35,-3.2,3.2);
+    ?z=>clamp((ktU(z)-ktU(camZ))*.92,-3.2,3.2)
+    :z=>clamp((roadCenterAt(z)-roadCenterAt(camZ))/roadHalf*1.1,-3,3);
   const camU=P.rel*.92;
   drawKartSky(vw,vh,horY,t,P,camZ,inW);
   // band colors
@@ -7703,7 +7787,7 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
   const proj=z=>{
     const d=z-camZ;
     const s=dNear/d;
-    return{d,s,y:horY+(vh-horY)*s,ws:KW*s/roadHalf};
+    return{d,s,y:horY+(vh-horY)*s,ws:vw*KWS*s/roadHalf};
   };
   // collect billboards
   const spr=[];
@@ -7964,6 +8048,54 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
       const sx2=i<3?12+i*13:vw-12-(i-3)*13;
       ctx.beginPath();ctx.moveTo(sx2,sy2);ctx.lineTo(sx2,sy2+40+i*7);ctx.stroke();
     }
+  }
+  // slipstream wind FX
+  if(kart.phase==='run'&&(P.boostT||0)>0){
+    // burst: bold wind lines rushing past + blue glow around the kart
+    ctx.save();
+    ctx.lineCap='round';
+    const cy=vh*.66;
+    for(let i=0;i<12;i++){
+      const a=(i/12)*TAU+(i%2)*.26;
+      const ph=((t*3.1+i*.13)%1);
+      const dx=Math.cos(a),dy=Math.sin(a)*.55;
+      const r0=60+ph*vh*.5;
+      const x1=vw/2+dx*r0,y1=cy+dy*r0;
+      const x2=vw/2+dx*(r0+90+ph*80),y2=cy+dy*(r0+62+ph*55);
+      const al=(1-ph);
+      ctx.strokeStyle='rgba(70,160,255,'+(0.5*al).toFixed(2)+')';
+      ctx.lineWidth=7+(i%3)*2;
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+      ctx.strokeStyle='rgba(255,255,255,'+(0.85*al).toFixed(2)+')';
+      ctx.lineWidth=2.5+(i%3);
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    }
+    // energy ring + glow behind the kart
+    const rk=(1-((t*2)%1))*90+70;
+    ctx.strokeStyle='rgba(120,210,255,'+(0.6*((t*2)%1<0.5?1:2-((t*2)%1)*2)).toFixed(2)+')';
+    ctx.lineWidth=6;
+    ctx.beginPath();ctx.ellipse(vw/2,vh-60,rk*1.5,rk*.5,0,0,TAU);ctx.stroke();
+    const g2=ctx.createRadialGradient(vw/2,vh-46,12,vw/2,vh-46,250);
+    g2.addColorStop(0,'rgba(110,215,255,.45)');g2.addColorStop(1,'rgba(110,215,255,0)');
+    ctx.fillStyle=g2;
+    ctx.fillRect(0,vh-340,vw,340);
+    ctx.restore();
+  }else if(kart.phase==='run'&&(P.slipT||0)>.25){
+    // charging in the draft: gentle converging streaks ahead
+    ctx.save();
+    ctx.lineCap='round';
+    ctx.strokeStyle='rgba(255,255,255,'+(.14+.3*Math.min(1,P.slipT)).toFixed(2)+')';
+    ctx.lineWidth=3.5;
+    for(let i=0;i<4;i++){
+      const off=(i-1.5)*52;
+      const ph=((t*2.4+i*.28)%1);
+      const yy=vh*.34+ph*vh*.34;
+      ctx.beginPath();
+      ctx.moveTo(vw/2+off*1.7,yy);
+      ctx.lineTo(vw/2+off,yy+52);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
   // versus star attacks (projected)
   if(kart.versus){
