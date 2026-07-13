@@ -2037,7 +2037,17 @@ const DECO_DRAW={
   coral:(c,x,y,s,seed)=>drawCoral(c,x,y,s,seed),
   seaweed:null, // drawn with time parameter
   shell:(c,x,y,s,seed)=>drawShell(c,x,y,s,seed),
-  planet:(c,x,y,s,seed)=>drawPlanet(c,x,y,s,seed)
+  planet:(c,x,y,s,seed)=>drawPlanet(c,x,y,s,seed),
+  chev:(c,x,y,s,seed)=>{ // top-down fallback: small warning board
+    c.save();c.translate(x,y);
+    rr(c,-12*s,-9*s,24*s,18*s,3*s);
+    c.fillStyle='#f4f6f9';c.fill();
+    c.strokeStyle='#c92a2a';c.lineWidth=2;c.stroke();
+    const d=seed?1:-1;
+    c.strokeStyle='#c92a2a';c.lineWidth=3*s;c.lineCap='round';c.lineJoin='round';
+    c.beginPath();c.moveTo(-4*s*d,-5*s);c.lineTo(4*s*d,0);c.lineTo(-4*s*d,5*s);c.stroke();
+    c.restore();
+  }
 };
 
 /* obstacles (non-car) */
@@ -3396,7 +3406,8 @@ function spawnObstacle(){
   const z=world.nextObsZ;
   const type=pickWeighted(course.obs);
   const lanes=laneFractions(course);
-  const lane=lanes[Math.floor(Math.random()*lanes.length)];
+  let lane=lanes[Math.floor(Math.random()*lanes.length)];
+  if(kart.active)lane=clamp(lane*1.2+rand(-.07,.07),-.86,.86); // spread across the wider kart road
   const o={z,lane,type,sp:0,dir:1,kind:'car',seed:Math.floor(Math.random()*97)};
   if(type==='car'){
     const pool=CARS.filter(cs=>!cs.norand); // trains / excavator stay off the road traffic
@@ -3413,11 +3424,13 @@ function spawnObstacle(){
   }
   world.obstacles.push(o);
   let g=course.gap/diff.density*(1-.25*clamp(meters()/800,0,1));
+  if(kart.active)g*=.72; // wider kart road: keep it lively
   g=Math.max(400,world.speed*.95,g); // fairness floor: keep reaction time as speed grows
   world.nextObsZ=z+g*rand(.8,1.35);
 }
 function spawnItemBox(z){
-  world.obstacles.push({z,lane:rand(-.6,.6),type:'item',sp:0,dir:1,kind:'item',seed:0});
+  const lm=kart.active?.8:.6;
+  world.obstacles.push({z,lane:rand(-lm,lm),type:'item',sp:0,dir:1,kind:'item',seed:0});
 }
 function obstacleDims(o){
   if(o.type==='car'){
@@ -5424,6 +5437,96 @@ const kart={
 let kartFlow=null; // null | {pi:0|1}
 const kkeys={p1l:false,p1r:false,p2l:false,p2r:false};
 const RHN=205; // nominal road half width (rel-unit conversions)
+const KLANES=[-.6,-.2,.2,.6]; // kart-road lane separators (5 visual lanes)
+const KCF=[.12,.28,.45,.6,.75]; // centrifugal strength per difficulty star
+let kartAutoTest=false;
+
+/* ---------- kart track definition (seeded sections of straights & curves) ---------- */
+let ktrack=null;
+function hashStr(s){
+  let h=2166136261;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+  return h>>>0;
+}
+function mulberry(a){
+  return function(){
+    a|=0;a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return((t^t>>>14)>>>0)/4294967296;
+  };
+}
+const KTHEMES={ // d: curve delta range (rel units), len: section length px, st: straight chance, s: S-curve chance
+  kousoku:{d:[.5,.9],len:[1500,2500],st:.34,s:.16},
+  yama:{d:[1.1,1.9],len:[560,1050],st:.06,s:.42},
+  machi:{d:[.8,1.3],len:[750,1300],st:.22,s:.24},
+  umi:{d:[.7,1.1],len:[1200,2000],st:.18,s:.28},
+  uminaka:{d:[.7,1.1],len:[1100,1900],st:.15,s:.3},
+  uchu:{d:[1.2,2.0],len:[1300,2300],st:.1,s:.28},
+  yoru:{d:[.8,1.2],len:[800,1400],st:.2,s:.25},
+  yuki:{d:[.8,1.4],len:[800,1500],st:.15,s:.3},
+  fubuki:{d:[.8,1.4],len:[800,1500],st:.15,s:.3},
+};
+function buildKartTrack(){
+  const th=KTHEMES[course.id]||KTHEMES.machi;
+  const rng=mulberry(hashStr(course.id)*31+diff.id*7+9);
+  const secs=[{z0:0,len:900,from:0,to:0,kind:'str'}]; // gentle rolling start
+  let z=900,cur=0,lastDir=rng()<.5?-1:1;
+  const total=Math.max(kartGoalPx()+2600,9000);
+  while(z<total){
+    const r=rng();
+    let len=lerp(th.len[0],th.len[1],rng());
+    if(r<th.st){ // straight
+      secs.push({z0:z,len,from:cur,to:cur,kind:'str'});
+      z+=len;
+    }else if(r<th.st+th.s){ // S-curve: two opposite halves
+      const d=lerp(th.d[0],th.d[1],rng())*diff.curve;
+      let dir=-lastDir;
+      let a=clamp(cur+dir*d,-2.2,2.2);
+      secs.push({z0:z,len:len*.55,from:cur,to:a,kind:'cv'});
+      z+=len*.55;cur=a;lastDir=dir;
+      dir=-dir;
+      a=clamp(cur+dir*d*lerp(.8,1.2,rng()),-2.2,2.2);
+      secs.push({z0:z,len:len*.55,from:cur,to:a,kind:'cv'});
+      z+=len*.55;cur=a;lastDir=dir;
+    }else{ // single curve (short length + big delta = hairpin feel)
+      const d=lerp(th.d[0],th.d[1],rng())*diff.curve;
+      const dir=Math.abs(cur)>1.4?(cur>0?-1:1):(rng()<.62?-lastDir:lastDir);
+      const to=clamp(cur+dir*d,-2.2,2.2);
+      if(Math.abs(to-cur)>1.2*diff.curve&&rng()<.5)len*=.6;
+      secs.push({z0:z,len,from:cur,to,kind:'cv'});
+      z+=len;cur=to;lastDir=dir;
+    }
+  }
+  ktrack={secs,total:z,ci:0};
+}
+function ktU(z){ // road center lateral offset at z, in rel (road half-width) units
+  if(!ktrack)return 0;
+  if(z<0)z=0;
+  const S=ktrack.secs;
+  let i=ktrack.ci||0;
+  if(i>=S.length||S[i].z0>z)i=0;
+  while(i<S.length-1&&z>=S[i].z0+S[i].len)i++;
+  ktrack.ci=i;
+  const s=S[i];
+  const f=clamp((z-s.z0)/s.len,0,1);
+  const sm=f*f*(3-2*f);
+  return s.from+(s.to-s.from)*sm;
+}
+function ktCurv(z){ // curvature: rel-units per 100px of travel
+  return (ktU(z+80)-ktU(z-80))/160*100;
+}
+window.__ktest={
+  kw:()=>1.02,
+  track:()=>ktrack&&ktrack.secs.map(s=>({len:Math.round(s.len),from:+s.from.toFixed(2),to:+s.to.toFixed(2),kind:s.kind})),
+  curv:(dz)=>ktCurv((kart.racers[0]?kart.racers[0].z:0)+(dz||0)),
+  racer:i=>{const r=kart.racers[i];return r?{z:Math.round(r.z),rel:+r.rel.toFixed(3),sp:Math.round(r.sp),spinT:+r.spinT.toFixed(2),fin:r.finished,rumble:+(r.rumbleT||0).toFixed(2)}:null;},
+  setRel:(i,v)=>{if(kart.racers[i])kart.racers[i].rel=v;},
+  auto:v=>{kartAutoTest=!!v;},
+  phase:()=>kart.phase,
+  goal:()=>kart.goal,
+  rumbles:()=>world.rumbleCount||0
+};
 
 /* ---------- characters ---------- */
 const CHAR_PRESETS=[
@@ -5945,12 +6048,15 @@ function kartCommonStart(){
   kart.finCount=0;kart.doneT=0;kart.winner=null;
   kart.balls=[];kart.attacks=[];kart.confetti=[];kart.viewIdx=0;
   world.nextItemZ=PY+500;
+  world.nextChevZ=0;
+  world.rumbleCount=0;
+  buildKartTrack();
   stopBgm();
 }
 function startRace(){
   kart.versus=false;
   kartCommonStart();
-  const slots=course.twoway?[-.8,-.5,-.2,.1]:[-.6,-.2,.2,.6];
+  const slots=course.twoway?[-.82,-.5,-.18,.14]:[-.75,-.28,.22,.72];
   const pr=kartRacerBase(kart.sel[0].ch||CHAR_PRESETS[0],selCar,false,0);
   pr.rel=slots[0];pr.homeRel=slots[0];pr.z=0;
   kart.racers=[pr];
@@ -6079,6 +6185,7 @@ function cpuDrive(r,dt,t){
   }
   if(danger!==null)target=r.rel+(r.rel<=danger?-.55:.55);
   else if(bestItem!==null)target=bestItem;
+  target+=clamp(ktCurv(r.z+180)*1.15,-.34,.34); // racing line: hug the inside of the curve
   target=clamp(target,-.88,.88);
   if(course.twoway)target=clamp(target,-.88,.12);
   const prev=r.rel;
@@ -6125,9 +6232,13 @@ function updateKart(dt,t){
         else if(r.z>pz+430)target*=.86;
       }
       if(r.spinT>0)target*=.22;
+      if(Math.abs(r.rel)>.98)target*=.55; // curb rumble slows the kart
     }
     r.sp=lerp(r.sp,target,Math.min(1,dt*2.4));
+    const u0=ktU(r.z);
     r.z+=r.sp*dt;
+    // centrifugal drift: the road slides away under the kart in curves
+    if(running&&!r.finished&&r.spinT<=0)r.rel-=(ktU(r.z)-u0)*KCF[((diff&&diff.id)||3)-1];
     if(r.spinT>0){r.spinT-=dt;r.spin+=dt*11;if(r.spinT<=0)r.spin=0;}
     if(r.invT>0)r.invT-=dt;
     if(r.throwCd>0)r.throwCd-=dt;
@@ -6135,7 +6246,7 @@ function updateKart(dt,t){
     if(r.jumpCd>0)r.jumpCd-=dt;
     r.rel=clamp(r.rel,-1.15,1.15);
   }
-  for(const r of R){if(r.cpu)cpuDrive(r,dt,t);}
+  for(const r of R){if(r.cpu||(kartAutoTest&&r.pi===0))cpuDrive(r,dt,t);}
   // camera / world sync
   if(!kart.versus){
     const P=R[0];
@@ -6152,8 +6263,15 @@ function updateKart(dt,t){
   // spawns / cleanup
   const ahead=world.dist+Math.max(W,H)*.85+400;
   while(world.nextObsZ<ahead)spawnObstacle();
-  while(world.nextItemZ<ahead){spawnItemBox(world.nextItemZ);world.nextItemZ+=rand(520,900);}
+  while(world.nextItemZ<ahead){spawnItemBox(world.nextItemZ);world.nextItemZ+=rand(430,760);}
   if(course.deco)while(world.nextDecoZ<ahead)spawnDeco();
+  // chevron boards announcing curves (outside edge, pointing into the turn)
+  if(world.nextChevZ===undefined)world.nextChevZ=world.dist;
+  while(world.nextChevZ<ahead){
+    const cz=world.nextChevZ;world.nextChevZ+=150;
+    const cu=ktCurv(cz+240);
+    if(Math.abs(cu)>.16)world.deco.push({z:cz,side:cu>0?-1:1,off:46,type:'chev',seed:cu>0?1:0});
+  }
   const back=Math.min.apply(null,R.map(r=>r.z))-480;
   world.deco=world.deco.filter(d=>d.z>back);
   world.obstacles.forEach(o=>{
@@ -6183,10 +6301,18 @@ function updateKart(dt,t){
         if(Math.abs(dz)<lon&&Math.abs(r.rel-orel)<lat){doSpinR(r);break;}
       }
     }
-    if(Math.abs(r.rel)>1.02){
-      if(r.invT<=0&&r.spinT<=0)doSpinR(r);
-      r.rel=lerp(r.rel,clamp(r.rel,-.92,.92),Math.min(1,dt*5));
-    }
+    // curb rumble: rattle + slowdown + gentle push back (never a course-out crash)
+    if(Math.abs(r.rel)>.98){
+      r.rumbleT=(r.rumbleT||0)+dt;
+      const push=diff.id===1?2.4:1.1; // star 1: bounce right back on the road
+      r.rel-=Math.sign(r.rel)*push*dt;
+      r.rel=clamp(r.rel,-1.18,1.18);
+      if(!r.cpu){
+        r.tik=(r.tik||0)-dt;
+        if(r.tik<=0){r.tik=.11;blip(95,55,.05,'square',.09);}
+        if(!r.rumbled){r.rumbled=true;world.rumbleCount=(world.rumbleCount||0)+1;}
+      }
+    }else{r.rumbleT=0;r.rumbled=false;if(r.tik>0)r.tik-=dt;}
   }
   // kart-kart gentle push
   for(let i=0;i<R.length;i++)for(let j=i+1;j<R.length;j++){
@@ -6381,6 +6507,7 @@ function drawRaceHUD(t){
   ctx.fillStyle=['#e8551e','#3f8fe8','#3fae62','#8a7ff0'][rank-1]||'#666';
   ctx.fillText(txt,W-18,by+24);
   ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  if(H>560)drawTrackMap(W-80,by+82,64,150,R[0]);
 }
 function updateRaceChip(){
   const R=kart.racers;
@@ -6476,6 +6603,7 @@ function drawViewHUD(i,t,yOff,rankPad){
   ctx.fillStyle=ahead2?'#e8551e':'#3f8fe8';
   ctx.fillText(txt,W-14-rankPad,y0+28);
   ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  if(H>430&&W>300)drawTrackMap(12,y0+50,46,108,me);
 }
 function renderVersus(t){
   ctx.clearRect(0,0,W,H);
@@ -7326,7 +7454,7 @@ function drawKartSky(vw,vh,horY,t,P,camZ,inW){
   const g=ctx.createLinearGradient(0,0,0,horY+6);
   g.addColorStop(0,cols[0]);g.addColorStop(1,cols[1]);
   ctx.fillStyle=g;ctx.fillRect(0,0,vw,horY+6);
-  const shift=-P.rel*30-clamp((roadCenterAt(camZ+1600)-roadCenterAt(camZ))/roadHalf,-3,3)*50;
+  const shift=-P.rel*30-clamp(ktrack?(ktU(camZ+1600)-ktU(camZ)):(roadCenterAt(camZ+1600)-roadCenterAt(camZ))/roadHalf,-3,3)*50;
   const id=course.id;
   if(id==='uchu'){
     for(let i=0;i<70;i++){
@@ -7436,6 +7564,55 @@ function drawKartSky(vw,vh,horY,t,P,camZ,inW){
     ctx.closePath();ctx.fill();
   }
 }
+/* curve-warning chevron board (front view billboard) */
+function fvChevron(c,dir,t){
+  c.fillStyle='#8f97a5';
+  c.fillRect(-30,-36,6,36);c.fillRect(24,-36,6,36);
+  rr(c,-42,-66,84,36,7);
+  c.fillStyle='#f4f6f9';c.fill();
+  c.strokeStyle='#c92a2a';c.lineWidth=4;c.stroke();
+  const on=Math.floor(t*4)%3;
+  for(let i=0;i<3;i++){
+    const bx=(i-1)*23*dir;
+    c.strokeStyle=i===on?'#ff5148':'#c92a2a';
+    c.lineWidth=9;c.lineCap='round';c.lineJoin='round';
+    c.beginPath();
+    c.moveTo(bx-8*dir,-59);c.lineTo(bx+8*dir,-48);c.lineTo(bx-8*dir,-37);
+    c.stroke();
+  }
+}
+/* mini track map: course shape + racer dots */
+function drawTrackMap(mx,my,mw,mh,me){
+  if(!ktrack||!kart.goal)return;
+  rr(ctx,mx,my,mw,mh,10);
+  ctx.fillStyle='rgba(255,255,255,.5)';ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.2)';ctx.lineWidth=2;
+  rr(ctx,mx,my,mw,mh,10);ctx.stroke();
+  const pad=10,ih=mh-pad*2,cx0=mx+mw/2,sc=mw*.15;
+  ctx.beginPath();
+  const NP=48;
+  for(let k=0;k<=NP;k++){
+    const z=kart.goal*k/NP;
+    const px=cx0+ktU(z)*sc,py=my+mh-pad-ih*k/NP;
+    k?ctx.lineTo(px,py):ctx.moveTo(px,py);
+  }
+  ctx.strokeStyle='rgba(55,65,85,.8)';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=1.8;ctx.stroke();
+  // goal marker
+  const gx=cx0+ktU(kart.goal)*sc;
+  ctx.strokeStyle='#e8452f';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(gx-8,my+pad);ctx.lineTo(gx+8,my+pad);ctx.stroke();
+  const cols=['#ff8a3d','#4d9de0','#8a7ff0','#3fae62'];
+  for(let i=kart.racers.length-1;i>=0;i--){
+    const r=kart.racers[i];
+    const f=clamp(r.z/kart.goal,0,1);
+    const px=cx0+ktU(clamp(r.z,0,kart.goal))*sc+r.rel*3.5;
+    const py=my+mh-pad-ih*f;
+    ctx.beginPath();ctx.arc(px,py,r===me?6.5:4.5,0,TAU);
+    ctx.fillStyle=r===me?'#e8452f':cols[i];
+    ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  }
+}
 /* ---- the pseudo-3D view ---- */
 function renderKartView(vx,vy,vw,vh,P,vi,t,low){
   ctx.save();
@@ -7446,8 +7623,10 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
   const inW=!!course.water||(course.seaDive&&isWaterZ(P.z));
   const night=!!course.night;
   const horY=Math.round(vh*(course.space?.34:.40));
-  const KW=vw*.60;
-  const bend=z=>clamp((roadCenterAt(z)-roadCenterAt(camZ))/roadHalf*1.35,-3.2,3.2);
+  const KW=vw*1.02; // wide mario-kart style course
+  const bend=ktrack
+    ?z=>clamp((ktU(z)-ktU(camZ))*1.12,-3.6,3.6)
+    :z=>clamp((roadCenterAt(z)-roadCenterAt(camZ))/roadHalf*1.35,-3.2,3.2);
   const camU=P.rel*.92;
   drawKartSky(vw,vh,horY,t,P,camZ,inW);
   // band colors
@@ -7493,18 +7672,21 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
       ctx.moveTo(0,a.y+.5);ctx.lineTo(sxA,a.y+.5);ctx.lineTo(sxB,b.y-.5);ctx.lineTo(0,b.y-.5);
       ctx.closePath();ctx.fill();
     }
-    // rumble strips
-    quad(a.cx-a.hw*1.07,a.y,a.hw*.09,b.cx-b.hw*1.07,b.y,b.hw*.09,mixCol(par2?rumA:rumB,fogCol,f));
-    quad(a.cx+a.hw*1.07,a.y,a.hw*.09,b.cx+b.hw*1.07,b.y,b.hw*.09,mixCol(par2?rumA:rumB,fogCol,f));
+    // rumble strips (kerb widens on the inside of a curve)
+    const cuRow=ktrack?ktCurv((a.z+b.z)/2):0;
+    const kerbIn=.09+Math.min(.13,Math.abs(cuRow)*.55);
+    const wL=cuRow<-0.06?kerbIn:.09,wR=cuRow>0.06?kerbIn:.09;
+    quad(a.cx-a.hw*1.07,a.y,a.hw*wL,b.cx-b.hw*1.07,b.y,b.hw*wL,mixCol(par2?rumA:rumB,fogCol,f));
+    quad(a.cx+a.hw*1.07,a.y,a.hw*wR,b.cx+b.hw*1.07,b.y,b.hw*wR,mixCol(par2?rumA:rumB,fogCol,f));
     // road
     quad(a.cx,a.y,a.hw,b.cx,b.y,b.hw,mixCol(par?roadA:roadB,fogCol,f));
     // edge lines
     quad(a.cx-a.hw*.94,a.y,Math.max(1,a.hw*.02),b.cx-b.hw*.94,b.y,Math.max(.7,b.hw*.02),mixCol(edgeC,fogCol,f));
     quad(a.cx+a.hw*.94,a.y,Math.max(1,a.hw*.02),b.cx+b.hw*.94,b.y,Math.max(.7,b.hw*.02),mixCol(edgeC,fogCol,f));
-    // lane dashes
+    // lane dashes (wide course: 4 dashed separators)
     if(par){
-      laneSeparators(course).forEach(fr=>{
-        quad(a.cx+a.hw*fr,a.y,Math.max(1,a.hw*.017),b.cx+b.hw*fr,b.y,Math.max(.7,b.hw*.017),mixCol(colObj('#f6f8fb'),fogCol,f));
+      KLANES.forEach(fr=>{
+        quad(a.cx+a.hw*fr,a.y,Math.max(1,a.hw*.015),b.cx+b.hw*fr,b.y,Math.max(.7,b.hw*.015),mixCol(colObj('#f6f8fb'),fogCol,f));
       });
     }
     if(course.twoway){
@@ -7601,6 +7783,7 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
         case 'seaweed':drawSeaweed(ctx,0,-4,1.9,d.seed,t);break;
         case 'shell':drawShell(ctx,0,-9,1.7,d.seed);break;
         case 'planet':drawPlanet(ctx,0,-95,1.6,d.seed);break;
+        case 'chev':fvChevron(ctx,d.seed?1:-1,t);break;
       }
     }else if(sp.kind==='obs'){
       const o=sp.ref,sc=pj.ws*1.15;
@@ -7685,8 +7868,9 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
   const jumpK=P.jumpT>0?Math.sin(Math.PI*(1-P.jumpT/KJUMP)):0;
   const kW=clamp(vw*.40,200,330),ksc=kW/200;
   const bounce=(kart.phase==='run'&&P.sp>30)?Math.sin(t*10)*2:0;
-  const kx=vw/2+P.tilt*46;
-  const ky=vh-10+bounce;
+  const rum=(P.rumbleT||0)>0&&P.sp>40;
+  const kx=vw/2+P.tilt*46+(rum?Math.sin(t*47)*3:0);
+  const ky=vh-10+bounce+(rum?Math.sin(t*61)*3.2:0);
   // shadow stays on the ground
   ctx.fillStyle='rgba(15,25,45,'+(0.32-jumpK*.15)+')';
   ctx.beginPath();ctx.ellipse(kx,vh-14,(118-jumpK*24)*ksc,(16-jumpK*4)*ksc,0,0,TAU);ctx.fill();
