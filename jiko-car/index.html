@@ -3407,7 +3407,7 @@ function spawnObstacle(){
   const type=pickWeighted(course.obs);
   const lanes=laneFractions(course);
   let lane=lanes[Math.floor(Math.random()*lanes.length)];
-  if(kart.active)lane=clamp(lane*1.2+rand(-.07,.07),-.86,.86); // spread across the wider kart road
+  if(kart.active)lane=clamp(lane*1.45+rand(-.09,.09),-.9,.9); // spread across the ultra-wide kart road
   const o={z,lane,type,sp:0,dir:1,kind:'car',seed:Math.floor(Math.random()*97)};
   if(type==='car'){
     const pool=CARS.filter(cs=>!cs.norand); // trains / excavator stay off the road traffic
@@ -3424,12 +3424,12 @@ function spawnObstacle(){
   }
   world.obstacles.push(o);
   let g=course.gap/diff.density*(1-.25*clamp(meters()/800,0,1));
-  if(kart.active)g*=.72; // wider kart road: keep it lively
+  if(kart.active)g*=.55; // ultra-wide kart road: denser traffic so it never feels empty
   g=Math.max(400,world.speed*.95,g); // fairness floor: keep reaction time as speed grows
   world.nextObsZ=z+g*rand(.8,1.35);
 }
 function spawnItemBox(z){
-  const lm=kart.active?.8:.6;
+  const lm=kart.active?.88:.6;
   world.obstacles.push({z,lane:rand(-lm,lm),type:'item',sp:0,dir:1,kind:'item',seed:0});
 }
 function obstacleDims(o){
@@ -5437,9 +5437,10 @@ const kart={
 let kartFlow=null; // null | {pi:0|1}
 const kkeys={p1l:false,p1r:false,p2l:false,p2r:false};
 const RHN=300; // nominal road half width (rel-unit conversions; larger = wider course, smaller karts in rel units)
-const KWF=1.5; // 3D road width factor (x view width) - extra-wide mario-kart course
+const KWF=3.0; // 3D road width factor (x view width) - ultra-wide highway-scale course (2x wider again)
 const KWS=1.02; // 3D sprite projection base (keeps kart/billboard sizes readable)
-const KLANES=[-.6,-.2,.2,.6]; // kart-road lane separators (5 visual lanes)
+const KLANES=[-.75,-.5,-.25,.25,.5,.75]; // kart-road lane separators (7-8 visual lanes on the ultra-wide road)
+const KSTEER=2.25; // player lateral steer rate (rel/s) - raised with the wider road so crossing stays quick
 const KCF=[.12,.28,.45,.6,.75]; // centrifugal strength per difficulty star
 let kartAutoTest=false;
 
@@ -5520,6 +5521,7 @@ function ktCurv(z){ // curvature: rel-units per 100px of travel
 }
 window.__ktest={
   kw:()=>KWF,
+  steerRate:()=>KSTEER,
   slipT:()=>kart.racers[0]?+(kart.racers[0].slipT||0).toFixed(2):0,
   boostT:()=>kart.racers[0]?+(kart.racers[0].boostT||0).toFixed(2):0,
   slips:()=>kart.slipCount||0,
@@ -6173,7 +6175,7 @@ function kartSteering(dt){
     const prev=r.rel;
     const rh=kart.versus?vsRoadHalf():roadHalf;
     if(r.dragDX)r.rel+=r.dragDX/rh;
-    else if(r.steer)r.rel+=r.steer*1.6*dt; // brisk lane changes so overtaking is easy
+    else if(r.steer)r.rel+=r.steer*KSTEER*dt; // brisk lane changes so overtaking is easy
     if(r.spinT>0)r.rel=prev+(r.rel-prev)*.3;
     r.tilt=lerp(r.tilt,clamp((r.rel-prev)/Math.max(dt,.001)*.5,-.18,.18),Math.min(1,dt*10));
   });
@@ -6216,7 +6218,7 @@ function cpuDrive(r,dt,t){
   target=clamp(target,-.88,.88);
   if(course.twoway)target=clamp(target,-.88,.12);
   const prev=r.rel;
-  r.rel+=clamp(target-r.rel,-1,1)*Math.min(1,dt*2.0);
+  r.rel+=clamp(target-r.rel,-1,1)*Math.min(1,dt*2.3);
   r.tilt=clamp((r.rel-prev)/Math.max(dt,.001)*.35,-.18,.18);
   if(diff.id>=4&&r.items>0&&r.throwCd<=0){ // CPUs only fight back on star 4-5
     for(const o of kart.racers){
@@ -6317,7 +6319,7 @@ function updateKart(dt,t){
   // spawns / cleanup
   const ahead=world.dist+Math.max(W,H)*.85+400;
   while(world.nextObsZ<ahead)spawnObstacle();
-  while(world.nextItemZ<ahead){spawnItemBox(world.nextItemZ);world.nextItemZ+=rand(430,760);}
+  while(world.nextItemZ<ahead){spawnItemBox(world.nextItemZ);world.nextItemZ+=rand(380,680);}
   if(course.deco)while(world.nextDecoZ<ahead)spawnDeco();
   // chevron boards announcing curves (outside edge, pointing into the turn)
   if(world.nextChevZ===undefined)world.nextChevZ=world.dist;
@@ -7680,8 +7682,8 @@ function drawTrackMap(mx,my,mw,mh,me){
     const px=cx0+ktU(z)*sc,py=my+mh-pad-ih*k/NP;
     k?ctx.lineTo(px,py):ctx.moveTo(px,py);
   }
-  ctx.strokeStyle='rgba(55,65,85,.8)';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
-  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=1.8;ctx.stroke();
+  ctx.strokeStyle='rgba(55,65,85,.8)';ctx.lineWidth=8;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();
+  ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=3;ctx.stroke();
   // goal marker
   const gx=cx0+ktU(kart.goal)*sc;
   ctx.strokeStyle='#e8452f';ctx.lineWidth=3;
@@ -7723,6 +7725,11 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
   const rumA=colObj(course.space?'#38f2ff':(course.snow?'#4d9de0':'#e84a3f'));
   const rumB=colObj(course.space?'#7ef3ff':'#f4f6f9');
   const edgeC=colObj(course.edge);
+  // alternating lane tints: the ultra-wide surface reads as lanes even when the kerbs are off-screen
+  const laneB=[-.94].concat(KLANES,[.94]);
+  const rn=parseInt(course.road.slice(1),16);
+  const roadLum=(rn>>16&255)*.299+(rn>>8&255)*.587+(rn&255)*.114;
+  const laneTint=roadLum<90?'rgba(255,255,255,.05)':'rgba(0,0,0,.042)';
   const seaC=colObj('#2f9ed4'),sandC=colObj('#f0dda2');
   const N=low?22:32;
   const rows=[];
@@ -7756,14 +7763,21 @@ function renderKartView(vx,vy,vw,vh,P,vi,t,low){
       ctx.moveTo(0,a.y+.5);ctx.lineTo(sxA,a.y+.5);ctx.lineTo(sxB,b.y-.5);ctx.lineTo(0,b.y-.5);
       ctx.closePath();ctx.fill();
     }
-    // rumble strips (kerb widens on the inside of a curve)
-    const cuRow=ktrack?ktCurv((a.z+b.z)/2):0;
-    const kerbIn=.09+Math.min(.13,Math.abs(cuRow)*.55);
-    const wL=cuRow<-0.06?kerbIn:.09,wR=cuRow>0.06?kerbIn:.09;
-    quad(a.cx-a.hw*1.07,a.y,a.hw*wL,b.cx-b.hw*1.07,b.y,b.hw*wL,mixCol(par2?rumA:rumB,fogCol,f));
-    quad(a.cx+a.hw*1.07,a.y,a.hw*wR,b.cx+b.hw*1.07,b.y,b.hw*wR,mixCol(par2?rumA:rumB,fogCol,f));
+    // rumble strips (kerb widens smoothly on the inside of a curve - per-boundary widths avoid stair-steps)
+    const kerbW=z=>{
+      const cu=ktrack?ktCurv(z):0;
+      return[.09+Math.min(.13,Math.max(0,-cu-.03)*.55),.09+Math.min(.13,Math.max(0,cu-.03)*.55)];
+    };
+    const kwa=kerbW(a.z),kwb=kerbW(b.z);
+    quad(a.cx-a.hw*1.07,a.y,a.hw*kwa[0],b.cx-b.hw*1.07,b.y,b.hw*kwb[0],mixCol(par2?rumA:rumB,fogCol,f));
+    quad(a.cx+a.hw*1.07,a.y,a.hw*kwa[1],b.cx+b.hw*1.07,b.y,b.hw*kwb[1],mixCol(par2?rumA:rumB,fogCol,f));
     // road
     quad(a.cx,a.y,a.hw,b.cx,b.y,b.hw,mixCol(par?roadA:roadB,fogCol,f));
+    // lane tint bands (every other lane slightly shaded)
+    for(let k2=0;k2<laneB.length-1;k2+=2){
+      const m1=(laneB[k2]+laneB[k2+1])/2,w2=(laneB[k2+1]-laneB[k2])/2;
+      quad(a.cx+a.hw*m1,a.y,a.hw*w2,b.cx+b.hw*m1,b.y,b.hw*w2,laneTint);
+    }
     // edge lines
     quad(a.cx-a.hw*.94,a.y,Math.max(1,a.hw*.02),b.cx-b.hw*.94,b.y,Math.max(.7,b.hw*.02),mixCol(edgeC,fogCol,f));
     quad(a.cx+a.hw*.94,a.y,Math.max(1,a.hw*.02),b.cx+b.hw*.94,b.y,Math.max(.7,b.hw*.02),mixCol(edgeC,fogCol,f));
