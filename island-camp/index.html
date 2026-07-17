@@ -7,6 +7,7 @@
 <title>島キャンプ思い出マップ</title>
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./icon.svg" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   :root{
     /* UI パネル（ダーク系を維持）*/
@@ -28,11 +29,13 @@
   .app{display:flex; height:100dvh; height:100vh}
   .mapwrap{flex:1; position:relative; min-width:0}
   .panel{
-    width:380px; max-width:88vw; background:var(--panel); border-left:1px solid var(--line);
+    width:400px; max-width:92vw; background:var(--panel); border-left:1px solid var(--line);
     display:flex; flex-direction:column; transform:translateX(100%);
     transition:transform .28s cubic-bezier(.4,0,.2,1); position:relative; z-index:30;
   }
-  .panel.open{transform:translateX(0)}
+  /* transform を残すと子要素の position:fixed（詳細地図の全画面表示）が
+     パネル基準になってしまうため、開いた状態では none にする */
+  .panel.open{transform:none}
   @media (max-width:760px){
     .app{flex-direction:column}
     .panel{position:fixed; top:0; right:0; height:100dvh; height:100vh; box-shadow:-8px 0 40px rgba(0,0,0,.5)}
@@ -56,10 +59,14 @@
   .btn:hover{background:#1e4a5c}
   .btn.accent{background:var(--accent); color:#22324b; border-color:transparent}
   .btn.ghost{background:transparent}
-  /* ===== 地図 ===== */
+  /* 同期ボタン */
+  #syncBtn .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#7a8f97;margin-right:5px;vertical-align:1px;transition:background .3s}
+  #syncBtn.ok .dot{background:#42c86a}
+  #syncBtn.err .dot{background:#e05040}
+  #syncBtn.busy .dot{background:#e8b330}
+  /* ===== 地図（全国 SVG） ===== */
   svg.map{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
   svg.map.dragging{cursor:grabbing}
-  /* 島シェイプ */
   .isle-shape{cursor:pointer; transition:opacity .15s}
   .isle-shape:hover .isle-body{filter:brightness(0.92)}
   .isle-shape.active .isle-body{stroke:#2a7ec8; stroke-width:3}
@@ -67,7 +74,6 @@
     font-weight:700; fill:var(--map-text);
     paint-order:stroke; stroke:#fff; stroke-width:3px; pointer-events:none;
   }
-  /* ドット型ピン（シェイプデータのない島） */
   .pin{cursor:pointer}
   .pin .dot{fill:var(--pin); stroke:#fff; stroke-width:2; transition:r .15s}
   .pin.fav .dot{fill:var(--fav)}
@@ -81,7 +87,6 @@
   .pin .visits{fill:#fff; font-size:9px; font-weight:800; text-anchor:middle; pointer-events:none}
   .zoomctl{position:absolute; right:16px; bottom:16px; z-index:20; display:flex; flex-direction:column; gap:6px}
   .zoomctl button{width:40px; height:40px; font-size:1.2rem; border-radius:10px}
-  /* 凡例 */
   .legend{
     position:absolute; left:16px; bottom:16px; z-index:20;
     background:rgba(13,31,36,.88); border:1px solid rgba(255,255,255,.1);
@@ -91,6 +96,47 @@
   .legend b{color:var(--ink)}
   .legend .row{display:flex; align-items:center; gap:6px; margin-top:4px}
   .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+  /* ===== 島の詳細マップ（Leaflet / 地理院タイル） ===== */
+  .dmapwrap{position:relative; height:250px; flex:none; border-bottom:1px solid var(--line); background:#dfe8ee}
+  #dmap{position:absolute; inset:0; z-index:1}
+  .dmapwrap.picking #dmap{cursor:crosshair}
+  .dmap-tools{position:absolute; top:8px; right:8px; z-index:500; display:flex; gap:6px}
+  .dmap-tools .btn{padding:5px 10px; font-size:.74rem; box-shadow:0 1px 4px rgba(0,0,0,.3)}
+  .dmapwrap.full{position:fixed; inset:0; z-index:85; height:auto; border:none}
+  .dmap-hint{position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:500;
+    background:rgba(13,31,36,.92); color:#ffe9a8; padding:7px 14px; border-radius:999px;
+    font-size:.76rem; display:none; white-space:nowrap; pointer-events:none}
+  .dmapwrap.picking .dmap-hint{display:block}
+  .dmap-off{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#7a8f97; font-size:.82rem}
+  @media (max-width:760px){ .dmapwrap{height:32vh} }
+  /* スポットマーカー（divIcon） */
+  .spot-ico span{display:flex; width:26px; height:26px; border-radius:50%;
+    align-items:center; justify-content:center; font-size:14px;
+    border:2px solid #fff; box-shadow:0 1px 5px rgba(0,0,0,.45)}
+  /* スポットのポップアップ（Leaflet 内は白背景） */
+  .spot-pop{font-size:.82rem; line-height:1.5; min-width:180px; max-width:240px; color:#223}
+  .spot-pop b{font-size:.92rem}
+  .spot-pop .cat{margin-left:6px; font-size:.66rem; background:#eef2f5; border-radius:999px; padding:2px 8px; color:#456}
+  .spot-pop p{margin:6px 0}
+  .spot-pop a{color:#1a6ec0; word-break:break-all; font-size:.78rem}
+  .spot-pop .by{display:block; color:#8a99a0; font-size:.68rem; margin-top:4px}
+  .spot-pop .row{display:flex; gap:6px; margin-top:8px}
+  .spot-pop .row button{flex:1; border:1px solid #ccd5da; background:#f6f8f9; border-radius:7px; padding:5px; cursor:pointer; font-size:.75rem}
+  .spot-pop .row button:hover{background:#e8eef1}
+  /* カテゴリ絞り込みチップ */
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 10px}
+  .chips .chip{font-size:.7rem; padding:4px 10px; border-radius:999px; border:1px solid var(--line);
+    color:var(--sub); cursor:pointer; background:var(--panel2); user-select:none}
+  .chips .chip.on{color:#12242a; background:var(--accent2); border-color:transparent; font-weight:700}
+  /* スポット一覧の行 */
+  li.spotrow{cursor:pointer}
+  li.spotrow .nm{font-weight:700}
+  li.spotrow .cat{font-size:.68rem; color:var(--accent2); margin-left:6px}
+  li.spotrow .nt{display:block; color:var(--sub); font-size:.76rem; margin-top:2px}
+  ul.list a.lk{color:#7ec8ff; font-size:.76rem; text-decoration:none; word-break:break-all}
+  ul.list a.lk:hover{text-decoration:underline}
+  .by{font-size:.66rem; color:#6f97a2; margin-left:6px; white-space:nowrap}
   /* ===== 詳細パネル中身 ===== */
   .phead{padding:18px 18px 12px; border-bottom:1px solid var(--line); position:relative}
   .phead .close{position:absolute; top:14px; right:14px}
@@ -124,7 +170,6 @@
   .shop .n{display:block; color:var(--sub); margin-top:2px; font-size:.78rem}
   .log .d{font-weight:700; color:var(--accent); font-size:.76rem}
   .empty{font-size:.8rem; color:var(--sub); font-style:italic; padding:4px 2px}
-  /* 編集ボタン行 */
   .editrow{display:flex; gap:6px; margin-top:8px}
   .editrow input, .editrow select, .editrow textarea{
     background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:8px;
@@ -147,12 +192,17 @@
   /* 入力フォーム（モーダル風） */
   .modal{position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px}
   .modal.open{display:flex}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; width:100%; max-width:380px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; width:100%; max-width:400px; max-height:90vh; overflow-y:auto}
   .card h3{margin:0 0 14px; font-size:1rem}
   .card label{display:block; font-size:.74rem; color:var(--sub); margin:10px 0 4px}
   .card input,.card textarea,.card select{width:100%; background:var(--bg); color:var(--ink);
     border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:.86rem; font-family:inherit}
   .card .actions{display:flex; gap:8px; margin-top:18px; justify-content:flex-end}
+  .card .note{font-size:.78rem; color:var(--sub); margin:0 0 6px; line-height:1.5}
+  .share-status{font-size:.76rem; color:var(--sub); margin-top:10px; line-height:1.5}
+  .share-help{font-size:.74rem; color:var(--sub); line-height:1.7; margin-top:12px}
+  .share-help summary{cursor:pointer; color:var(--accent2)}
+  .share-help ol{padding-left:18px; margin:6px 0}
 </style>
 </head>
 <body>
@@ -164,6 +214,7 @@
         <p>20年分の島旅を地図でふりかえる</p>
       </div>
       <div class="spacer"></div>
+      <button class="btn ghost" id="syncBtn" title="5人で共有・同期"><span class="dot"></span>共有</button>
       <button class="btn ghost" id="addIslandBtn" title="島を追加">＋島</button>
       <button class="btn ghost" id="menuBtn" title="データ">⋯</button>
     </div>
@@ -172,7 +223,7 @@
 
     <div class="hint" id="hint">
       <div class="big">👆</div>
-      島のピンをタップすると<br>思い出が開きます
+      島のピンをタップすると<br>思い出とスポット地図が開きます
     </div>
 
     <div class="legend">
@@ -198,6 +249,13 @@
       <div class="meta" id="pMeta"></div>
       <div class="summary" id="pSummary"></div>
     </div>
+    <div class="dmapwrap" id="dmapwrap">
+      <div id="dmap"></div>
+      <div class="dmap-tools">
+        <button class="btn" id="dmapFull">⤢ 拡大</button>
+      </div>
+      <div class="dmap-hint">👆 地図をタップして位置を指定</div>
+    </div>
     <div class="pbody" id="pBody"></div>
   </aside>
 </div>
@@ -206,14 +264,45 @@
 <div class="modal" id="dataModal">
   <div class="card">
     <h3>データの管理</h3>
-    <p style="font-size:.8rem;color:var(--sub);margin:0 0 6px;line-height:1.5">
-      追加・編集した内容と写真はこの端末に保存されています。バックアップや別端末への移行に使えます。</p>
+    <p class="note">
+      追加・編集した内容はこの端末に保存され、共有設定をすると5人で同期されます。写真は端末内のみ（共有されません）。</p>
     <div class="actions" style="flex-direction:column;align-items:stretch">
+      <button class="btn" id="shareOpenBtn">👥 共有（同期）の設定</button>
       <button class="btn" id="exportBtn">⬇ バックアップを書き出す（JSON）</button>
       <button class="btn" id="importBtn">⬆ バックアップを読み込む</button>
       <input type="file" id="importFile" accept="application/json" class="hidden">
       <button class="btn ghost" id="resetBtn" style="color:var(--pin)">⟲ 初期データに戻す</button>
       <button class="btn ghost" id="closeData">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 共有（同期）設定 モーダル -->
+<div class="modal" id="shareModal">
+  <div class="card">
+    <h3>👥 5人で共有（同期設定）</h3>
+    <p class="note">共有コードを設定すると、スポットやメモの追加・編集がメンバー全員で同期されます。
+      名前を設定すると更新に「誰が書いたか」が表示されます。写真は端末内のみ（共有されません）。</p>
+    <label>あなたの名前（更新者として表示）</label>
+    <input id="shareName" placeholder="例: ヨシ" maxlength="12">
+    <label>共有コード（代表者から受け取って貼り付け）</label>
+    <input id="shareCode" placeholder="ic1.xxxxxxxx.ghp_〜" autocomplete="off">
+    <div class="share-status" id="shareStatus"></div>
+    <details class="share-help">
+      <summary>はじめて共有グループを作る（代表者向け）</summary>
+      <ol>
+        <li>GitHub にログイン → Settings → Developer settings → Personal access tokens → <b>Tokens (classic)</b> → Generate new token</li>
+        <li>スコープは <b>gist</b> だけにチェックして作成</li>
+        <li>できたトークンを下に貼り、「共有グループを作成」を押す</li>
+        <li>発行された共有コードを LINE などでメンバー5人に送る</li>
+      </ol>
+      <input id="newGroupToken" type="password" placeholder="ghp_〜（gistスコープのトークン）" autocomplete="off">
+      <button class="btn" id="createGroupBtn" style="margin-top:8px;width:100%">🆕 共有グループを作成</button>
+      <p style="margin:8px 0 0">※データは代表者の GitHub アカウントの非公開 Gist に保存されます。コードは各自の端末にのみ保存されます。</p>
+    </details>
+    <div class="actions">
+      <button class="btn ghost" id="shareClose">閉じる</button>
+      <button class="btn accent" id="shareSave">保存して同期</button>
     </div>
   </div>
 </div>
@@ -225,7 +314,9 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="./data.js"></script>
+<script src="./sync.js"></script>
 <script src="./app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
