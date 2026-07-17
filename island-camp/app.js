@@ -2,7 +2,7 @@
 'use strict';
 
 // リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
 // 日本の島々が収まる範囲
@@ -188,6 +188,8 @@ const STATE = {
   activeId: null,
   view: { scale: 1, tx: 0, ty: 0 }, // 全国SVGズーム/パン
   catFilter: null, // null = 全カテゴリ表示 / Set = 選択カテゴリのみ
+  viewMode: 'map', // 'map' | 'side'（横からながめる＝横並びパノラマ）
+  sideTx: 0,       // 横並びビューの横スクロール量
 };
 
 const $ = sel => document.querySelector(sel);
@@ -394,14 +396,169 @@ function drawDotPins(){
   }).join('');
 }
 
+/* ---------- 横並びビュー（⛰ 横からながめる / v1.x 系より移植） ---------- */
+// 島シルエットの種類: 火山(cone) / 丸い丘(dome) / 平らな隆起サンゴ＋ヤシ(flat) / ふたこぶ(twin) / 深い森(forest)
+const ISLAND_KIND = {
+  'izu-oshima':'cone','toshima':'cone','niijima':'dome','shikinejima':'flat',
+  'kozushima':'dome','miyakejima':'cone','mikurajima':'dome','hachijojima':'twin','aogashima':'cone',
+  'sado':'dome','yakushima':'forest','tanegashima':'flat','amami-oshima':'forest','kikaijima':'flat',
+  'tokunoshima':'dome','okinoerabu':'flat','yoron':'flat','okinawa-hontou':'dome','miyako':'flat',
+  'kumejima':'dome','ishigaki':'dome','iriomote':'forest','yonaguni':'dome','hateruma':'flat'
+};
+function islandKind(is){ return ISLAND_KIND[is.id] || 'dome'; }
+
+// 島の名産（横並びビューのバッジ）
+const SPECIALTY = {
+  'izu-oshima':{ic:'🌺',name:'椿'},        'toshima':{ic:'🌺',name:'椿油'},      'niijima':{ic:'🗿',name:'モヤイ像'},
+  'shikinejima':{ic:'♨️',name:'海中温泉'}, 'kozushima':{ic:'🦑',name:'赤イカ'},  'miyakejima':{ic:'🐦',name:'アカコッコ'},
+  'mikurajima':{ic:'🐬',name:'イルカ'},    'hachijojima':{ic:'🍣',name:'島寿司'},'aogashima':{ic:'🧂',name:'ひんぎゃの塩'},
+  'sado':{ic:'🕊',name:'トキ'},            'yakushima':{ic:'🌲',name:'屋久杉'},  'tanegashima':{ic:'🍠',name:'安納芋'},
+  'amami-oshima':{ic:'🧵',name:'大島紬'},  'kikaijima':{ic:'🍬',name:'黒糖'},    'tokunoshima':{ic:'🥔',name:'じゃがいも'},
+  'okinoerabu':{ic:'🌼',name:'えらぶゆり'},'yoron':{ic:'✨',name:'星の砂'},      'okinawa-hontou':{ic:'🦁',name:'シーサー'},
+  'kumejima':{ic:'🦐',name:'車えび'},      'miyako':{ic:'🥭',name:'マンゴー'},   'ishigaki':{ic:'🐄',name:'石垣牛'},
+  'iriomote':{ic:'🐈',name:'ヤマネコ'},    'yonaguni':{ic:'🐴',name:'与那国馬'}, 'hateruma':{ic:'🌌',name:'南十字星'}
+};
+// 島の基本サイズ（viewBox単位）。訪問が多いほど大きく。
+function islandRadius(is){
+  const v = is.visits||0;
+  if(!v) return 11;
+  return 13 + Math.min(10, v*0.7);
+}
+
+const ISLE_DEFS = `
+  <linearGradient id="gVis" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a3de81"/><stop offset="1" stop-color="#5cae54"/></linearGradient>
+  <linearGradient id="gFav" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d3e690"/><stop offset="1" stop-color="#8cbf58"/></linearGradient>
+  <linearGradient id="gUns" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c2d2b8"/><stop offset="1" stop-color="#93ab8c"/></linearGradient>
+  <linearGradient id="gAct" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#abe98a"/><stop offset="1" stop-color="#4da44e"/></linearGradient>`;
+
+// 島イラスト（ぷっくり立体・砂浜と波の輪つき）
+function isleArt(is, sx, sy, r, H, ry, o){
+  const grad = o.active ? 'gAct' : is.fav ? 'gFav' : o.visited ? 'gVis' : 'gUns';
+  const edge = o.active ? '#2e7d3b' : is.fav ? '#7d9a3c' : o.visited ? '#3f8e47' : '#75917e';
+  const sand = is.fav ? '#ffe9ad' : o.visited ? '#f6e6b8' : '#e2ddcd';
+  const n = v => (+v).toFixed(1);
+  const shadow = `<ellipse cx="${n(sx)}" cy="${n(sy+ry*0.55)}" rx="${n(r*1.06)}" ry="${n(ry*0.7)}" fill="rgba(20,40,60,.13)"/>`;
+  const foam   = `<ellipse cx="${n(sx)}" cy="${n(sy)}" rx="${n(r*1.17)}" ry="${n(ry*1.32)}" fill="rgba(255,255,255,.55)"/>`;
+  const beach  = `<ellipse cx="${n(sx)}" cy="${n(sy)}" rx="${n(r)}" ry="${n(ry)}" fill="${sand}" stroke="#e5cd93" stroke-width="1"/>`;
+  const land   = landShape(is, sx, sy, r, H, `url(#${grad})`, edge);
+  const ring   = o.active ? `<ellipse cx="${n(sx)}" cy="${n(sy)}" rx="${n(r+5)}" ry="${n(ry+3)}" fill="none" stroke="#2a7ec8" stroke-width="2.4"/>` : '';
+  const ly = +(sy + ry + 12).toFixed(1);
+  const fav = is.fav ? `<text x="${n(sx)}" y="${n(sy-H-8)}" text-anchor="middle" font-size="${o.favSize||13}">⭐</text>` : '';
+  const visitsB = (o.visited && o.showLabel) ? `<text x="${n(sx)}" y="${n(ly+(o.visitsGap||13))}" text-anchor="middle" fill="#3a6a30" font-size="${o.visitsSize||9.5}" font-weight="800">${is.visits}回</text>` : '';
+  const label = o.showLabel ? `<text class="isle-lbl" x="${n(sx)}" y="${ly}" text-anchor="middle" font-size="${o.labelSize||11.5}" font-weight="700">${esc(is.name)}</text>${visitsB}` : '';
+  return `<g class="isle${o.visited?'':' unseen'}${o.active?' active':''}" data-id="${esc(is.id)}" style="opacity:${o.op}">${shadow}${foam}${beach}${land}${ring}${fav}${label}</g>`;
+}
+// 種類ごとの陸地シルエット。sx,sy=海面中心、Hだけ上へ立ち上がる。
+function landShape(is, sx, sy, r, H, fill, edge){
+  const kind = islandKind(is);
+  const w = r*0.84, peak = sy - H;
+  const n = v => (+v).toFixed(1);
+  const P  = d => `<path d="${d}" fill="${fill}" stroke="${edge}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  const hi = d => `<path d="${d}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6" stroke-linecap="round"/>`;
+  if (kind === 'cone'){ // ぷっくり火山＋火口＋ゆげ
+    const body = `M ${n(sx-w)} ${n(sy)} Q ${n(sx-w*0.72)} ${n(sy-H*0.35)} ${n(sx-w*0.24)} ${n(peak+H*0.13)} Q ${n(sx)} ${n(peak-H*0.03)} ${n(sx+w*0.24)} ${n(peak+H*0.13)} Q ${n(sx+w*0.72)} ${n(sy-H*0.35)} ${n(sx+w)} ${n(sy)} Z`;
+    const crater = `<ellipse cx="${n(sx)}" cy="${n(peak+H*0.10)}" rx="${n(w*0.20)}" ry="${n(w*0.075)}" fill="#8a6a4a" stroke="${edge}" stroke-width="0.8"/>`;
+    const puff = `<g fill="#fff" opacity=".85"><circle cx="${n(sx+w*0.10)}" cy="${n(peak-r*0.26)}" r="${n(r*0.12)}"/><circle cx="${n(sx+w*0.26)}" cy="${n(peak-r*0.44)}" r="${n(r*0.085)}"/></g>`;
+    return P(body) + hi(`M ${n(sx-w*0.58)} ${n(sy-H*0.32)} Q ${n(sx-w*0.34)} ${n(sy-H*0.62)} ${n(sx-w*0.18)} ${n(peak+H*0.22)}`) + crater + puff;
+  }
+  if (kind === 'forest'){ // まるい丘＋もこもこの木
+    const body = `M ${n(sx-w)} ${n(sy)} Q ${n(sx)} ${n(sy-H*1.15)} ${n(sx+w)} ${n(sy)} Z`;
+    const tree = (tx,ty,tr) => `<circle cx="${n(tx)}" cy="${n(ty)}" r="${n(tr)}" fill="#3e8e4f" stroke="${edge}" stroke-width="0.9"/><circle cx="${n(tx-tr*0.35)}" cy="${n(ty-tr*0.3)}" r="${n(tr*0.32)}" fill="rgba(255,255,255,.4)"/>`;
+    return P(body)
+      + tree(sx-w*0.34, sy-H*0.50, r*0.20)
+      + tree(sx+w*0.30, sy-H*0.46, r*0.23)
+      + tree(sx-w*0.02, sy-H*0.76, r*0.21);
+  }
+  if (kind === 'twin'){ // ふたこぶ（八丈島）
+    const right = `M ${n(sx-w*0.10)} ${n(sy)} Q ${n(sx+w*0.42)} ${n(sy-H*1.5)} ${n(sx+w)} ${n(sy)} Z`;
+    const left  = `M ${n(sx-w)} ${n(sy)} Q ${n(sx-w*0.56)} ${n(sy-H*1.05)} ${n(sx-w*0.04)} ${n(sy)} Z`;
+    return P(left) + P(right)
+      + hi(`M ${n(sx+w*0.16)} ${n(sy-H*0.86)} Q ${n(sx+w*0.40)} ${n(sy-H*1.02)} ${n(sx+w*0.58)} ${n(sy-H*0.72)}`);
+  }
+  if (kind === 'flat'){ // 平らな隆起サンゴ＋ヤシの木
+    const fh = H*0.48, cr = r*0.22;
+    const body = `M ${n(sx-w)} ${n(sy)} L ${n(sx-w)} ${n(sy-fh+cr)} Q ${n(sx-w)} ${n(sy-fh)} ${n(sx-w+cr)} ${n(sy-fh)} L ${n(sx+w-cr)} ${n(sy-fh)} Q ${n(sx+w)} ${n(sy-fh)} ${n(sx+w)} ${n(sy-fh+cr)} L ${n(sx+w)} ${n(sy)} Z`;
+    const px = sx+w*0.18, py = sy-fh, th = H*0.85, tx = px+r*0.03, ty = py-th;
+    const trunk = `<path d="M ${n(px)} ${n(py)} q ${n(r*0.10)} ${n(-th*0.55)} ${n(r*0.03)} ${n(-th)}" stroke="#a5825a" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+    const leaf = (rot) => `<ellipse cx="${n(tx)}" cy="${n(ty)}" rx="${n(r*0.26)}" ry="${n(r*0.085)}" transform="rotate(${rot} ${n(tx)} ${n(ty)}) translate(${n(r*0.2)} 0)" fill="#57b25c" stroke="${edge}" stroke-width="0.5"/>`;
+    const palm = trunk + `<g>${leaf(-150)}${leaf(-110)}${leaf(-60)}${leaf(-20)}</g>`
+      + `<circle cx="${n(tx-r*0.05)}" cy="${n(ty+r*0.07)}" r="${n(r*0.06)}" fill="#8a6a4a"/><circle cx="${n(tx+r*0.06)}" cy="${n(ty+r*0.09)}" r="${n(r*0.06)}" fill="#8a6a4a"/>`;
+    return P(body) + hi(`M ${n(sx-w*0.7)} ${n(sy-fh*0.55)} L ${n(sx-w*0.15)} ${n(sy-fh*0.55)}`) + palm;
+  }
+  // dome（丸い丘・既定）
+  const body = `M ${n(sx-w)} ${n(sy)} Q ${n(sx)} ${n(sy-H*1.55)} ${n(sx+w)} ${n(sy)} Z`;
+  return P(body) + hi(`M ${n(sx-w*0.5)} ${n(sy-H*0.72)} Q ${n(sx-w*0.14)} ${n(sy-H*1.12)} ${n(sx+w*0.22)} ${n(sy-H*1.0)}`);
+}
+
+function cloudSVG(x,y,s=1){
+  return `<g fill="#fff" opacity=".85" transform="translate(${x},${y}) scale(${s})">
+    <ellipse rx="46" ry="17"/><circle cx="-18" cy="-11" r="15"/><circle cx="14" cy="-13" r="19"/></g>`;
+}
+function sideIslands(){
+  return [...STATE.islands].sort((a,b) => b.lat - a.lat); // 北 → 南 ＝ 左 → 右
+}
+function renderSideView(){
+  const list = sideIslands();
+  const n = list.length;
+  const HZ = 620; // 海面の高さ
+  const gap = n > 1 ? Math.max(130, (VW-180)/(n-1)) : 0;
+  const width = 180 + gap*Math.max(0, n-1);
+  const minTx = Math.min(0, VW - width);
+  STATE.sideTx = Math.min(0, Math.max(minTx, STATE.sideTx || 0));
+  let g = `<defs>${ISLE_DEFS}
+    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b7e1f2"/><stop offset="1" stop-color="#eef9fc"/></linearGradient>
+    <linearGradient id="seaSideG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ecbe0"/><stop offset="1" stop-color="#5b9fc2"/></linearGradient>
+  </defs>`;
+  g += `<rect width="${VW}" height="${HZ}" fill="url(#skyG)"/>`;
+  g += `<rect y="${HZ}" width="${VW}" height="${VH-HZ}" fill="url(#seaSideG)"/>`;
+  g += `<circle cx="${VW-110}" cy="110" r="34" fill="#ffd76e" opacity=".9"/>`;
+  g += cloudSVG(150,120) + cloudSVG(430,78,0.8) + cloudSVG(640,170,0.65);
+  for(let i=0;i<3;i++){
+    g += `<path d="M0 ${HZ+50+i*80} q 40 -9 80 0 t 80 0 t 80 0 t 80 0 t 80 0 t 80 0 t 80 0 t 80 0 t 80 0 t 80 0" stroke="rgba(255,255,255,.35)" stroke-width="2.5" fill="none"/>`;
+  }
+  let items = '';
+  list.forEach((is, i) => {
+    const sx = 90 + gap*i + STATE.sideTx;
+    if (sx < -150 || sx > VW+150) return;
+    const visited = (is.visits||0) > 0;
+    const r = (islandRadius(is) + 15) * 1.9;
+    items += isleArt(is, sx, HZ, r, r*1.3, r*0.28,
+      {active: is.id===STATE.activeId, visited, op: visited?1:0.6, showLabel:true,
+       labelSize:19, visitsSize:14, visitsGap:21, favSize:16});
+    // 名産バッジ（島の上）：大きな絵＋名前の2段
+    const sp = SPECIALTY[is.id];
+    if (sp){
+      const spY = HZ - r*1.3 - r*0.62 - 6;
+      items += `<text x="${sx.toFixed(1)}" y="${(spY-24).toFixed(1)}" text-anchor="middle" font-size="34">${sp.ic}</text>`
+        + `<text x="${sx.toFixed(1)}" y="${spY.toFixed(1)}" text-anchor="middle" font-size="17" font-weight="800"
+        fill="#17395f" paint-order="stroke" stroke="#fff" stroke-width="4" opacity=".95">${esc(sp.name)}</text>`;
+    }
+  });
+  g += `<g class="isles">${items}</g>`;
+  g += `<text x="24" y="${VH-36}" fill="#fff" font-size="17" font-weight="800" opacity=".95">⛵ すべての島（北 → 南）${width>VW?'・ドラッグで移動':''}</text>`;
+  svg.innerHTML = g;
+  bindIsleClicks();
+  // 左右スクロールボタンの有効/無効
+  const prevB = $('#sidePrev'), nextB = $('#sideNext');
+  if (prevB && nextB){
+    prevB.classList.toggle('off', STATE.sideTx >= 0);
+    nextB.classList.toggle('off', STATE.sideTx <= minTx + 1);
+  }
+}
+
+function bindIsleClicks(){
+  svg.querySelectorAll('.isle-shape, .pin, .isle').forEach(el => {
+    el.addEventListener('click', ev => { ev.stopPropagation(); openIsland(el.dataset.id); });
+  });
+}
+
 function renderMap(){
+  if (STATE.viewMode === 'side'){ renderSideView(); return; }
   const { scale, tx, ty } = STATE.view;
   const svgH = svg.getBoundingClientRect().height;
   STATE.vScale = svgH > 0 ? svgH / VH : 0.73;
   svg.innerHTML = `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}${drawIslandShapes()}${drawDotPins()}</g>`;
-  svg.querySelectorAll('.isle-shape, .pin').forEach(el => {
-    el.addEventListener('click', ev => { ev.stopPropagation(); openIsland(el.dataset.id); });
-  });
+  bindIsleClicks();
 }
 
 /* ---------- 島の詳細マップ（Leaflet / 地理院タイル） ---------- */
@@ -833,22 +990,38 @@ function svgPoint(ev){
   const py = (ev.touches?ev.touches[0].clientY:ev.clientY) - r.top;
   return { x: px / r.width * VW, y: py / r.height * VH };
 }
-svg.addEventListener('mousedown', e => { drag = {...svgPoint(e), tx:STATE.view.tx, ty:STATE.view.ty}; svg.classList.add('dragging'); });
+svg.addEventListener('mousedown', e => {
+  if (STATE.viewMode === 'side'){ drag = {...svgPoint(e), stx:STATE.sideTx}; svg.classList.add('dragging'); return; }
+  drag = {...svgPoint(e), tx:STATE.view.tx, ty:STATE.view.ty}; svg.classList.add('dragging');
+});
 window.addEventListener('mousemove', e => {
   if(!drag) return;
   const p = svgPoint(e);
+  if (STATE.viewMode === 'side'){ STATE.sideTx = drag.stx + (p.x - drag.x); renderMap(); return; }
   STATE.view.tx = drag.tx + (p.x - drag.x)*STATE.view.scale;
   STATE.view.ty = drag.ty + (p.y - drag.y)*STATE.view.scale;
   clampView(); applyView();
 });
 window.addEventListener('mouseup', () => { drag=null; svg.classList.remove('dragging'); });
-svg.addEventListener('wheel', e => { e.preventDefault(); zoomBy(e.deltaY<0?1.15:0.87, ...Object.values(svgPoint(e))); }, {passive:false});
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (STATE.viewMode === 'side'){ STATE.sideTx -= e.deltaY*0.9; renderMap(); return; }
+  zoomBy(e.deltaY<0?1.15:0.87, ...Object.values(svgPoint(e)));
+}, {passive:false});
 let pinch = null;
 svg.addEventListener('touchstart', e => {
+  if (STATE.viewMode === 'side'){
+    if(e.touches.length===1) drag = {...svgPoint(e), stx:STATE.sideTx};
+    return;
+  }
   if(e.touches.length===1){ drag = {...svgPoint(e), tx:STATE.view.tx, ty:STATE.view.ty}; }
   else if(e.touches.length===2){ drag=null; pinch = touchDist(e); }
 }, {passive:true});
 svg.addEventListener('touchmove', e => {
+  if (STATE.viewMode === 'side'){
+    if(e.touches.length===1 && drag){ const p=svgPoint(e); STATE.sideTx = drag.stx + (p.x-drag.x); renderMap(); }
+    return;
+  }
   if(e.touches.length===1 && drag){
     const p=svgPoint(e);
     STATE.view.tx = drag.tx + (p.x-drag.x)*STATE.view.scale;
@@ -1054,6 +1227,17 @@ $('#dmapFull').onclick = () => {
   const full = wrap.classList.toggle('full');
   $('#dmapFull').textContent = full ? '✕ 閉じる' : '⤢ 拡大';
   if (dmap) setTimeout(() => dmap.invalidateSize(), 60);
+};
+$('#sidePrev').onclick = () => { STATE.sideTx += 390; renderMap(); };
+$('#sideNext').onclick = () => { STATE.sideTx -= 390; renderMap(); };
+$('#viewToggle').onclick = () => {
+  STATE.viewMode = STATE.viewMode === 'side' ? 'map' : 'side';
+  const side = STATE.viewMode === 'side';
+  $('#viewToggle').textContent = side ? '🗾 地図にもどる' : '⛰ 横からながめる';
+  document.querySelector('.mapwrap').classList.toggle('side-mode', side);
+  $('#hint').classList.add('hidden');
+  if (side) STATE.sideTx = 0;
+  renderMap();
 };
 $('#dataModal').addEventListener('click', e => { if(e.target.id==='dataModal') e.currentTarget.classList.remove('open'); });
 $('#formModal').addEventListener('click', e => { if(e.target.id==='formModal') e.currentTarget.classList.remove('open'); });
