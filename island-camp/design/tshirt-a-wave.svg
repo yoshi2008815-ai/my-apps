@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-110 -40 220 100" width="2200" height="1000">
+  <!-- 伊豆七島 なみのりライン（1色・胸ワンポイント用） -->
+  <defs>
+    <path id="pCone" d="M -20 0 Q -12 -3 -7 -12 Q 0 -19 7 -12 Q 12 -3 20 0 Z"/>
+    <path id="pDome" d="M -18 0 Q 0 -21 18 0 Z"/>
+    <path id="pTwin" d="M -20 0 Q -11 -15 -2 0 Z M -4 0 Q 8 -21 20 0 Z"/>
+  </defs>
+  <g fill="#17395f">
+    <path d="M-95 5 q12 -5 24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0 t24 0" fill="none" stroke="#17395f" stroke-width="2.4" stroke-linecap="round"/>
+    <use href="#pCone" transform="translate(-76,0) scale(1.05)"/>
+    <use href="#pCone" transform="translate(-50,0) scale(0.5)"/>
+    <use href="#pDome" transform="translate(-26,0) scale(1.25,0.6)"/>
+    <use href="#pDome" transform="translate(-2,0) scale(0.8)"/>
+    <use href="#pCone" transform="translate(24,0) scale(0.9)"/>
+    <circle cx="26" cy="-21" r="2.2" opacity="0.75"/>
+    <circle cx="30" cy="-26" r="1.4" opacity="0.55"/>
+    <use href="#pDome" transform="translate(48,0) scale(0.55,0.85)"/>
+    <use href="#pTwin" transform="translate(76,0) scale(1)"/>
+    <text x="0" y="31" text-anchor="middle" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif" font-size="13" font-weight="700" letter-spacing="7">伊豆七島</text>
+    <text x="3" y="49" text-anchor="middle" font-family="'Zen Maru Gothic',sans-serif" font-size="11" letter-spacing="2">IZU SEVEN ISLANDS</text>
+  </g>
+</svg>

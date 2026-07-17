@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="440 490 145 195" width="1450" height="1950">
+  <!-- 伊豆七島 タテ看板（1色・背中プリント用） -->
+  <defs>
+    <path id="pCone" d="M -20 0 Q -12 -3 -7 -12 Q 0 -19 7 -12 Q 12 -3 20 0 Z"/>
+    <path id="pDome" d="M -18 0 Q 0 -21 18 0 Z"/>
+    <path id="pTwin" d="M -20 0 Q -11 -15 -2 0 Z M -4 0 Q 8 -21 20 0 Z"/>
+  </defs>
+  <g fill="#17395f" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif">
+    <text x="510" y="507" text-anchor="middle" font-size="12" font-weight="700" letter-spacing="4">伊豆七島</text>
+    <line x1="478" y1="516" x2="478" y2="668" stroke="#17395f" stroke-width="1" stroke-dasharray="2 3" opacity="0.5"/>
+    <use href="#pCone" transform="translate(478,528) scale(0.5)"/>
+    <text x="494" y="532" font-size="11">大島</text>
+    <use href="#pCone" transform="translate(478,551) scale(0.3)"/>
+    <text x="494" y="555" font-size="11">利島</text>
+    <use href="#pDome" transform="translate(478,574) scale(0.6,0.35)"/>
+    <text x="494" y="578" font-size="11">新島</text>
+    <use href="#pDome" transform="translate(478,597) scale(0.45)"/>
+    <text x="494" y="601" font-size="11">神津島</text>
+    <use href="#pCone" transform="translate(478,620) scale(0.48)"/>
+    <text x="494" y="624" font-size="11">三宅島</text>
+    <use href="#pDome" transform="translate(478,643) scale(0.35,0.55)"/>
+    <text x="494" y="647" font-size="11">御蔵島</text>
+    <use href="#pTwin" transform="translate(478,666) scale(0.55)"/>
+    <text x="494" y="670" font-size="11">八丈島</text>
+  </g>
+</svg>

@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>structureLab Match｜事業者×SIer パートナーマッチング</title>
+  <meta name="description" content="structureLab導入を検討する事業者と、導入支援・開発を担うSIerを結びつけるマッチングプラットフォーム（プロトタイプ）" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f1b33'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' fill='%2360a5fa' font-family='sans-serif' font-weight='bold'%3EsL%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #f2f5fa;
+      --surface: #ffffff;
+      --ink: #16233b;
+      --muted: #5b6b82;
+      --line: #dde4ee;
+      --brand: #1d4ed8;
+      --brand-dark: #0f1b33;
+      --brand-soft: #e4edfd;
+      --accent: #0a7263;
+      --accent-soft: #dcf5f0;
+      --danger: #9a3412;
+      --gold-bg: #fdf3d8; --gold-ink: #92600a;
+      --silver-bg: #eceff4; --silver-ink: #4b5a6e;
+      --cert-bg: #e4edfd; --cert-ink: #1d4ed8;
+      --radius: 14px;
+      --shadow: 0 1px 4px rgba(15, 27, 51, .08);
+      --shadow-lg: 0 8px 32px rgba(15, 27, 51, .18);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--brand); }
+
+    /* ---------- ヘッダー ---------- */
+    header {
+      background: var(--brand-dark);
+      color: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    .header-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 12px 20px 0;
+    }
+    .brand-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .brand { font-size: 1.25rem; font-weight: 700; letter-spacing: .02em; cursor: pointer; }
+    .brand .sl { color: #60a5fa; }
+    .brand-sub { font-size: .72rem; color: #94a8c7; }
+    nav.tabs {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    nav.tabs::-webkit-scrollbar { display: none; }
+    nav.tabs button {
+      appearance: none;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #b6c4dc;
+      font-size: .92rem;
+      font-weight: 600;
+      padding: 10px 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    nav.tabs button.active { color: #fff; border-bottom-color: #60a5fa; }
+    nav.tabs button:hover { color: #fff; }
+
+    /* ---------- レイアウト ---------- */
+    main { max-width: 1080px; margin: 0 auto; padding: 28px 20px 80px; }
+    section.view { display: none; }
+    section.view.active { display: block; }
+    h2.section-title { font-size: 1.35rem; margin: 0 0 4px; }
+    p.section-lead { color: var(--muted); margin: 0 0 20px; font-size: .95rem; }
+
+    /* ---------- ホーム ---------- */
+    .hero {
+      background: linear-gradient(135deg, #0f1b33 0%, #1e3a8a 70%, #1d4ed8 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 44px 32px;
+      margin-bottom: 28px;
+    }
+    .hero h1 { font-size: clamp(1.5rem, 4vw, 2.1rem); margin: 0 0 12px; line-height: 1.4; }
+    .hero p { color: #c7d5ef; margin: 0 0 24px; max-width: 620px; }
+    .hero .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .stat .num { font-size: 1.7rem; font-weight: 700; color: var(--brand); }
+    .stat .label { font-size: .82rem; color: var(--muted); }
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .flow-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .flow-card h3 { margin: 0 0 4px; font-size: 1.05rem; }
+    .flow-card .who { font-size: .78rem; font-weight: 700; letter-spacing: .05em; }
+    .flow-card.biz .who { color: var(--brand); }
+    .flow-card.sier .who { color: var(--accent); }
+    .flow-card ol { margin: 12px 0 16px; padding-left: 0; list-style: none; counter-reset: step; }
+    .flow-card ol li {
+      counter-increment: step;
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      padding: 7px 0;
+      font-size: .92rem;
+    }
+    .flow-card ol li::before {
+      content: counter(step);
+      flex: 0 0 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-weight: 700;
+      font-size: .85rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(4px);
+    }
+    .flow-card.sier ol li::before { background: var(--accent-soft); color: var(--accent); }
+    .home-note {
+      background: var(--surface);
+      border-left: 4px solid var(--brand);
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: .88rem;
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    /* ---------- ボタン ---------- */
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 20px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: filter .15s, transform .05s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-light { background: #fff; color: var(--brand-dark); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+    .btn:hover { filter: brightness(1.08); }
+    .btn-sm { padding: 7px 14px; font-size: .85rem; border-radius: 8px; }
+
+    /* ---------- フィルタ ---------- */
+    .filter-bar {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      display: grid;
+      gap: 12px;
+    }
+    .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .filter-row label.f-label { font-size: .8rem; font-weight: 700; color: var(--muted); flex: 0 0 auto; min-width: 64px; }
+    input[type="text"], input[type="email"], select, textarea {
+      font-family: inherit;
+      font-size: .92rem;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      max-width: 100%;
+    }
+    input[type="text"]:focus, input[type="email"]:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--brand);
+      outline-offset: 0;
+      border-color: transparent;
+    }
+    .search-input { flex: 1 1 220px; }
+
+    /* ---------- チップ ---------- */
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+    .chip {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 5px 13px;
+      font-size: .82rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .12s;
+    }
+    .chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .chip:hover:not(.on) { border-color: var(--brand); color: var(--brand); }
+
+    /* ---------- カード一覧 ---------- */
+    .result-meta { font-size: .85rem; color: var(--muted); margin-bottom: 12px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: box-shadow .15s, transform .15s;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border: 1px solid transparent;
+    }
+    .card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+    .card .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .card h3 { margin: 0; font-size: 1.02rem; line-height: 1.45; }
+    .card .sub { font-size: .82rem; color: var(--muted); }
+    .card .desc {
+      font-size: .86rem;
+      color: var(--muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: .74rem;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-weight: 600;
+    }
+    .tag.product { background: var(--accent-soft); color: var(--accent); }
+    .badge {
+      font-size: .72rem;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 3px 9px;
+      white-space: nowrap;
+    }
+    .badge.gold { background: var(--gold-bg); color: var(--gold-ink); }
+    .badge.silver { background: var(--silver-bg); color: var(--silver-ink); }
+    .badge.cert { background: var(--cert-bg); color: var(--cert-ink); }
+    .badge.status-open { background: var(--accent-soft); color: var(--accent); }
+    .badge.status-review { background: var(--gold-bg); color: var(--gold-ink); }
+    .badge.status-done { background: var(--silver-bg); color: var(--silver-ink); }
+    .badge.user-item { background: #fde8e8; color: var(--danger); }
+    .card-foot { display: flex; justify-content: space-between; align-items: center; font-size: .8rem; color: var(--muted); margin-top: auto; }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 20px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    /* ---------- モーダル ---------- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 27, 51, .55);
+      z-index: 100;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 4vh 16px;
+      overflow-y: auto;
+    }
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius);
+      max-width: 640px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      padding: 28px;
+      position: relative;
+      margin-bottom: 4vh;
+      outline: none;
+    }
+    .modal .close-x {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      appearance: none;
+      border: none;
+      background: var(--bg);
+      color: var(--muted);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      font-size: 1.05rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal h3 { margin: 0 0 4px; font-size: 1.2rem; padding-right: 40px; }
+    .modal .modal-sub { color: var(--muted); font-size: .86rem; margin-bottom: 16px; }
+    .detail-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: .9rem; }
+    .detail-table th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 8px 12px 8px 0;
+      width: 108px;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .detail-table td { padding: 8px 0; vertical-align: top; }
+    .detail-table tr + tr { border-top: 1px solid var(--line); }
+    .achievements { margin: 8px 0 0; padding-left: 18px; font-size: .88rem; color: var(--muted); }
+    .achievements li { margin-bottom: 4px; }
+    .modal .cta-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+    /* ---------- マッチング ---------- */
+    .match-item {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .match-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .match-head .name {
+      appearance: none;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+      font-size: inherit;
+      text-align: left;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--brand);
+    }
+    .score-wrap { display: flex; align-items: center; gap: 10px; flex: 1 1 180px; justify-content: flex-end; }
+    .score-bar { flex: 0 1 140px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+    .score-bar .fill { height: 100%; background: linear-gradient(90deg, #34d399, #0a7263); border-radius: 4px; }
+    .score-num { font-weight: 700; color: var(--accent); font-size: .95rem; min-width: 3.6em; text-align: right; }
+    .match-reasons { margin: 10px 0 0; padding-left: 18px; font-size: .84rem; color: var(--muted); }
+    .match-reasons li { margin-bottom: 2px; }
+
+    /* ---------- フォーム ---------- */
+    .form-switch { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .form-switch button {
+      appearance: none;
+      border: 2px solid var(--line);
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-family: inherit;
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      flex: 1 1 220px;
+      text-align: left;
+      line-height: 1.5;
+    }
+    .form-switch button small { display: block; font-weight: 400; font-size: .8rem; }
+    .form-switch button.on { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+    .form-switch button.on.sier { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    form.reg-form {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 16px;
+    }
+    .field { display: grid; gap: 6px; }
+    .field > label { font-size: .85rem; font-weight: 700; }
+    .field > label .req { color: var(--danger); font-size: .75rem; margin-left: 4px; }
+    .field .hint { font-size: .78rem; color: var(--muted); }
+    .field-2col { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+    textarea { resize: vertical; min-height: 90px; }
+    .form-error { color: var(--danger); font-size: .85rem; display: none; }
+    .form-error.show { display: block; }
+
+    /* ---------- トースト ---------- */
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--brand-dark);
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 10px;
+      font-size: .9rem;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s, transform .25s;
+      z-index: 200;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    footer {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 20px 40px;
+      font-size: .78rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 560px) {
+      .hero { padding: 30px 22px; }
+      .hero h1 br { display: none; }
+      nav.tabs { flex-wrap: wrap; }
+      main { padding: 20px 14px 60px; }
+      .modal { padding: 22px 18px; }
+      .detail-table th { width: 86px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand-row">
+      <div class="brand" data-view="home"><span class="sl">structureLab</span> Match</div>
+      <div class="brand-sub">事業者 × SIer パートナーマッチング（プロトタイプ）</div>
+    </div>
+    <nav class="tabs" id="nav-tabs">
+      <button data-view="home">ホーム</button>
+      <button data-view="partners">パートナーを探す</button>
+      <button data-view="projects">案件を探す</button>
+      <button data-view="register">掲載・登録</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ ホーム ============ -->
+  <section class="view" id="view-home">
+    <div class="hero">
+      <h1>structureLabの導入・活用を、<br />最適なパートナーとともに。</h1>
+      <p>structureLab Match は、structureLab製品の導入や連携開発を検討する事業者と、導入支援・受託開発を担うSIerを結びつけるマッチングプラットフォームです。製品を「売って終わり」にせず、導入から定着・拡張までを支えるエコシステムを提供します。</p>
+      <div class="cta-row">
+        <button class="btn btn-light" data-view="partners">導入パートナーを探す</button>
+        <button class="btn btn-primary" data-view="projects" style="background:rgba(255,255,255,.16)">開発案件を探す</button>
+      </div>
+    </div>
+
+    <div class="stats" id="home-stats"></div>
+
+    <div class="two-col">
+      <div class="flow-card biz">
+        <div class="who">事業者の方へ</div>
+        <h3>導入・開発の相談先が見つかる</h3>
+        <ol>
+          <li>案件（導入したい製品・やりたいこと）を掲載</li>
+          <li>登録パートナーの中から、条件に合うSIerを自動マッチング</li>
+          <li>気になるパートナーに相談して、提案・見積を受ける</li>
+        </ol>
+        <button class="btn btn-primary btn-sm" data-register-mode="project">案件を掲載する</button>
+      </div>
+      <div class="flow-card sier">
+        <div class="who">SIer・開発会社の方へ</div>
+        <h3>structureLab案件の商談機会を獲得</h3>
+        <ol>
+          <li>得意分野・対応製品・実績を登録してパートナーになる</li>
+          <li>公開中の案件から、自社に合う案件を検索</li>
+          <li>事業者へ提案し、認定ランクを上げて受注機会を拡大</li>
+        </ol>
+        <button class="btn btn-accent btn-sm" data-register-mode="partner">パートナー登録する</button>
+      </div>
+    </div>
+
+    <div class="home-note">
+      💡 <strong>sL認定パートナー制度</strong>：導入支援実績と技術認定に応じて「ゴールド」「シルバー」「認定」の3ランクを付与。事業者は安心して相談先を選べ、SIerは実績を積むほど露出が増える仕組みです。
+    </div>
+  </section>
+
+  <!-- ============ パートナー一覧 ============ -->
+  <section class="view" id="view-partners">
+    <h2 class="section-title">パートナーを探す</h2>
+    <p class="section-lead">structureLabの導入支援・受託開発に対応する認定パートナー（SIer）の一覧です。</p>
+
+    <div class="filter-bar">
+      <div class="filter-row">
+        <input type="text" class="search-input" id="pt-keyword" placeholder="会社名・キーワードで検索" aria-label="会社名・キーワードで検索" />
+        <select id="pt-region" aria-label="地域で絞り込み">
+          <option value="">地域：すべて</option>
+        </select>
+        <select id="pt-sort" aria-label="並び順">
+          <option value="rank">並び順：認定ランク</option>
+          <option value="results">並び順：実績数</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <span class="f-label" id="pt-fields-label">得意分野</span>
+        <div class="chips" id="pt-fields" role="group" aria-labelledby="pt-fields-label"></div>
+      </div>
+      <div class="filter-row">
+        <span class="f-label" id="pt-products-label">対応製品</span>
+        <div class="chips" id="pt-products" role="group" aria-labelledby="pt-products-label"></div>
+      </div>
+    </div>
+
+    <div class="result-meta" id="pt-count"></div>
+    <div class="card-grid" id="pt-list"></div>
+  </section>
+
+  <!-- ============ 案件一覧 ============ -->
+  <section class="view" id="view-projects">
+    <h2 class="section-title">案件を探す</h2>
+    <p class="section-lead">事業者が掲載している、structureLab関連の導入・開発案件の一覧です。</p>
+
+    <div class="filter-bar">
+      <div class="filter-row">
+        <input type="text" class="search-input" id="pj-keyword" placeholder="案件名・キーワードで検索" aria-label="案件名・キーワードで検索" />
+        <select id="pj-region" aria-label="地域で絞り込み">
+          <option value="">地域：すべて</option>
+        </select>
+        <select id="pj-status" aria-label="募集状態で絞り込み">
+          <option value="">状態：すべて</option>
+          <option value="募集中">募集中</option>
+          <option value="選定中">選定中</option>
+          <option value="成約">成約</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <span class="f-label" id="pj-fields-label">分野</span>
+        <div class="chips" id="pj-fields" role="group" aria-labelledby="pj-fields-label"></div>
+      </div>
+    </div>
+
+    <div class="result-meta" id="pj-count"></div>
+    <div class="card-grid" id="pj-list"></div>
+  </section>
+
+  <!-- ============ 掲載・登録 ============ -->
+  <section class="view" id="view-register">
+    <h2 class="section-title">掲載・登録</h2>
+    <p class="section-lead">案件の掲載（事業者向け）またはパートナー登録（SIer向け）ができます。</p>
+
+    <div class="form-switch">
+      <button id="sw-project" data-register-mode="project">🏢 案件を掲載する<small>事業者向け：導入・開発したい内容を掲載し、パートナーからの提案を受ける</small></button>
+      <button id="sw-partner" data-register-mode="partner">🛠 パートナー登録する<small>SIer向け：得意分野と実績を登録し、案件の商談機会を獲得する</small></button>
+    </div>
+
+    <!-- 案件掲載フォーム -->
+    <form class="reg-form" id="form-project" novalidate>
+      <div class="field">
+        <label for="fp-title">案件タイトル<span class="req">必須</span></label>
+        <input type="text" id="fp-title" name="title" placeholder="例：structureLab Core の全社導入と基幹システム連携" maxlength="80" />
+      </div>
+      <div class="field-2col">
+        <div class="field">
+          <label for="fp-company">会社名<span class="req">必須</span></label>
+          <input type="text" id="fp-company" name="company" placeholder="例：株式会社◯◯建設" maxlength="60" />
+          <span class="hint">「非公開」と入力すると社名を伏せて掲載できます</span>
+        </div>
+        <div class="field">
+          <label for="fp-industry">業種</label>
+          <select id="fp-industry" name="industry"></select>
+        </div>
+      </div>
+      <div class="field-2col">
+        <div class="field">
+          <label for="fp-region">地域</label>
+          <select id="fp-region" name="region"></select>
+        </div>
+        <div class="field">
+          <label for="fp-budget">想定予算</label>
+          <select id="fp-budget" name="budget"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fp-timing">希望時期</label>
+        <input type="text" id="fp-timing" name="timing" placeholder="例：2026年10月頃 開始希望" maxlength="40" />
+      </div>
+      <div class="field">
+        <label id="fp-fields-label">求める分野<span class="req">必須</span></label>
+        <div class="chips" id="fp-fields" role="group" aria-labelledby="fp-fields-label"></div>
+      </div>
+      <div class="field">
+        <label id="fp-products-label">対象のstructureLab製品</label>
+        <div class="chips" id="fp-products" role="group" aria-labelledby="fp-products-label"></div>
+      </div>
+      <div class="field">
+        <label for="fp-desc">案件の詳細</label>
+        <textarea id="fp-desc" name="description" placeholder="現状の課題、実現したいこと、規模感などをご記入ください" maxlength="1000"></textarea>
+      </div>
+      <p class="form-error" id="fp-error" role="alert"></p>
+      <div>
+        <button type="submit" class="btn btn-primary">案件を掲載して、おすすめパートナーを見る</button>
+      </div>
+    </form>
+
+    <!-- パートナー登録フォーム -->
+    <form class="reg-form" id="form-partner" novalidate>
+      <div class="field">
+        <label for="fs-name">会社名<span class="req">必須</span></label>
+        <input type="text" id="fs-name" name="name" placeholder="例：株式会社◯◯システムズ" maxlength="60" />
+      </div>
+      <div class="field-2col">
+        <div class="field">
+          <label for="fs-region">本社所在地（地域）</label>
+          <select id="fs-region" name="region"></select>
+        </div>
+        <div class="field">
+          <label for="fs-city">拠点（市区町村など）</label>
+          <input type="text" id="fs-city" name="city" placeholder="例：東京都千代田区" maxlength="40" />
+        </div>
+      </div>
+      <div class="field-2col">
+        <div class="field">
+          <label for="fs-size">従業員数</label>
+          <input type="text" id="fs-size" name="size" placeholder="例：50名" maxlength="20" />
+        </div>
+        <div class="field">
+          <label for="fs-minbudget">受注規模の目安</label>
+          <select id="fs-minbudget" name="minBudget"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label><input type="checkbox" name="nationwide" style="margin-right:6px" />全国対応が可能</label>
+      </div>
+      <div class="field">
+        <label id="fs-fields-label">得意分野<span class="req">必須</span></label>
+        <div class="chips" id="fs-fields" role="group" aria-labelledby="fs-fields-label"></div>
+      </div>
+      <div class="field">
+        <label id="fs-products-label">対応可能なstructureLab製品</label>
+        <div class="chips" id="fs-products" role="group" aria-labelledby="fs-products-label"></div>
+        <span class="hint">導入・開発経験のある製品を選択してください（未経験でも今後対応予定なら選択可）</span>
+      </div>
+      <div class="field">
+        <label for="fs-desc">会社紹介・アピールポイント</label>
+        <textarea id="fs-desc" name="description" placeholder="得意領域、これまでの実績、支援体制などをご記入ください" maxlength="1000"></textarea>
+      </div>
+      <p class="form-error" id="fs-error" role="alert"></p>
+      <div>
+        <button type="submit" class="btn btn-accent">パートナーとして登録する</button>
+      </div>
+    </form>
+  </section>
+
+</main>
+
+<div id="modal-root"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<footer>
+  structureLab Match（プロトタイプ版）— 掲載中のパートナー・案件はデモ用のサンプルデータです。<br />
+  このプロトタイプで登録したデータや相談内容は、この端末のブラウザ内（localStorage）にのみ保存されます。
+</footer>
+
+<script>
+'use strict';
+
+/* =========================================================
+ * マスタ定義
+ * 製品名・分野などは structureLab 本体に合わせてここを編集する
+ * ======================================================= */
+const FIELDS = ['構造計算', 'BIM/CIM連携', '図面・帳票', 'システム連携(API)', 'クラウド移行', 'データ移行', '教育・定着支援', '受託開発', '保守・運用'];
+const PRODUCTS = ['structureLab Core', 'sL BIM Link', 'sL Docs', 'sL Cloud', 'sL API'];
+const REGIONS = ['北海道・東北', '関東', '中部', '近畿', '中国・四国', '九州・沖縄'];
+const INDUSTRIES = ['総合建設', 'ゼネコン', '構造設計事務所', '意匠設計事務所', '工務店', 'プレハブ・ハウスメーカー', '官公庁・自治体', '教育・研究機関', 'その他'];
+const BUDGETS = ['～100万円', '100～300万円', '300～1,000万円', '1,000～3,000万円', '3,000万円～', '未定・相談'];
+// SIerの受注規模の目安。index 0..4 は BUDGETS[0..4] に対応（マッチングの予算比較で使用）
+const MIN_BUDGETS = ['小規模案件も対応', '100万円以上が目安', '300万円以上が目安', '1,000万円以上が目安', '3,000万円以上が目安'];
+const RANKS = { gold: 'ゴールド', silver: 'シルバー', cert: '認定' };
+const RANK_ORDER = { gold: 0, silver: 1, cert: 2 };
+
+/* ---------- サンプルデータ：パートナー（SIer） ---------- */
+const SEED_PARTNERS = [
+  {
+    id: 's1', name: 'アクシスエンジニアリング株式会社', rank: 'gold',
+    region: '関東', city: '東京都千代田区', nationwide: true, size: '120名', minBudget: 2, resultsCount: 28,
+    fields: ['構造計算', 'BIM/CIM連携', 'システム連携(API)'],
+    products: ['structureLab Core', 'sL BIM Link', 'sL API'],
+    description: '創業以来、建設業向け業務システムに特化。structureLab認定初年度からのゴールドパートナーとして、大手ゼネコンから設計事務所まで幅広い導入支援実績があります。要件定義から定着支援まで一気通貫で対応します。',
+    achievements: ['大手ゼネコン向け structureLab Core 全社導入（設計部門300名規模）', '構造計算結果とBIMモデルの自動連携基盤の構築', '基幹システムとのAPI連携開発（見積・原価管理）'],
+  },
+  {
+    id: 's2', name: '北都システムデザイン株式会社', rank: 'silver',
+    region: '北海道・東北', city: '札幌市中央区', nationwide: false, size: '45名', minBudget: 1, resultsCount: 14,
+    fields: ['構造計算', '図面・帳票', '教育・定着支援'],
+    products: ['structureLab Core', 'sL Docs'],
+    description: '北海道・東北エリアを中心に、地場の建設会社・設計事務所へのstructureLab導入を支援。導入後の操作研修や帳票カスタマイズに強みがあります。',
+    achievements: ['地場建設会社10社への structureLab Core 導入', '道内設計事務所向け操作研修プログラムの提供', '確認申請帳票テンプレートのカスタマイズ多数'],
+  },
+  {
+    id: 's3', name: '株式会社シーホース情報技術', rank: 'silver',
+    region: '九州・沖縄', city: '福岡市博多区', nationwide: false, size: '60名', minBudget: 1, resultsCount: 11,
+    fields: ['クラウド移行', '保守・運用', 'システム連携(API)'],
+    products: ['sL Cloud', 'sL API', 'structureLab Core'],
+    description: 'クラウドインフラの設計・移行が専門。オンプレ環境で運用されてきたstructureLabのsL Cloudへの移行と、その後の運用保守をワンストップで提供します。',
+    achievements: ['オンプレ構造計算環境の sL Cloud 移行（5社）', '24時間365日の運用監視サービス提供', '九州圏の自治体向けシステム保守実績'],
+  },
+  {
+    id: 's4', name: '中部ITパートナーズ株式会社', rank: 'gold',
+    region: '中部', city: '名古屋市中村区', nationwide: true, size: '200名', minBudget: 2, resultsCount: 22,
+    fields: ['受託開発', 'システム連携(API)', 'データ移行'],
+    products: ['structureLab Core', 'sL API', 'sL Cloud'],
+    description: '製造業・建設業向けの受託開発で20年の実績。structureLabを核とした周辺システムの開発、既存資産からのデータ移行プロジェクトを得意としています。',
+    achievements: ['ハウスメーカー向け構造計算ワークフローシステムの受託開発', '旧構造計算ソフトからのデータ移行ツール開発', 'sL API を用いた社内ポータル連携開発'],
+  },
+  {
+    id: 's5', name: '株式会社クレスト設計システム', rank: 'cert',
+    region: '近畿', city: '大阪市北区', nationwide: false, size: '25名', minBudget: 0, resultsCount: 7,
+    fields: ['BIM/CIM連携', '図面・帳票', '教育・定着支援'],
+    products: ['sL BIM Link', 'sL Docs'],
+    description: '設計実務出身のメンバーが中心の少数精鋭。BIMワークフローの設計とsL BIM Linkの活用支援では、実務目線での提案に定評があります。',
+    achievements: ['意匠・構造間のBIM連携ワークフロー構築', 'sL Docs による図面出力の標準化支援', '設計事務所向けBIM研修の企画・実施'],
+  },
+  {
+    id: 's6', name: '瀬戸内デジタルワークス株式会社', rank: 'cert',
+    region: '中国・四国', city: '広島市中区', nationwide: false, size: '18名', minBudget: 0, resultsCount: 5,
+    fields: ['クラウド移行', '保守・運用', '教育・定着支援'],
+    products: ['sL Cloud', 'structureLab Core'],
+    description: '瀬戸内エリアの中小建設業のDXを支援。小規模事業者でも導入しやすいスモールスタートのプランニングと、伴走型の定着支援が特徴です。',
+    achievements: ['地場工務店への structureLab スモールスタート導入', '中国・四国エリアでの導入セミナー定期開催', '月額制の伴走サポートプラン提供'],
+  },
+  {
+    id: 's7', name: '株式会社アーバンテック東京', rank: 'gold',
+    region: '関東', city: '東京都港区', nationwide: true, size: '340名', minBudget: 3, resultsCount: 35,
+    fields: ['受託開発', 'BIM/CIM連携', 'システム連携(API)', 'データ移行'],
+    products: ['structureLab Core', 'sL BIM Link', 'sL Docs', 'sL Cloud', 'sL API'],
+    description: 'structureLab全製品に対応する最大級の認定パートナー。大規模導入・大規模開発のプロジェクトマネジメントに強く、複数拠点にまたがる全社展開の実績が豊富です。',
+    achievements: ['スーパーゼネコン向け全社導入PMO（1,000名規模）', '構造設計プラットフォームの大規模受託開発', 'グループ会社横断のデータ統合基盤構築'],
+  },
+  {
+    id: 's8', name: 'みなと情報システム株式会社', rank: 'cert',
+    region: '関東', city: '横浜市西区', nationwide: false, size: '32名', minBudget: 0, resultsCount: 9,
+    fields: ['図面・帳票', '教育・定着支援', '保守・運用'],
+    products: ['sL Docs', 'structureLab Core'],
+    description: '帳票設計とヘルプデスク運営が得意。導入後の「使いこなし」フェーズを支える継続支援サービスを提供しています。',
+    achievements: ['社内標準帳票の設計・整備支援', '導入企業向けヘルプデスクの受託運営', '操作マニュアル・eラーニング教材の制作'],
+  },
+  {
+    id: 's9', name: '株式会社グリーンフィールドIT', rank: 'silver',
+    region: '近畿', city: '京都市下京区', nationwide: false, size: '80名', minBudget: 1, resultsCount: 16,
+    fields: ['構造計算', 'データ移行', '受託開発'],
+    products: ['structureLab Core', 'sL API'],
+    description: '構造系エンジニア出身の技術者が在籍し、構造計算業務の深い理解に基づくシステム提案が可能。レガシーシステムからの移行案件を多数手がけています。',
+    achievements: ['旧計算システムからの構造データ移行（累計10社以上）', '構造計算業務フローの再設計コンサルティング', '検定比チェック自動化ツールの開発'],
+  },
+  {
+    id: 's10', name: '東北ブリッジソリューションズ株式会社', rank: 'cert',
+    region: '北海道・東北', city: '仙台市青葉区', nationwide: false, size: '15名', minBudget: 0, resultsCount: 6,
+    fields: ['構造計算', '教育・定着支援', '保守・運用'],
+    products: ['structureLab Core', 'sL Docs'],
+    description: '仙台を拠点に、東北の建設事業者へきめ細かな導入支援を提供。小さく始めて確実に定着させる、地域密着のサポートが強みです。',
+    achievements: ['東北6県での導入・研修対応', '復興関連事業者への導入支援', '地域建設業協会でのセミナー登壇'],
+  },
+];
+
+/* ---------- サンプルデータ：案件 ---------- */
+const SEED_PROJECTS = [
+  {
+    id: 'p1', title: 'structureLab Core の全社導入と操作教育', company: '株式会社丸山建設',
+    industry: '総合建設', region: '関東', budget: 2, timing: '2026年10月頃 開始希望', status: '募集中',
+    fields: ['構造計算', '教育・定着支援', 'データ移行'],
+    products: ['structureLab Core'],
+    description: '設計部門（約40名）へstructureLab Coreを全社導入したい。現行の構造計算ソフトからのデータ移行と、部門全体への操作教育・定着支援までを含めて支援いただけるパートナーを探しています。',
+  },
+  {
+    id: 'p2', title: '基幹システムとのAPI連携開発（見積・原価連携）', company: '非公開',
+    industry: 'ゼネコン', region: '関東', budget: 3, timing: '2026年内 着手希望', status: '募集中',
+    fields: ['システム連携(API)', '受託開発'],
+    products: ['structureLab Core', 'sL API'],
+    description: 'structureLabの計算結果・部材データを自社基幹システム（見積・原価管理）と連携させたい。sL APIを用いた連携基盤の設計・開発を依頼できる、大規模開発の実績があるパートナーを希望します。',
+  },
+  {
+    id: 'p3', title: 'BIMモデルとstructureLabの連携ワークフロー構築', company: '株式会社青葉設計',
+    industry: '構造設計事務所', region: '北海道・東北', budget: 1, timing: '2026年9月〜', status: '募集中',
+    fields: ['BIM/CIM連携', '教育・定着支援'],
+    products: ['sL BIM Link'],
+    description: '意匠事務所から受け取るBIMモデルと構造計算の連携を効率化したい。sL BIM Linkの導入と、所員向けのワークフロー教育をお願いしたいです。',
+  },
+  {
+    id: 'p4', title: '確認申請向け帳票テンプレートの標準化', company: '高梁工務店',
+    industry: '工務店', region: '中国・四国', budget: 0, timing: '時期相談', status: '募集中',
+    fields: ['図面・帳票', '教育・定着支援'],
+    products: ['sL Docs'],
+    description: '確認申請時の帳票作成に手間がかかっており、sL Docsのテンプレートを自社仕様に標準化したい。小規模な案件ですが、丁寧に対応いただけるパートナーを希望します。',
+  },
+  {
+    id: 'p5', title: 'オンプレ環境から sL Cloud への移行', company: '株式会社南海構造研究所',
+    industry: '構造設計事務所', region: '近畿', budget: 2, timing: '2027年3月までに完了希望', status: '選定中',
+    fields: ['クラウド移行', 'データ移行', '保守・運用'],
+    products: ['sL Cloud', 'structureLab Core'],
+    description: '社内サーバで運用中のstructureLab環境をsL Cloudへ移行したい。過去プロジェクトデータの移行と、移行後の運用保守も含めた提案を希望します。',
+  },
+  {
+    id: 'p6', title: '自治体向け耐震診断業務システムの受託開発', company: '非公開',
+    industry: '官公庁・自治体', region: '九州・沖縄', budget: 3, timing: '2027年度 稼働目標', status: '募集中',
+    fields: ['受託開発', 'システム連携(API)', '図面・帳票'],
+    products: ['structureLab Core', 'sL API', 'sL Docs'],
+    description: '自治体の耐震診断業務を効率化するシステムをstructureLabベースで構築したい。公共案件の開発実績があり、セキュリティ要件に対応できるパートナーを求めています。',
+  },
+  {
+    id: 'p7', title: '新入社員向け structureLab 研修プログラムの企画・運営', company: '大成田ハウス株式会社',
+    industry: 'プレハブ・ハウスメーカー', region: '中部', budget: 1, timing: '2027年4月 実施', status: '募集中',
+    fields: ['教育・定着支援'],
+    products: ['structureLab Core', 'sL Docs'],
+    description: '毎年の新入社員研修にstructureLabの実務研修を組み込みたい。カリキュラム設計から講師派遣までお願いできるパートナーを探しています。',
+  },
+  {
+    id: 'p8', title: '旧構造計算システムからのデータ移行', company: '株式会社桜井構造設計',
+    industry: '構造設計事務所', region: '関東', budget: 1, timing: '完了済み', status: '成約',
+    fields: ['データ移行', '構造計算'],
+    products: ['structureLab Core'],
+    description: '長年利用してきた旧システムの計算データをstructureLabへ移行。（本案件はマッチング成立済みのサンプルです）',
+  },
+];
+
+/* =========================================================
+ * ストレージ（プロトタイプ：localStorage）
+ * ======================================================= */
+const store = {
+  load(key) {
+    try {
+      const raw = localStorage.getItem('slmatch:' + key);
+      const val = raw ? JSON.parse(raw) : [];
+      return Array.isArray(val) ? val : [];
+    } catch (e) { return []; }
+  },
+  save(key, val) {
+    try { localStorage.setItem('slmatch:' + key, JSON.stringify(val)); } catch (e) { /* 容量超過などは無視 */ }
+  },
+};
+
+const state = {
+  userPartners: store.load('partners'),
+  userProjects: store.load('projects'),
+  inquiries: store.load('inquiries'),
+  // フィルタ状態
+  ptFields: new Set(), ptProducts: new Set(),
+  pjFields: new Set(),
+  // フォームのチップ選択状態
+  fpFields: new Set(), fpProducts: new Set(),
+  fsFields: new Set(), fsProducts: new Set(),
+};
+
+function allPartners() { return [...SEED_PARTNERS, ...state.userPartners]; }
+function allProjects() { return [...state.userProjects, ...SEED_PROJECTS]; }
+
+/* =========================================================
+ * ユーティリティ
+ * ======================================================= */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+function $(sel) { return document.querySelector(sel); }
+function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('show');
+    // フェードアウト後、支援技術向けに古いメッセージを消す（次のトーストが出ていれば触らない）
+    setTimeout(() => { if (!el.classList.contains('show')) el.textContent = ''; }, 300);
+  }, 3200);
+}
+
+/* =========================================================
+ * マッチングスコア
+ * 分野40 + 製品25 + 地域15 + 予算10 + 実績10 = 100点満点
+ * ======================================================= */
+function matchScore(project, partner) {
+  const reasons = [];
+  let score = 0;
+
+  const fieldHits = (project.fields || []).filter(f => partner.fields.includes(f));
+  if ((project.fields || []).length > 0) {
+    score += 40 * (fieldHits.length / project.fields.length);
+    if (fieldHits.length) reasons.push('求める分野に対応：' + fieldHits.join('、'));
+  } else {
+    score += 20; // 分野未指定なら中立
+  }
+
+  const prodHits = (project.products || []).filter(p => partner.products.includes(p));
+  if ((project.products || []).length > 0) {
+    score += 25 * (prodHits.length / project.products.length);
+    if (prodHits.length) reasons.push('対象製品の対応経験：' + prodHits.join('、'));
+  } else {
+    score += 12;
+  }
+
+  if (partner.nationwide) {
+    score += 15;
+    reasons.push('全国対応が可能');
+  } else if (partner.region === project.region) {
+    score += 15;
+    reasons.push('同じ地域（' + partner.region + '）を拠点とする');
+  }
+
+  if (project.budget === 5) {
+    score += 5; // 予算未定は中立
+  } else if (project.budget >= partner.minBudget) {
+    score += 10;
+    reasons.push('想定予算が対応レンジ内');
+  }
+
+  score += Math.min(10, (partner.resultsCount || 0) / 3.5);
+  if ((partner.resultsCount || 0) >= 10) reasons.push('導入支援実績 ' + partner.resultsCount + '件');
+
+  return { score: Math.round(score), reasons };
+}
+
+function topMatches(project, limit) {
+  return allPartners()
+    .map(p => ({ partner: p, ...matchScore(project, p) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit || 5);
+}
+
+/* =========================================================
+ * ビュー切り替え（ハッシュルーティング）
+ * ======================================================= */
+const VIEWS = ['home', 'partners', 'projects', 'register'];
+
+function currentView() {
+  const h = location.hash.replace('#', '');
+  return VIEWS.includes(h) ? h : 'home';
+}
+
+function showView(name) {
+  document.querySelectorAll('section.view').forEach(sec => {
+    sec.classList.toggle('active', sec.id === 'view-' + name);
+  });
+  document.querySelectorAll('#nav-tabs button').forEach(btn => {
+    const on = btn.dataset.view === name;
+    btn.classList.toggle('active', on);
+    if (on) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  });
+  if (name === 'home') renderHomeStats();
+  if (name === 'partners') renderPartners();
+  if (name === 'projects') renderProjects();
+  window.scrollTo({ top: 0 });
+}
+
+function goView(name) {
+  if (currentView() === name) showView(name);
+  else location.hash = name;
+}
+
+window.addEventListener('hashchange', () => { closeModal(); showView(currentView()); });
+
+/* =========================================================
+ * ホーム
+ * ======================================================= */
+function renderHomeStats() {
+  const partners = allPartners();
+  const projects = allProjects();
+  const open = projects.filter(p => p.status === '募集中').length;
+  const results = partners.reduce((sum, p) => sum + (p.resultsCount || 0), 0);
+  $('#home-stats').innerHTML = `
+    <div class="stat"><div class="num">${partners.length}</div><div class="label">登録パートナー</div></div>
+    <div class="stat"><div class="num">${open}</div><div class="label">募集中の案件</div></div>
+    <div class="stat"><div class="num">${results}</div><div class="label">累計導入支援実績</div></div>
+    <div class="stat"><div class="num">${REGIONS.length}</div><div class="label">対応エリア</div></div>
+  `;
+}
+
+/* =========================================================
+ * チップ描画
+ * ======================================================= */
+function renderChips(containerId, options, selectedSet, onChange) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = options.map(op =>
+    `<button type="button" class="chip${selectedSet.has(op) ? ' on' : ''}" aria-pressed="${selectedSet.has(op)}" data-value="${esc(op)}">${esc(op)}</button>`
+  ).join('');
+  el.onclick = (e) => {
+    const btn = e.target.closest('.chip');
+    if (!btn) return;
+    const v = btn.dataset.value;
+    if (selectedSet.has(v)) selectedSet.delete(v);
+    else selectedSet.add(v);
+    const on = btn.classList.toggle('on');
+    btn.setAttribute('aria-pressed', String(on));
+    if (onChange) onChange();
+  };
+}
+
+function fillSelect(sel, options, withEmpty) {
+  const opts = options.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  sel.innerHTML = (withEmpty ? `<option value="">${esc(withEmpty)}</option>` : '') + opts;
+}
+
+/* =========================================================
+ * パートナー一覧
+ * ======================================================= */
+function rankBadge(rank) {
+  const cls = { gold: 'gold', silver: 'silver', cert: 'cert' }[rank] || 'cert';
+  return `<span class="badge ${cls}">sL ${esc(RANKS[rank] || RANKS.cert)}</span>`;
+}
+
+function partnerCard(p) {
+  const isUser = p.id.startsWith('u');
+  return `
+    <div class="card" data-open-partner="${esc(p.id)}" role="button" tabindex="0">
+      <div class="card-head">
+        <h3>${esc(p.name)}</h3>
+        ${isUser ? '<span class="badge user-item">自社登録</span>' : rankBadge(p.rank)}
+      </div>
+      <div class="sub">📍 ${esc(p.city || p.region)}${p.nationwide ? '（全国対応）' : ''} ・ 従業員 ${esc(p.size || '—')}</div>
+      <div class="tag-row">${p.fields.map(f => `<span class="tag">${esc(f)}</span>`).join('')}</div>
+      <div class="tag-row">${p.products.map(pr => `<span class="tag product">${esc(pr)}</span>`).join('')}</div>
+      <div class="desc">${esc(p.description || '')}</div>
+      <div class="card-foot"><span>導入支援実績 ${p.resultsCount || 0}件</span><span>詳細を見る →</span></div>
+    </div>
+  `;
+}
+
+function renderPartners() {
+  const kw = $('#pt-keyword').value.trim().toLowerCase();
+  const region = $('#pt-region').value;
+  const sort = $('#pt-sort').value;
+
+  let list = allPartners().filter(p => {
+    if (kw && !(p.name + (p.description || '') + (p.city || '')).toLowerCase().includes(kw)) return false;
+    if (region && p.region !== region && !p.nationwide) return false;
+    for (const f of state.ptFields) if (!p.fields.includes(f)) return false;
+    for (const pr of state.ptProducts) if (!p.products.includes(pr)) return false;
+    return true;
+  });
+
+  if (sort === 'results') {
+    list.sort((a, b) => (b.resultsCount || 0) - (a.resultsCount || 0));
+  } else {
+    list.sort((a, b) =>
+      (RANK_ORDER[a.rank] ?? 9) - (RANK_ORDER[b.rank] ?? 9) || (b.resultsCount || 0) - (a.resultsCount || 0));
+  }
+
+  $('#pt-count').textContent = `${list.length}社のパートナーが見つかりました`;
+  $('#pt-list').innerHTML = list.length
+    ? list.map(partnerCard).join('')
+    : '<div class="empty" style="grid-column:1/-1">条件に合うパートナーが見つかりませんでした。<br>絞り込み条件を減らしてお試しください。</div>';
+}
+
+/* =========================================================
+ * 案件一覧
+ * ======================================================= */
+function statusBadge(status) {
+  const cls = { '募集中': 'status-open', '選定中': 'status-review', '成約': 'status-done' }[status] || 'status-open';
+  return `<span class="badge ${cls}">${esc(status)}</span>`;
+}
+
+function projectCard(p) {
+  const isUser = p.id.startsWith('u');
+  return `
+    <div class="card" data-open-project="${esc(p.id)}" role="button" tabindex="0">
+      <div class="card-head">
+        <h3>${esc(p.title)}</h3>
+        ${statusBadge(p.status)}
+      </div>
+      <div class="sub">${esc(p.company)} ・ ${esc(p.industry || '—')} ・ 📍 ${esc(p.region)}${isUser ? ' <span class="badge user-item">自社掲載</span>' : ''}</div>
+      <div class="tag-row">${(p.fields || []).map(f => `<span class="tag">${esc(f)}</span>`).join('')}</div>
+      <div class="tag-row">${(p.products || []).map(pr => `<span class="tag product">${esc(pr)}</span>`).join('')}</div>
+      <div class="desc">${esc(p.description || '')}</div>
+      <div class="card-foot"><span>予算：${esc(BUDGETS[p.budget] || '未定・相談')}</span><span>詳細を見る →</span></div>
+    </div>
+  `;
+}
+
+function renderProjects() {
+  const kw = $('#pj-keyword').value.trim().toLowerCase();
+  const region = $('#pj-region').value;
+  const status = $('#pj-status').value;
+
+  const list = allProjects().filter(p => {
+    if (kw && !(p.title + p.company + (p.description || '')).toLowerCase().includes(kw)) return false;
+    if (region && p.region !== region) return false;
+    if (status && p.status !== status) return false;
+    for (const f of state.pjFields) if (!(p.fields || []).includes(f)) return false;
+    return true;
+  });
+
+  $('#pj-count').textContent = `${list.length}件の案件が見つかりました`;
+  $('#pj-list').innerHTML = list.length
+    ? list.map(projectCard).join('')
+    : '<div class="empty" style="grid-column:1/-1">条件に合う案件が見つかりませんでした。<br>絞り込み条件を減らしてお試しください。</div>';
+}
+
+/* =========================================================
+ * モーダル
+ * ======================================================= */
+let lastFocused = null;
+
+function openModal(html) {
+  closeModal();
+  lastFocused = document.activeElement;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal" role="dialog" aria-modal="true" tabindex="-1">${html}<button class="close-x" data-close-modal aria-label="閉じる">✕</button></div>`;
+
+  // モーダル内で始まったドラッグ（テキスト選択）が背景で終わっても閉じないよう、
+  // 押下開始が背景だった場合のみ背景クリックで閉じる
+  let pressedOnOverlay = false;
+  overlay.addEventListener('pointerdown', (e) => { pressedOnOverlay = (e.target === overlay); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay && pressedOnOverlay) closeModal(); });
+
+  // フォーカストラップ
+  overlay.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const focusables = overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focusables.length) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+
+  document.getElementById('modal-root').appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  overlay.querySelector('.modal').focus();
+}
+
+function closeModal() {
+  const root = document.getElementById('modal-root');
+  const wasOpen = root.childElementCount > 0;
+  root.innerHTML = '';
+  document.body.style.overflow = '';
+  if (wasOpen && lastFocused && document.contains(lastFocused) && typeof lastFocused.focus === 'function') {
+    lastFocused.focus();
+  }
+  lastFocused = null;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.isComposing || e.keyCode === 229) return; // IME変換中のEscapeでは閉じない
+  if (e.key === 'Escape') closeModal();
+});
+
+function openPartnerDetail(id) {
+  const p = allPartners().find(x => x.id === id);
+  if (!p) return;
+  const isUser = p.id.startsWith('u');
+  openModal(`
+    <h3>${esc(p.name)}</h3>
+    <div class="modal-sub">${isUser ? '<span class="badge user-item">自社登録</span>' : rankBadge(p.rank)} 📍 ${esc(p.city || p.region)}${p.nationwide ? '（全国対応）' : ''}</div>
+    <p style="font-size:.92rem">${esc(p.description || '')}</p>
+    <table class="detail-table">
+      <tr><th>得意分野</th><td><div class="tag-row">${p.fields.map(f => `<span class="tag">${esc(f)}</span>`).join('')}</div></td></tr>
+      <tr><th>対応製品</th><td><div class="tag-row">${p.products.map(pr => `<span class="tag product">${esc(pr)}</span>`).join('')}</div></td></tr>
+      <tr><th>従業員数</th><td>${esc(p.size || '—')}</td></tr>
+      <tr><th>受注規模</th><td>${esc(MIN_BUDGETS[p.minBudget] || '—')}</td></tr>
+      <tr><th>支援実績</th><td>${p.resultsCount || 0}件</td></tr>
+    </table>
+    ${(p.achievements && p.achievements.length) ? `<strong style="font-size:.9rem">主な実績</strong><ul class="achievements">${p.achievements.map(a => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
+    <div class="cta-row">
+      <button class="btn btn-primary" data-inquiry-partner="${esc(p.id)}">この会社に相談する</button>
+      <button class="btn btn-ghost" data-close-modal>閉じる</button>
+    </div>
+  `);
+}
+
+function openProjectDetail(id) {
+  const p = allProjects().find(x => x.id === id);
+  if (!p) return;
+  const isUser = p.id.startsWith('u');
+  openModal(`
+    <h3>${esc(p.title)}</h3>
+    <div class="modal-sub">${statusBadge(p.status)}${isUser ? ' <span class="badge user-item">自社掲載</span>' : ''} ${esc(p.company)} ・ ${esc(p.industry || '—')}</div>
+    <p style="font-size:.92rem">${esc(p.description || '')}</p>
+    <table class="detail-table">
+      <tr><th>求める分野</th><td><div class="tag-row">${(p.fields || []).map(f => `<span class="tag">${esc(f)}</span>`).join('')}</div></td></tr>
+      <tr><th>対象製品</th><td><div class="tag-row">${(p.products || []).map(pr => `<span class="tag product">${esc(pr)}</span>`).join('') || '—'}</div></td></tr>
+      <tr><th>地域</th><td>📍 ${esc(p.region)}</td></tr>
+      <tr><th>想定予算</th><td>${esc(BUDGETS[p.budget] || '未定・相談')}</td></tr>
+      <tr><th>${p.status === '成約' ? '時期' : '希望時期'}</th><td>${esc(p.timing || '相談')}</td></tr>
+    </table>
+    <div class="cta-row">
+      ${p.status !== '成約' ? `<button class="btn btn-accent" data-inquiry-project="${esc(p.id)}">この案件に提案する</button>
+      <button class="btn btn-primary" data-match-project="${esc(p.id)}">おすすめパートナーを見る</button>` : ''}
+      <button class="btn btn-ghost" data-close-modal>閉じる</button>
+    </div>
+  `);
+}
+
+/* ---------- マッチング結果 ---------- */
+function openMatching(projectId) {
+  const project = allProjects().find(x => x.id === projectId);
+  if (!project) return;
+  const matches = topMatches(project, 5);
+  openModal(`
+    <h3>おすすめパートナー</h3>
+    <div class="modal-sub">案件「${esc(project.title)}」との適合度が高い順に表示しています。</div>
+    ${matches.map(m => `
+      <div class="match-item">
+        <div class="match-head">
+          <button type="button" class="name" data-open-partner="${esc(m.partner.id)}">${esc(m.partner.name)}</button>
+          <div class="score-wrap">
+            ${m.partner.id.startsWith('u') ? '<span class="badge user-item">自社登録</span>' : rankBadge(m.partner.rank)}
+            <div class="score-bar"><div class="fill" style="width:${Math.max(4, m.score)}%"></div></div>
+            <span class="score-num">${m.score}点</span>
+          </div>
+        </div>
+        ${m.reasons.length ? `<ul class="match-reasons">${m.reasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>` : '<ul class="match-reasons"><li>条件の一致は限定的です</li></ul>'}
+      </div>
+    `).join('')}
+    <div class="cta-row"><button class="btn btn-ghost" data-close-modal>閉じる</button></div>
+  `);
+}
+
+/* ---------- 相談・提案フォーム ---------- */
+function openInquiry(type, targetId) {
+  const isPartner = type === 'partner';
+  const target = isPartner
+    ? allPartners().find(x => x.id === targetId)
+    : allProjects().find(x => x.id === targetId);
+  if (!target) return;
+  const targetName = isPartner ? target.name : target.title;
+  openModal(`
+    <h3>${isPartner ? 'この会社に相談する' : 'この案件に提案する'}</h3>
+    <div class="modal-sub">宛先：${esc(targetName)}</div>
+    <form id="inquiry-form" style="display:grid;gap:14px" novalidate>
+      <div class="field">
+        <label for="inq-person">お名前<span class="req">必須</span></label>
+        <input type="text" id="inq-person" name="person" maxlength="40" />
+      </div>
+      <div class="field">
+        <label for="inq-company">会社名<span class="req">必須</span></label>
+        <input type="text" id="inq-company" name="company" maxlength="60" />
+      </div>
+      <div class="field">
+        <label for="inq-email">メールアドレス</label>
+        <input type="email" id="inq-email" name="email" maxlength="80" placeholder="例：taro@example.co.jp" />
+      </div>
+      <div class="field">
+        <label for="inq-message">${isPartner ? '相談内容' : '提案概要'}<span class="req">必須</span></label>
+        <textarea id="inq-message" name="message" maxlength="1000" placeholder="${isPartner ? '導入を検討している製品、課題、希望時期など' : '提案したい内容、自社の強み、想定体制など'}"></textarea>
+      </div>
+      <p class="form-error" id="inq-error" role="alert"></p>
+      <div class="cta-row" style="margin-top:4px">
+        <button type="submit" class="btn ${isPartner ? 'btn-primary' : 'btn-accent'}">送信する（デモ）</button>
+        <button type="button" class="btn btn-ghost" data-close-modal>キャンセル</button>
+      </div>
+    </form>
+  `);
+  $('#inquiry-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const person = String(fd.get('person') || '').trim();
+    const company = String(fd.get('company') || '').trim();
+    const message = String(fd.get('message') || '').trim();
+    const errEl = $('#inq-error');
+    if (!person || !company || !message) {
+      errEl.textContent = '必須項目（お名前・会社名・' + (isPartner ? '相談内容' : '提案概要') + '）を入力してください。';
+      errEl.classList.add('show');
+      const missing = !person ? '#inq-person' : (!company ? '#inq-company' : '#inq-message');
+      const missingEl = $(missing);
+      if (missingEl) missingEl.focus();
+      return;
+    }
+    state.inquiries.push({
+      id: uid('q'), type, targetId, targetName,
+      person, company,
+      email: String(fd.get('email') || '').trim(),
+      message,
+      createdAt: new Date().toISOString(),
+    });
+    store.save('inquiries', state.inquiries);
+    closeModal();
+    toast(isPartner ? '相談内容を送信しました（プロトタイプのためこの端末に保存されます）' : '提案を送信しました（プロトタイプのためこの端末に保存されます）');
+  });
+}
+
+/* =========================================================
+ * 登録フォーム
+ * ======================================================= */
+function setRegisterMode(mode) {
+  const isProject = mode === 'project';
+  $('#form-project').style.display = isProject ? 'grid' : 'none';
+  $('#form-partner').style.display = isProject ? 'none' : 'grid';
+  $('#sw-project').classList.toggle('on', isProject);
+  $('#sw-project').setAttribute('aria-pressed', String(isProject));
+  $('#sw-partner').classList.toggle('on', !isProject);
+  $('#sw-partner').setAttribute('aria-pressed', String(!isProject));
+  $('#sw-partner').classList.toggle('sier', !isProject);
+}
+
+function setupForms() {
+  // セレクトの選択肢
+  fillSelect($('#form-project [name="industry"]'), INDUSTRIES);
+  fillSelect($('#form-project [name="region"]'), REGIONS);
+  fillSelect($('#form-project [name="budget"]'), BUDGETS);
+  $('#form-project [name="budget"]').value = '未定・相談';
+  fillSelect($('#form-partner [name="region"]'), REGIONS);
+  fillSelect($('#form-partner [name="minBudget"]'), MIN_BUDGETS);
+
+  renderChips('fp-fields', FIELDS, state.fpFields);
+  renderChips('fp-products', PRODUCTS, state.fpProducts);
+  renderChips('fs-fields', FIELDS, state.fsFields);
+  renderChips('fs-products', PRODUCTS, state.fsProducts);
+
+  /* --- 案件掲載 --- */
+  $('#form-project').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const errEl = $('#fp-error');
+    const title = String(fd.get('title') || '').trim();
+    const company = String(fd.get('company') || '').trim();
+    if (!title || !company || state.fpFields.size === 0) {
+      errEl.textContent = '必須項目（案件タイトル・会社名・求める分野）を入力してください。';
+      errEl.classList.add('show');
+      const missing = !title ? form.querySelector('[name="title"]') : (!company ? form.querySelector('[name="company"]') : form.querySelector('#fp-fields .chip'));
+      if (missing) missing.focus();
+      return;
+    }
+    errEl.classList.remove('show');
+
+    const project = {
+      id: uid('u'),
+      title, company,
+      industry: String(fd.get('industry') || ''),
+      region: String(fd.get('region') || REGIONS[0]),
+      budget: Math.max(0, BUDGETS.indexOf(String(fd.get('budget') || '未定・相談'))),
+      timing: String(fd.get('timing') || '').trim() || '相談',
+      status: '募集中',
+      fields: [...state.fpFields],
+      products: [...state.fpProducts],
+      description: String(fd.get('description') || '').trim(),
+    };
+    state.userProjects.unshift(project);
+    store.save('projects', state.userProjects);
+
+    form.reset();
+    $('#form-project [name="budget"]').value = '未定・相談';
+    state.fpFields.clear(); state.fpProducts.clear();
+    renderChips('fp-fields', FIELDS, state.fpFields);
+    renderChips('fp-products', PRODUCTS, state.fpProducts);
+
+    toast('案件を掲載しました');
+    openMatching(project.id);
+  });
+
+  /* --- パートナー登録 --- */
+  $('#form-partner').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+    const errEl = $('#fs-error');
+    const name = String(fd.get('name') || '').trim();
+    if (!name || state.fsFields.size === 0) {
+      errEl.textContent = '必須項目（会社名・得意分野）を入力してください。';
+      errEl.classList.add('show');
+      const missing = !name ? form.querySelector('[name="name"]') : form.querySelector('#fs-fields .chip');
+      if (missing) missing.focus();
+      return;
+    }
+    errEl.classList.remove('show');
+
+    const partner = {
+      id: uid('u'),
+      name,
+      rank: null, // 自社登録は未認定。認定ランクは審査後に付与される想定
+      region: String(fd.get('region') || REGIONS[0]),
+      city: String(fd.get('city') || '').trim(),
+      nationwide: fd.get('nationwide') != null,
+      size: String(fd.get('size') || '').trim(),
+      minBudget: Math.max(0, MIN_BUDGETS.indexOf(String(fd.get('minBudget') || MIN_BUDGETS[0]))),
+      resultsCount: 0,
+      fields: [...state.fsFields],
+      products: [...state.fsProducts],
+      description: String(fd.get('description') || '').trim(),
+      achievements: [],
+    };
+    state.userPartners.push(partner);
+    store.save('partners', state.userPartners);
+
+    form.reset();
+    state.fsFields.clear(); state.fsProducts.clear();
+    renderChips('fs-fields', FIELDS, state.fsFields);
+    renderChips('fs-products', PRODUCTS, state.fsProducts);
+
+    toast('パートナーとして登録しました。一覧に掲載されています');
+    goView('partners');
+  });
+}
+
+/* =========================================================
+ * イベント委譲・初期化
+ * ======================================================= */
+document.addEventListener('click', (e) => {
+  const viewBtn = e.target.closest('[data-view]');
+  if (viewBtn) { goView(viewBtn.dataset.view); return; }
+
+  const regBtn = e.target.closest('[data-register-mode]');
+  if (regBtn) {
+    setRegisterMode(regBtn.dataset.registerMode);
+    goView('register');
+    return;
+  }
+
+  const closeBtn = e.target.closest('[data-close-modal]');
+  if (closeBtn) { closeModal(); return; }
+
+  const matchBtn = e.target.closest('[data-match-project]');
+  if (matchBtn) { openMatching(matchBtn.dataset.matchProject); return; }
+
+  const inqP = e.target.closest('[data-inquiry-partner]');
+  if (inqP) { openInquiry('partner', inqP.dataset.inquiryPartner); return; }
+
+  const inqJ = e.target.closest('[data-inquiry-project]');
+  if (inqJ) { openInquiry('project', inqJ.dataset.inquiryProject); return; }
+
+  const pCard = e.target.closest('[data-open-partner]');
+  if (pCard) { openPartnerDetail(pCard.dataset.openPartner); return; }
+
+  const jCard = e.target.closest('[data-open-project]');
+  if (jCard) { openProjectDetail(jCard.dataset.openProject); return; }
+});
+
+// カードのキーボード操作（Enter / Space で開く）
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target;
+  if (!el.matches || !el.matches('.card[data-open-partner], .card[data-open-project]')) return;
+  e.preventDefault(); // Spaceキーでのページスクロールを抑止
+  if (el.dataset.openPartner) openPartnerDetail(el.dataset.openPartner);
+  else openProjectDetail(el.dataset.openProject);
+});
+
+function setupFilters() {
+  fillSelect($('#pt-region'), REGIONS, '地域：すべて');
+  fillSelect($('#pj-region'), REGIONS, '地域：すべて');
+  renderChips('pt-fields', FIELDS, state.ptFields, renderPartners);
+  renderChips('pt-products', PRODUCTS, state.ptProducts, renderPartners);
+  renderChips('pj-fields', FIELDS, state.pjFields, renderProjects);
+  ['pt-keyword', 'pt-region', 'pt-sort'].forEach(id => {
+    document.getElementById(id).addEventListener('input', renderPartners);
+  });
+  ['pj-keyword', 'pj-region', 'pj-status'].forEach(id => {
+    document.getElementById(id).addEventListener('input', renderProjects);
+  });
+}
+
+setupFilters();
+setupForms();
+setRegisterMode('project');
+showView(currentView());
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-115 -60 230 130" width="2300" height="1300">
+  <!-- 伊豆七島アーチ ＋ 波線アーチ ＋ 中央：島・波・ひがしまんちゅ（背中プリント用） -->
+  <!-- アーチ（左から北→南）：大島・利島・新島・神津島・三宅島・御蔵島・八丈島 -->
+  <defs>
+    <path id="pCone" d="M -20 0 Q -12 -3 -7 -12 Q 0 -19 7 -12 Q 12 -3 20 0 Z"/>
+    <path id="pDome" d="M -18 0 Q 0 -21 18 0 Z"/>
+    <path id="pTwin" d="M -20 0 Q -11 -15 -2 0 Z M -4 0 Q 8 -21 20 0 Z"/>
+  </defs>
+  <g fill="#17395f">
+    <use href="#pCone" transform="translate(-83.6,5.4) scale(1.05)"/>
+    <use href="#pCone" transform="translate(-58.9,-11.2) scale(0.5)"/>
+    <use href="#pDome" transform="translate(-30.4,-23.2) scale(1.25,0.6)"/>
+    <use href="#pDome" transform="translate(0,-27.5) scale(0.8)"/>
+    <use href="#pCone" transform="translate(30.4,-23.2) scale(0.9)"/>
+    <circle cx="32.4" cy="-44.2" r="2.2" opacity="0.75"/>
+    <circle cx="36.4" cy="-49.2" r="1.4" opacity="0.55"/>
+    <use href="#pDome" transform="translate(58.9,-11.2) scale(0.55,0.85)"/>
+    <use href="#pTwin" transform="translate(83.6,5.4) scale(1)"/>
+  </g>
+  <!-- 波線アーチ（島の下・平行オフセット） -->
+  <path d="M -95 29 Q -87.1 17.5 -79.2 16 Q -71.3 15.7 -63.3 5.4 Q -55.4 -3.8 -47.5 -2.9 Q -39.6 -0.9 -31.7 -8.8 Q -23.8 -15.6 -15.8 -12.3 Q -7.9 -7.9 0 -13.5 Q 7.9 -17.9 15.8 -12.3 Q 23.8 -5.6 31.7 -8.8 Q 39.6 -10.9 47.5 -2.9 Q 55.4 6.2 63.3 5.4 Q 71.3 5.7 79.2 16 Q 87.1 27.5 95 29" fill="none" stroke="#17395f" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- 中央：島・波・ひがしまんちゅ -->
+  <g transform="translate(0,18)">
+    <path d="M -14 8 Q -12 1 -7 2 Q -6 -4 0 -3 Q 6 -5 8 0 Q 13 0 14 8 Z" transform="scale(1.5)" fill="#17395f"/>
+    <path d="M -30 19 q 6 -5 12 0 t 12 0 t 12 0 t 12 0 t 12 0" fill="none" stroke="#2a6fd1" stroke-width="2.4" stroke-linecap="round"/>
+    <text x="0" y="36" text-anchor="middle" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN',sans-serif" font-size="10.5" font-weight="700" letter-spacing="3.5" fill="#17395f">ひがしまんちゅ</text>
+  </g>
+</svg>
