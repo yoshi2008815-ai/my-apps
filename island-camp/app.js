@@ -1,6 +1,9 @@
 // ===== 島キャンプ思い出マップ : アプリ本体 =====
 'use strict';
 
+// リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
+const APP_VERSION = '2.1.0';
+
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
 // 日本の島々が収まる範囲
 const BOUNDS = { latN: 46, latS: 23.5, lngW: 122, lngE: 146 };
@@ -1063,6 +1066,7 @@ let toastTimer;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2600); }
 
 /* ---------- 起動 ---------- */
+$('#appVer').textContent = 'v' + APP_VERSION + '（変更点は CHANGELOG.md）';
 renderMap();
 // v1→v2 移行やシード取り込みの結果を確定。
 // ただし保存データが破損していた場合は上書きしない（-corrupt キーに退避済み）
