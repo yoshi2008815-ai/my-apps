@@ -16,33 +16,62 @@ let VIEW = null;           // ズーム状態 {id, z, cx, cy}
 let PROJ = null;           // 現在の投影（タップ位置→緯度経度の逆変換に使う）
 let pickCb = null;         // スポット位置指定のコールバック
 
-/* ---------- 観光協会の公式マップリンク（2026-07調査） ---------- */
-// パンフ自体の転載は著作権があるため、公式ページへのリンクで案内する。
+/* ---------- 観光協会の公式マップリンク（2026-07調査・全URL実在確認済み） ---------- */
+// パンフ自体の転載は著作権があるため、リポジトリには置かない。
+// pdf: 公式サーバー上のマップPDFへの直リンク（ビューアで都度読み込む＝再配布しない）
+// frame:false = X-Frame-Options で iframe 埋め込み不可 → 新しいタブで開く
+// pdfOrg: PDFの発行元が org と異なる場合のみ指定
 const KANKO_LINKS = {
-  'izu-oshima':   { org:'大島観光協会',       url:'https://oshima-navi.com/pamphlet/index.html' },
-  'toshima':      { org:'利島村',             url:'https://www.gotokyo.org/book/list/5156/' },
-  'niijima':      { org:'新島村観光案内所',   url:'https://niijima-info.jp/map/' },
-  'shikinejima':  { org:'式根島観光協会',     url:'https://shikinejima.tokyo/learn/pamphlet/' },
-  'kozushima':    { org:'神津島観光協会',     url:'https://kozushima.com/map/' },
-  'miyakejima':   { org:'三宅島観光協会',     url:'https://www.miyakejima.gr.jp/map/' },
+  'izu-oshima':   { org:'大島観光協会',       url:'https://oshima-navi.com/pamphlet/index.html',
+                    pdf:'https://oshima-navi.com/pdf/pamphlet/izuoshima_guidemap01.pdf', pdfName:'伊豆大島ガイドマップ', frame:false },
+  'toshima':      { org:'利島村',             url:'https://www.gotokyo.org/book/list/5156/',
+                    pdf:'https://www.soumu.metro.tokyo.lg.jp/documents/d/soumu/3242_toshimazukan-28outside-29',
+                    pdfName:'としまずかん（全島ウォーキングマップ）', pdfOrg:'東京都大島支庁', frame:false },
+  'niijima':      { org:'新島村観光案内所',   url:'https://niijima-info.jp/map/',
+                    pdf:'https://niijima-info.jp/cms24/wp-content/uploads/2026/06/niijimaA3MAP.pdf', pdfName:'新島&本村マップ' },
+  'shikinejima':  { org:'式根島観光協会',     url:'https://shikinejima.tokyo/learn/pamphlet/',
+                    pdf:'https://shikinejima.tokyo/cms/wp-content/uploads/2026/05/A3map2026.pdf', pdfName:'式根島MAP' },
+  'kozushima':    { org:'神津島観光協会',     url:'https://kozushima.com/map/',
+                    pdf:'https://kozushima.com/map/images/asobimap.pdf', pdfName:'神津島あそびマップ' },
+  'miyakejima':   { org:'三宅島観光協会',     url:'https://www.miyakejima.gr.jp/map/',
+                    pdf:'https://www.soumu.metro.tokyo.lg.jp/documents/d/soumu/3440_kankousasshi0603',
+                    pdfName:'観光冊子「三宅島」', pdfOrg:'東京都三宅支庁', frame:false },
   'mikurajima':   { org:'御蔵島観光協会',     url:'https://mikura-isle.com/info-2/' },
-  'hachijojima':  { org:'八丈島観光協会',     url:'https://www.hachijo.gr.jp/catalogs/' },
-  'aogashima':    { org:'青ヶ島村',           url:'https://www.vill.aogashima.tokyo.jp/tourism/map.html' },
-  'sado':         { org:'佐渡観光交流機構',   url:'https://www.visitsado.com/pamphlet/' },
-  'yakushima':    { org:'屋久島観光協会',     url:'https://yakukan.jp/safe-travel/brochure-download.html' },
-  'tanegashima':  { org:'種子島観光協会',     url:'https://tanekan.jp/allmap/' },
-  'amami-oshima': { org:'あまみ大島観光物産連盟', url:'https://www.amami-tourism.org/pamphlet/' },
-  'kikaijima':    { org:'喜界島観光物産協会', url:'https://www.town.kikai.lg.jp/densan/kanko-iju/panfuretto/index.html' },
-  'tokunoshima':  { org:'徳之島観光連盟',     url:'https://www.tokunoshima-town.org/omotenashikanko/kanko/pamphlet/index.html' },
-  'okinoerabu':   { org:'おきのえらぶ島観光協会', url:'https://okinoerabujima.info/pamphlet/tourism' },
-  'yoron':        { org:'ヨロン島観光協会',   url:'https://www.yorontou.info/safe-travel/brochure-download.html' },
+  'hachijojima':  { org:'八丈島観光協会',     url:'https://www.hachijo.gr.jp/catalogs/',
+                    pdf:'https://www.hachijo.gr.jp/39rhf0e/wp-content/uploads/2018/07/guidemap2411.pdf', pdfName:'八丈島観光マップ' },
+  'aogashima':    { org:'青ヶ島村',           url:'https://www.vill.aogashima.tokyo.jp/tourism/map.html',
+                    pdf:'https://www.vill.aogashima.tokyo.jp/tourism/aogashima_map.pdf', pdfName:'青ヶ島MAP', frame:false },
+  'sado':         { org:'佐渡観光交流機構',   url:'https://www.visitsado.com/pamphlet/',
+                    pdf:'https://www.visitsado.com/media/files/pdf/%E4%BD%90%E6%B8%A1%E8%A6%B3%E5%85%89Map-2026.pdf', pdfName:'佐渡観光マップ' },
+  'yakushima':    { org:'屋久島観光協会',     url:'https://yakukan.jp/safe-travel/brochure-download.html',
+                    pdf:'https://yakukan.jp/wp-content/uploads/2026/03/kankoannaizu-202600324.pdf', pdfName:'屋久島観光案内図' },
+  'tanegashima':  { org:'種子島観光協会',     url:'https://tanekan.jp/allmap/',
+                    pdf:'https://www.pref.kagoshima.jp/ap01/chiiki/kumage/chiiki/documents/59066_20230920174114-1.pdf',
+                    pdfName:'たねやく観光ガイドマップ', pdfOrg:'鹿児島県' },
+  'amami-oshima': { org:'あまみ大島観光物産連盟', url:'https://www.amami-tourism.org/pamphlet/',
+                    pdf:'https://www.amami-tourism.org/wp-content/uploads/2025/10/3513bcfbf51dd5a93d876439f6e7af4c.pdf', pdfName:'奄美大島観光ガイドマップ' },
+  'kikaijima':    { org:'喜界島観光物産協会', url:'https://www.town.kikai.lg.jp/densan/kanko-iju/panfuretto/index.html',
+                    pdf:'https://www.town.kikai.lg.jp/densan/kanko-iju/panfuretto/documents/ziogaidoomote.pdf',
+                    pdfName:'喜界島ジオガイド', pdfOrg:'喜界町' },
+  'tokunoshima':  { org:'徳之島観光連盟',     url:'https://www.tokunoshima-town.org/omotenashikanko/kanko/pamphlet/index.html',
+                    pdf:'https://www.tokunoshima-town.org/omotenashikanko/kanko/pamphlet/documents/tokunoshimapf.pdf',
+                    pdfName:'徳之島町観光パンフレット', pdfOrg:'徳之島町' },
+  'okinoerabu':   { org:'おきのえらぶ島観光協会', url:'https://okinoerabujima.info/pamphlet/tourism',
+                    pdf:'https://okinoerabujima.info/downloads/media/3936', pdfName:'おきのえらぶ島の旅マップ', frame:false },
+  'yoron':        { org:'ヨロン島観光協会',   url:'https://www.yorontou.info/safe-travel/brochure-download.html',
+                    pdf:'https://www.yorontou.info/wp-content/uploads/2025/06/202506guidemap.pdf', pdfName:'ヨロン島ガイドマップ' },
   'okinawa-hontou':{ org:'おきなわ物語',      url:'https://okimeguri.com/guidemap' },
   'kumejima':     { org:'久米島町観光協会',   url:'https://www.kanko-kumejima.com/tourist-brochures/' },
-  'miyako':       { org:'宮古島観光協会',     url:'https://miyako-guide.net/profile/magazine/' },
-  'ishigaki':     { org:'石垣市観光交流協会', url:'https://yaeyama.or.jp/our-information/document-request/' },
-  'iriomote':     { org:'竹富町観光協会',     url:'https://painusima.com/goods/' },
-  'yonaguni':     { org:'与那国町観光協会',   url:'https://welcome-yonaguni.jp/news/3185/' },
-  'hateruma':     { org:'竹富町観光協会',     url:'https://painusima.com/goods/' },
+  'miyako':       { org:'宮古島観光協会',     url:'https://miyako-guide.net/profile/magazine/',
+                    pdf:'https://miyako-guide.net/wp-content/themes/cerulean-custom/assets/pdf/2024_miyako_citymap_jp.pdf', pdfName:'宮古島 全島観光マップ' },
+  'ishigaki':     { org:'石垣市観光交流協会', url:'https://yaeyama.or.jp/our-information/document-request/',
+                    pdf:'https://yaeyama.or.jp/wp-content/uploads/2023/08/4506ebc09bbe4a5fa7ec727b8cda171e-1.pdf', pdfName:'おーりとーり石垣島へ（観光マップ）' },
+  'iriomote':     { org:'竹富町観光協会',     url:'https://painusima.com/goods/',
+                    pdf:'https://painusima.com/wp-content/themes/taketomi_wp_v1/file/painusima_pamphlet_jp_B5_202509.pdf', pdfName:'竹富町観光パンフレット' },
+  'yonaguni':     { org:'与那国町観光協会',   url:'https://welcome-yonaguni.jp/news/3185/',
+                    pdf:'https://welcome-yonaguni.jp/wp-content/uploads/2023/09/yonaguni_guide_map.pdf', pdfName:'よなぐに観光ガイド' },
+  'hateruma':     { org:'竹富町観光協会',     url:'https://painusima.com/goods/',
+                    pdf:'https://painusima.com/wp-content/themes/taketomi_wp_v1/file/painusima_pamphlet_jp_B5_202509.pdf', pdfName:'竹富町観光パンフレット' },
 };
 
 /* ---------- 山・港のランドマーク（座標は検証済み） ---------- */
@@ -228,6 +257,16 @@ const HILLS = {
   'iriomote':     [ {lat:24.350, lng:123.830, rx:7.5, ry:5.8, rot:-5} ],
   'sado':         [ {lat:38.150, lng:138.330, rx:13, ry:4.5, rot:-38}, {lat:37.880, lng:138.360, rx:10, ry:3.5, rot:-40} ],
 };
+
+/* ---------- 実データ（kanko-geo.js: OSM由来の道路・集落。ODbL） ---------- */
+// 道路は実データ優先（手描きROADSはフォールバック）。
+// 集落は手作業で検証済みのTOWNSを優先し、未整備の島だけOSMの place を使う。
+function kgeoRoads(id){ const K = window.KGEO || {}; return (K.roads && K.roads[id]) || null; }
+function townsFor(id){
+  if (TOWNS[id]) return TOWNS[id];
+  const K = window.KGEO || {};
+  return (K.towns && K.towns[id]) || [];
+}
 
 /* ---------- 海岸線リング（geo.js: 高解像度detail → islands → refs） ---------- */
 const REF_ALIAS = { 'okinawa-hontou':'okinawa' };
@@ -446,8 +485,8 @@ function mapSVG(is){
     }
   }
 
-  /* --- 道路（島でクリップ） --- */
-  const rd = ROADS[is.id];
+  /* --- 道路（島でクリップ）: OSM実データ優先・手描きはフォールバック --- */
+  const rd = kgeoRoads(is.id) || ROADS[is.id];
   let roadsSVG = '';
   if (rd){
     const path = wp => smoothPathD(wp.map(([la,ln]) => proj(la,ln)), false);
@@ -514,7 +553,7 @@ function mapSVG(is){
       }
       // まとめマーカーの円・集落バッジ位置からも押し出す（相手は動かさない）
       const anchors = clusters.map(c => ({x:c.x, y:c.y, r:7.6*iv}))
-        .concat((TOWNS[is.id]||[]).map(t => { const q = proj(t.lat,t.lng); return {x:q.x, y:q.y, r:5.5*iv}; }));
+        .concat(townsFor(is.id).map(t => { const q = proj(t.lat,t.lng); return {x:q.x, y:q.y, r:5.5*iv}; }));
       for (const o of spots) for (const c of anchors){
         const dx = o.x-c.x, dy = o.y-c.y;
         const d = Math.hypot(dx,dy);
@@ -545,7 +584,7 @@ function mapSVG(is){
       const a = scr(c.x0-2, c.y0-2), b = scr(c.x0+LG.w+2, c.y0+LG.h+2);
       let n = 0;
       for (const o of spots) if (o.x>a.x && o.x<b.x && o.y>a.y && o.y<b.y) n += 2;
-      for (const t of (TOWNS[is.id]||[])){ const q = proj(t.lat,t.lng); if (q.x>a.x && q.x<b.x && q.y>a.y && q.y<b.y) n += 3; }
+      for (const t of townsFor(is.id)){ const q = proj(t.lat,t.lng); if (q.x>a.x && q.x<b.x && q.y>a.y && q.y<b.y) n += 3; }
       return n;
     };
     LG.pos = score(cands[0]) <= score(cands[1]) ? cands[0] : cands[1];
@@ -588,7 +627,7 @@ function mapSVG(is){
 
   /* --- 集落ラベル（マーカー等と重なる場合は少しずらして配置） --- */
   let townsSVG = '';
-  for (const t of (TOWNS[is.id]||[])){
+  for (const t of townsFor(is.id)){
     const q = proj(t.lat, t.lng);
     if (!inView(q)) continue;
     const w = t.name.length*2.9*iv + 3.4*iv, h = 4.2*iv;
@@ -707,8 +746,9 @@ function mapSVG(is){
       <rect x="0.8" y="0.8" width="${titleW-1.6}" height="7.2" rx="3.6" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="0.5" stroke-dasharray="1.7 1.2"/>
       <text x="${titleW/2}" y="6.2" text-anchor="middle" font-size="4" font-weight="900" fill="#fff">${esc(title)}</text>
     </g>`;
-    // 地域・県名（左下）
+    // 地域・県名（左下）＋出典表記（海岸線・道路・集落はOSM由来）
     out += `<text x="2.2" y="98.2" font-size="2.3" font-weight="700" fill="#33667a" paint-order="stroke" stroke="#fff" stroke-width="0.9">${esc(is.region||'')}・${esc(is.pref||'')}</text>`;
+    out += `<text x="2.2" y="95.6" font-size="1.6" font-weight="600" fill="#5f8ea0" paint-order="stroke" stroke="#fff" stroke-width="0.7">地図データ © OpenStreetMap contributors</text>`;
     // 方位記号（右上は「観光マップ／協会／拡大」ボタンと重なるため右下に置く）
     out += `<g transform="translate(93.5,92.5)">
       <circle r="4.6" fill="rgba(255,255,255,.92)" stroke="#7fb3c4" stroke-width="0.45"/>
@@ -810,7 +850,35 @@ function updateLink(is){
   if (!a) return;
   const k = KANKO_LINKS[is.id];
   a.classList.toggle('hidden', !k);
-  if (k){ a.href = k.url; a.title = `${k.org}の公式マップ（パンフレット）を開く`; }
+  if (!k) return;
+  a.href = k.pdf || k.url;
+  a.title = k.pdf
+    ? `${k.pdfOrg || k.org}「${k.pdfName}」を開く（公式サーバーから直接表示）`
+    : `${k.org}の公式マップ（パンフレット）ページを開く`;
+}
+
+/* ---------- 公式マップPDFビューア ---------- */
+// PDFは発行元の公式サーバーから都度読み込む（このサイトでは再配布しない）。
+// iframe不可（X-Frame-Options）の発行元と狭い画面では既定動作＝新しいタブで開く。
+function canEmbed(k){
+  return !!(k && k.pdf) && k.frame !== false && window.innerWidth >= 700;
+}
+function openPdfModal(is, k){
+  const m = $('#kpdfModal');
+  if (!m) return false;
+  $('#kpdfTitle').textContent = `${is.name}：${k.pdfName}`;
+  $('#kpdfOrg').textContent = k.pdfOrg || k.org;
+  $('#kpdfOpen').href = k.pdf;
+  $('#kpdfPage').href = k.url;
+  $('#kpdfFrame').src = k.pdf;
+  m.classList.remove('hidden');
+  return true;
+}
+function closePdfModal(){
+  const m = $('#kpdfModal');
+  if (!m || m.classList.contains('hidden')) return;
+  m.classList.add('hidden');
+  $('#kpdfFrame').src = 'about:blank';
 }
 
 /* ---------- 操作（ズーム・パン・タップ） ---------- */
@@ -930,9 +998,25 @@ return {
     pickCb = cb;
     $('#dmapwrap').classList.add('picking');
   },
+  // 公式マップPDFビューア（ボタン配線用の内部API）
+  _links: id => KANKO_LINKS[id],
+  _canEmbed: canEmbed,
+  _openPdf: openPdfModal,
+  _closePdf: closePdfModal,
 };
 
 })();
 
 /* ---------- ボタン配線 ---------- */
 document.querySelector('#kankoBtn')?.addEventListener('click', () => window.Kanko.toggle());
+document.querySelector('#kankoLink')?.addEventListener('click', ev => {
+  const is = window.islandById && islandById(STATE.activeId);
+  const k = is && window.Kanko._links(is.id);
+  if (!k || !window.Kanko._canEmbed(k)) return; // 既定動作＝新しいタブで開く
+  if (window.Kanko._openPdf(is, k)) ev.preventDefault();
+});
+document.querySelector('#kpdfClose')?.addEventListener('click', () => window.Kanko._closePdf());
+document.querySelector('#kpdfModal')?.addEventListener('click', ev => {
+  if (ev.target.id === 'kpdfModal') window.Kanko._closePdf();
+});
+window.addEventListener('keydown', ev => { if (ev.key === 'Escape') window.Kanko._closePdf(); });

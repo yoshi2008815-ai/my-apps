@@ -1,11 +1,12 @@
 // 島キャンプ思い出マップ Service Worker
-const CACHE = 'island-camp-v240';
+const CACHE = 'island-camp-v250';
 const ASSETS = [
   './',
   './index.html',
   './app.js',
   './data.js',
   './geo.js',
+  './kanko-geo.js',
   './sync.js',
   './kankomap.js',
   './media.js',

@@ -2,9 +2,9 @@
 
 | 項目 | 内容 |
 |---|---|
-| 文書バージョン | 1.1 |
-| 最終更新 | 2026-07-17 |
-| 対応アプリバージョン | v2.2.0 |
+| 文書バージョン | 1.2 |
+| 最終更新 | 2026-07-20 |
+| 対応アプリバージョン | v2.5.0 |
 | 公開URL | https://yoshi2008815-ai.github.io/my-apps/island-camp/ |
 | リポジトリ | https://github.com/yoshi2008815-ai/my-apps （`island-camp/`） |
 
@@ -37,8 +37,12 @@
 island-camp/
 ├── index.html      画面・スタイル・モーダル群
 ├── app.js          アプリ本体（全国マップ/詳細マップ/CRUD/マージ/同期制御）
+├── kankomap.js     観光マップ風モード＋公式マップPDFビューア
+├── kanko-geo.js    OSM実データ（道路・集落）※tools/gen-kanko-geo.js で自動生成
+├── media.js        アルバム・ドキュメント（IndexedDB）
 ├── sync.js         Gist同期モジュール（pull/push/共有グループ作成/設定保存）
 ├── data.js         シードデータ（9島＋178スポット）※自動生成、手編集も可
+├── tools/gen-kanko-geo.js  Overpass APIから kanko-geo.js を再生成するスクリプト
 ├── sw.js           Service Worker
 ├── manifest.json   PWAマニフェスト
 ├── icon*.svg       アイコン
@@ -140,6 +144,19 @@ pull(Gist GET) → remote正規化(migrateIsland)
 - スポット追加: 「＋追加」→ 地図タップで座標指定 → フォーム（名前/カテゴリ/URL/メモ/緯度/経度）
 - 全画面化: `.dmapwrap.full`（position:fixed）。パネルは `.open{transform:none}` に
   しておく必要がある（transform祖先はfixedの包含ブロックになるため）
+
+### 観光マップ風モード（kankomap.js）のデータソース
+
+| 要素 | ソース | ライセンス/扱い |
+|---|---|---|
+| 海岸線 | geo.js（OSM Nominatim由来） | ODbL。出典表記を地図左下に表示 |
+| 道路・集落 | kanko-geo.js（OSM Overpass由来） | 同上。`node tools/gen-kanko-geo.js` で再生成 |
+| 山・港・航路 | kankomap.js 内の検証済み手作業データ | — |
+| 公式マップPDF | `KANKO_LINKS[id].pdf`（発行元サーバー直リンク） | **再配布禁止のためリポジトリに置かない**。都度公式サーバーから表示。`frame:false` は X-Frame-Options により iframe 不可 → 新タブ |
+
+- 公式マップビューア: PC幅(≥700px)かつ `frame!==false` のときアプリ内 iframe
+  モーダル（#kpdfModal）、それ以外は新しいタブで PDF を開く。
+  リンク切れ時の案内先として `url`（配布ページ）も保持する
 
 ## 8. スポットシードデータ
 

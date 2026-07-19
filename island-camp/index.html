@@ -288,6 +288,18 @@
   .kp-r2 .btn{color:#223; background:#f0f4f6; border-color:#ccd5da; text-decoration:none; font-size:.74rem; padding:6px 11px}
   .kp-r2 .btn.accent{background:var(--accent); border-color:transparent}
   .dmap-tools .btn.on{background:var(--accent); color:#22324b; border-color:transparent}
+
+  /* 公式観光マップPDFビューア */
+  .kpdf{position:fixed; inset:0; z-index:95; background:rgba(0,0,0,.62);
+    display:flex; align-items:center; justify-content:center; padding:16px}
+  .kpdf-card{width:min(1080px,96vw); height:min(92vh,900px); background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; display:flex; flex-direction:column;
+    overflow:hidden; box-shadow:0 14px 48px rgba(0,0,0,.55)}
+  .kpdf-head{display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line)}
+  .kpdf-title{font-weight:800; font-size:.9rem; flex:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .kpdf-card iframe{flex:1; border:none; width:100%; background:#525659}
+  .kpdf-note{padding:6px 12px; font-size:.7rem; color:var(--sub)}
   #kankoLink{text-decoration:none}
 
   /* ===== アルバム（LINE風）・年別・ドキュメント ===== */
@@ -441,7 +453,7 @@
       <div id="kmap" class="hidden"></div>
       <div class="dmap-tools">
         <button class="btn" id="kankoBtn" title="観光協会パンフ風のデフォルメ地図に切替">🎨 観光マップ</button>
-        <a class="btn hidden" id="kankoLink" target="_blank" rel="noopener">🌐 協会</a>
+        <a class="btn hidden" id="kankoLink" target="_blank" rel="noopener">🗺 公式マップ</a>
         <button class="btn" id="dmapFull">⤢ 拡大</button>
       </div>
       <div class="dmap-hint">👆 地図をタップして位置を指定</div>
@@ -575,11 +587,26 @@
   <div class="card" id="formCard"></div>
 </div>
 
+<!-- 公式観光マップPDFビューア（発行元の公式サーバーから直接表示・再配布なし） -->
+<div class="kpdf hidden" id="kpdfModal">
+  <div class="kpdf-card">
+    <div class="kpdf-head">
+      <span class="kpdf-title" id="kpdfTitle"></span>
+      <a class="btn" id="kpdfOpen" target="_blank" rel="noopener" title="新しいタブで開く">↗ タブで開く</a>
+      <a class="btn" id="kpdfPage" target="_blank" rel="noopener" title="配布元の公式ページを開く">🌐 公式ページ</a>
+      <button class="btn ghost" id="kpdfClose">✕</button>
+    </div>
+    <iframe id="kpdfFrame" title="公式観光マップPDF"></iframe>
+    <div class="kpdf-note">出典: <span id="kpdfOrg"></span> — PDFは公式サイトから直接表示しています</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="./data.js"></script>
 <script src="./geo.js"></script>
+<script src="./kanko-geo.js"></script>
 <script src="./sync.js"></script>
 <script src="./app.js"></script>
 <script src="./kankomap.js"></script>

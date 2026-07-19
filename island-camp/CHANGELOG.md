@@ -3,6 +3,24 @@
 形式は [Keep a Changelog](https://keepachangelog.com/ja/) に準拠。
 バージョニングは [Semantic Versioning](https://semver.org/lang/ja/)（運用ルールは docs/DESIGN.md §12）。
 
+## [2.5.0] - 2026-07-20
+### 追加
+- **公式観光マップビューア**: 詳細地図の「🗺 公式マップ」ボタンで、各島の
+  観光協会・自治体が配布する公式マップPDFをワンタップ表示。24島中21島分の
+  PDF直リンクを調査し全URL実在確認済み（残り3島は公式ページへ案内）。
+  PCはアプリ内ビューア（iframe）、iframe不可の発行元（X-Frame-Options）と
+  スマホは新しいタブで表示。**PDFは発行元の公式サーバーから直接表示し、
+  リポジトリには一切同梱しない**（パンフの著作権対応）
+### 変更
+- **観光マップ風モードの道路・集落をOpenStreetMap実データに刷新**:
+  手描きの簡略ポリライン（9島）に代えて、Overpass APIから取得した実際の
+  道路形状（幹線＝白地茶縁／支線＝破線）を全島に描画（kanko-geo.js、
+  生成スクリプト tools/gen-kanko-geo.js）。集落ラベルも未整備の島はOSMの
+  place データで補完。地図左下に出典「© OpenStreetMap contributors」を表示
+- 「🌐 協会」ボタンを「🗺 公式マップ」に刷新（PDF直リンク優先、
+  ない島は従来どおり公式ページを開く）
+- Service Worker: kanko-geo.js をプリキャッシュに追加（CACHE → v250）
+
 ## [2.4.0] - 2026-07-19
 ### 変更
 - **観光マップ風モードを観光協会パンフ水準に全面刷新**（kankomap.js）。
