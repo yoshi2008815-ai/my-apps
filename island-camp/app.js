@@ -2,7 +2,7 @@
 'use strict';
 
 // リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
 // 日本の島々が収まる範囲
@@ -160,27 +160,39 @@ function saveLocal(){
 function saveIslands(){ saveLocal(); scheduleSync(); }
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 
-/* ---------- 写真は IndexedDB に保存 ---------- */
-const PhotoDB = (() => {
+/* ---------- 写真・動画・ドキュメントは IndexedDB に保存 ----------
+   photos: 島の写真 / media: アルバムの写真・動画（+サムネ） / files: ドキュメント
+   すべて端末内のみ（共有同期の対象外） */
+const AppDB = (() => {
   let dbp;
+  const STORES = ['photos', 'media', 'files'];
   function open(){
     if (dbp) return dbp;
     dbp = new Promise((res, rej) => {
-      const r = indexedDB.open('island-camp-photos', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('photos');
+      const r = indexedDB.open('island-camp-photos', 2);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
+      };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
     });
     return dbp;
   }
-  async function tx(mode){ return (await open()).transaction('photos', mode).objectStore('photos'); }
-  return {
-    async put(id, blob){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.put(blob,id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
-    async get(id){ const s = await tx('readonly'); return new Promise((res,rej)=>{const r=s.get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); },
-    async del(id){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
-    async all(){ const s = await tx('readonly'); return new Promise((res,rej)=>{const out={}; const r=s.openCursor(); r.onsuccess=e=>{const c=e.target.result; if(c){out[c.key]=c.value; c.continue();} else res(out);}; r.onerror=()=>rej(r.error);}); }
-  };
+  function make(store){
+    async function tx(mode){ return (await open()).transaction(store, mode).objectStore(store); }
+    return {
+      async put(id, blob){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.put(blob,id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
+      async get(id){ const s = await tx('readonly'); return new Promise((res,rej)=>{const r=s.get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);}); },
+      async del(id){ const s = await tx('readwrite'); return new Promise((res,rej)=>{const r=s.delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}); },
+      async all(){ const s = await tx('readonly'); return new Promise((res,rej)=>{const out={}; const r=s.openCursor(); r.onsuccess=e=>{const c=e.target.result; if(c){out[c.key]=c.value; c.continue();} else res(out);}; r.onerror=()=>rej(r.error);}); }
+    };
+  }
+  return { photos: make('photos'), media: make('media'), files: make('files') };
 })();
+const PhotoDB = AppDB.photos;
+const MediaDB = AppDB.media;
+const FileDB  = AppDB.files;
 
 /* ---------- 状態 ---------- */
 const STATE = {
@@ -703,37 +715,68 @@ async function openIsland(id){
   $('#pSummary').textContent = is.summary || '';
   await renderBody(is);
   $('#panel').classList.add('open');
+  $('#pDim').classList.add('show');
   initDetailMap(is);
+  if (window.Kanko) Kanko.onOpen(is);
   renderMap();
 }
 
 // スポットの追加・編集後に地図と一覧だけ更新（地図の表示位置は保つ）
 function refreshSpots(is){
   rebuildMarkers(is);
+  if (window.Kanko) Kanko.refresh(is);
   renderBody(is);
 }
 
+/* 各セクションは「開く」ボタンで展開する折りたたみ式（下までスクロール不要）。
+   開閉状態は端末内のみ・島ごとに記憶（同期で島オブジェクトが差し替わっても保持） */
+const ACC = {};
+function accState(id){
+  return ACC[id] || (ACC[id] = { spots:false, photos:false, logs:false, shops:false, knowledge:false, tips:false });
+}
 async function renderBody(is){
   const body = $('#pBody');
-  body.innerHTML = `
-    ${section('spots','🗺 スポット', spotListBlock(is))}
-    ${section('photos','📷 写真', photosBlock(is))}
-    ${section('logs','📖 旅日記', listLogs(is))}
-    ${section('shops','🍴 お店・グルメ', listShops(is))}
-    ${section('knowledge','💡 ナレッジ', listSimple(is,'knowledge','📌'))}
-    ${section('tips','🎯 Tips・コツ', listSimple(is,'tips','✅'))}
-  `;
-  await Promise.all(is.photos.map(async pid => {
-    const blob = await PhotoDB.get(pid);
-    const img = body.querySelector(`img[data-pid="${pid}"]`);
-    if (img && blob) img.src = URL.createObjectURL(blob);
+  const acc = accState(is.id);
+  const secs = [
+    { key:'spots',     ic:'🗺', title:'スポット',    n: liveList(is.spots).length },
+    { key:'photos',    ic:'📷', title:'写真',        n: is.photos.length },
+    { key:'logs',      ic:'📖', title:'旅日記',      n: liveList(is.logs).length },
+    { key:'shops',     ic:'🍴', title:'お店・グルメ', n: liveList(is.shops).length },
+    { key:'knowledge', ic:'💡', title:'ナレッジ',    n: liveList(is.knowledge).length },
+    { key:'tips',      ic:'🎯', title:'Tips・コツ',  n: liveList(is.tips).length },
+  ];
+  body.innerHTML = `<div class="accs">` + secs.map(s => `
+    <div class="acc${acc[s.key] ? ' open' : ''}" data-sec="${s.key}">
+      <button class="acc-h" data-acct="${s.key}">
+        <span class="aic">${s.ic}</span><span class="at">${s.title}</span>
+        ${s.n ? `<span class="an">${s.n}</span>` : ''}
+        <span class="aopen">${acc[s.key] ? '▾ 閉じる' : '▸ 開く'}</span>
+      </button>
+      <div class="acc-b">${acc[s.key] ? accContent(is, s.key) : ''}</div>
+    </div>`).join('') + `</div>`;
+  if (acc.photos){
+    await Promise.all(is.photos.map(async pid => {
+      const blob = await PhotoDB.get(pid);
+      const img = body.querySelector(`img[data-pid="${pid}"]`);
+      if (img && blob) img.src = URL.createObjectURL(blob);
+    }));
+  }
+  body.querySelectorAll('[data-acct]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.acct;
+    acc[k] = !acc[k];
+    const top = body.scrollTop;
+    renderBody(resolveIsland(is)).then(() => { $('#pBody').scrollTop = top; });
   }));
   bindBody(is);
 }
-
-function section(key, title, inner){
-  return `<div class="sec" data-sec="${key}">
-    <h3>${title}<span class="add" data-add="${key}">＋ 追加</span></h3>${inner}</div>`;
+function accContent(is, key){
+  const addBtn = `<button class="btn acc-add" data-add="${key}">＋ 追加</button>`;
+  if (key === 'spots')     return addBtn + spotListBlock(is);
+  if (key === 'photos')    return photosBlock(is); // ＋はグリッド内タイル
+  if (key === 'logs')      return addBtn + listLogs(is);
+  if (key === 'shops')     return addBtn + listShops(is);
+  if (key === 'knowledge') return addBtn + listSimple(is,'knowledge','📌');
+  return addBtn + listSimple(is,'tips','✅');
 }
 function byBadge(e){ return e.author ? `<span class="by">✎${esc(e.author)}</span>` : ''; }
 
@@ -905,7 +948,10 @@ function addEntry(is, key){
   const today = new Date().toISOString().slice(0,10);
   if (key==='photos'){ $('#photoInput')?.click(); return; }
   if (key==='spots'){
-    if (dmap){
+    if (window.Kanko && Kanko.active()){
+      toast('観光マップをタップしてスポットの位置を指定してください');
+      Kanko.pick(latlng => spotForm(is, null, latlng));
+    } else if (dmap){
       toast('地図をタップしてスポットの位置を指定してください');
       startPick(latlng => spotForm(is, null, latlng));
     } else {
@@ -1197,13 +1243,30 @@ function blobToDataURL(blob){ return new Promise(res=>{const r=new FileReader();
 function dataURLtoBlob(durl){ const [h,b]=durl.split(','); const mime=h.match(/:(.*?);/)[1]; const bin=atob(b); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return new Blob([u],{type:mime}); }
 
 /* ---------- UI 配線 ---------- */
-$('#closePanel').onclick = () => {
+function closePanel(){
   $('#panel').classList.remove('open');
+  $('#pDim').classList.remove('show');
   $('#dmapwrap').classList.remove('full');
   $('#dmapFull').textContent = '⤢ 拡大';
   cancelPick();
   STATE.activeId=null; renderMap();
-};
+}
+$('#closePanel').onclick = closePanel;
+$('#pDim').onclick = closePanel;
+// 携帯縦のシート: つまみ（ヘッダ）を下にスワイプで閉じる
+(() => {
+  const head = document.querySelector('#panel .phead');
+  let sy = null;
+  head.addEventListener('touchstart', e => {
+    if (e.target.closest('button,.fav-toggle')) return;
+    sy = e.touches[0].clientY;
+  }, {passive:true});
+  head.addEventListener('touchmove', e => {
+    if (sy == null) return;
+    if (e.touches[0].clientY - sy > 70){ sy = null; closePanel(); }
+  }, {passive:true});
+  head.addEventListener('touchend', () => { sy = null; });
+})();
 $('#zin').onclick = () => zoomBy(1.3);
 $('#zout').onclick = () => zoomBy(0.77);
 $('#zreset').onclick = resetView;
