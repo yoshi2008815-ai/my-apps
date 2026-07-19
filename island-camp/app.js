@@ -2,7 +2,7 @@
 'use strict';
 
 // リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
-const APP_VERSION = '2.6.0';
+const APP_VERSION = '2.7.0';
 
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
 // 日本の島々が収まる範囲
@@ -369,6 +369,65 @@ function drawBase(){
   return g;
 }
 
+/* ---------- 東海汽船の定期航路（全国マップ） ---------- */
+// 竹芝桟橋発の2系統。寄港順は2026-07時点の定期便（東海汽船公式より）。
+const FERRY_ROUTES = [
+  { name: 'さるびあ丸', color: '#1f7fa8',
+    stops: [
+      ['竹芝',   35.6547, 139.7638],
+      ['大島',   34.7906, 139.3906],
+      ['利島',   34.529,  139.279 ],
+      ['新島',   34.372,  139.252 ],
+      ['式根島', 34.3352, 139.2137],
+      ['神津島', 34.203,  139.134 ],
+    ] },
+  { name: '橘丸', color: '#c05a28',
+    stops: [
+      ['竹芝',   35.6547, 139.7638],
+      ['三宅島', 34.100,  139.5555],
+      ['御蔵島', 33.8957, 139.5893],
+      ['八丈島', 33.113,  139.802 ],
+    ] },
+];
+function drawFerryRoutes(){
+  const k = STATE.view.scale || 1;
+  const f = v => (v/k).toFixed(2);
+  let g = '<g class="ferry-routes" pointer-events="none">';
+  const legMid = (a, b, m, t) => ({
+    x: (1-t)*(1-t)*a.x + 2*(1-t)*t*m.x + t*t*b.x,
+    y: (1-t)*(1-t)*a.y + 2*(1-t)*t*m.y + t*t*b.y,
+  });
+  for (const r of FERRY_ROUTES){
+    const pts = r.stops.map(([,la,ln]) => project(la,ln));
+    let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    const mids = [];
+    for (let i=1;i<pts.length;i++){
+      const a = pts[i-1], b = pts[i];
+      // 進行方向の左へ少し膨らむゆるいカーブ（海路らしい見た目）
+      const m = { x:(a.x+b.x)/2 - (b.y-a.y)*0.12, y:(a.y+b.y)/2 + (b.x-a.x)*0.12 };
+      mids.push(m);
+      d += ` Q ${m.x.toFixed(1)} ${m.y.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    }
+    g += `<path d="${d}" fill="none" stroke="#fff" stroke-width="${f(3.6)}" opacity=".55" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${r.color}" stroke-width="${f(1.6)}" stroke-dasharray="${f(6)} ${f(4)}" stroke-linecap="round" opacity=".9"/>`;
+    for (const p of pts){
+      g += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${f(2.3)}" fill="#fff" stroke="${r.color}" stroke-width="${f(1.1)}"/>`;
+    }
+    // 船と航路名は竹芝→最初の寄港地の区間上に（2航路で位置をずらして重なり回避）
+    const t0 = r.name === '橘丸' ? 0.62 : 0.38;
+    const s = legMid(pts[0], pts[1], mids[0], t0);
+    g += `<text x="${s.x.toFixed(1)}" y="${(s.y+4/k).toFixed(1)}" text-anchor="middle" font-size="${f(13)}">⛴</text>
+      <text x="${(s.x+9/k).toFixed(1)}" y="${(s.y+3.5/k).toFixed(1)}" fill="${r.color}" font-size="${f(9.5)}" font-weight="800"
+        paint-order="stroke" stroke="#fff" stroke-width="${f(2.6)}">東海汽船 ${r.name}</text>`;
+  }
+  // 竹芝桟橋
+  const tk = project(35.6547, 139.7638);
+  g += `<text x="${tk.x.toFixed(1)}" y="${(tk.y-6/k).toFixed(1)}" text-anchor="middle" fill="#1f6288" font-size="${f(10)}" font-weight="800"
+    paint-order="stroke" stroke="#fff" stroke-width="${f(3)}">竹芝桟橋</text>`;
+  g += '</g>';
+  return g;
+}
+
 function drawIslandShapes(){
   const useShapes = STATE.view.scale >= 2;
   return STATE.islands.map(is => {
@@ -569,7 +628,7 @@ function renderMap(){
   const { scale, tx, ty } = STATE.view;
   const svgH = svg.getBoundingClientRect().height;
   STATE.vScale = svgH > 0 ? svgH / VH : 0.73;
-  svg.innerHTML = `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}${drawIslandShapes()}${drawDotPins()}</g>`;
+  svg.innerHTML = `<g transform="translate(${tx},${ty}) scale(${scale})">${drawBase()}${drawFerryRoutes()}${drawIslandShapes()}${drawDotPins()}</g>`;
   bindIsleClicks();
 }
 

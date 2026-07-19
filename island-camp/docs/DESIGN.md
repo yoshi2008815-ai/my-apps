@@ -4,7 +4,7 @@
 |---|---|
 | 文書バージョン | 1.2 |
 | 最終更新 | 2026-07-20 |
-| 対応アプリバージョン | v2.6.0 |
+| 対応アプリバージョン | v2.7.0 |
 | 公開URL | https://yoshi2008815-ai.github.io/my-apps/island-camp/ |
 | リポジトリ | https://github.com/yoshi2008815-ai/my-apps （`island-camp/`） |
 
@@ -41,7 +41,7 @@ island-camp/
 ├── kanko-geo.js    OSM実データ（道路・集落）※tools/gen-kanko-geo.js で自動生成
 ├── media.js        アルバム・ドキュメント（IndexedDB）
 ├── sync.js         Gist同期モジュール（pull/push/共有グループ作成/設定保存）
-├── data.js         シードデータ（11島＋212スポット）※手編集可
+├── data.js         シードデータ（24島＋363スポット）※手編集可
 ├── tools/gen-kanko-geo.js  Overpass APIから kanko-geo.js を再生成するスクリプト
 ├── sw.js           Service Worker
 ├── manifest.json   PWAマニフェスト
@@ -57,6 +57,8 @@ island-camp/
 
 1. **全国マップ**（SVG自前描画）
    - デフォルメ島シェイプ（ズーム2倍以上で表示）＋ドットピン。視認性優先で実寸の1.5〜2倍
+   - **東海汽船航路レイヤー**（`FERRY_ROUTES`/`drawFerryRoutes`）: 竹芝発2系統を
+     寄港順の破線カーブで描画。線幅・文字は `1/scale` でズーム追従
    - 正確な地形は詳細マップ側で担保する（役割分担）
    - **横並びビュー（⛰ 横からながめる）**: 地図下中央のボタンで切替。
      島を北→南に横一列のパノラマ表示（`renderSideView`）。島イラストは
@@ -160,7 +162,7 @@ pull(Gist GET) → remote正規化(migrateIsland)
 
 ## 8. スポットシードデータ
 
-- 11島 × 12〜22件 = **212スポット**（2026-07 Web調査。三宅島・御蔵島は 2026-07-20 追加）
+- 24島 × 7〜22件 = **363スポット**（2026-07 Web調査。当初9島 → 2026-07-20 に全24島へ拡充）
 - 収集方針: キャンプ場を最優先で全網羅 → ビーチ/温泉/山・自然/観光/食事/港
 - 検証: 全座標を OpenStreetMap(Nominatim)・Wikipedia・NAVITIME 等と照合、
   URLは公式・自治体・観光協会ドメインを実在確認（怪しいものは空欄）
