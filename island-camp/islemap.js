@@ -73,6 +73,45 @@ function gmapsURL(name, islandName){
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(name + ' ' + islandName);
 }
 
+/* ---------- 地図スタイル（シンプル / 観光マップ風） ---------- */
+const STYLE_KEY = 'island-camp/imapstyle';
+let MSTYLE = 'simple';
+try { MSTYLE = localStorage.getItem(STYLE_KEY) || 'simple'; } catch(e){}
+// スポット種別ごとのバッジ色（観光マップ風で使用）
+const CATC = { '⛺':'#2e9e5b', '♨':'#e2574c', '🏖':'#2f88c9', '🍴':'#ef8c2c', '🏞':'#109b90',
+  '✈':'#7a8ca3', '⚓':'#4a6fa5', '🏪':'#b06fc4', '📍':'#ef8c2c' };
+
+/* ---------- 観光協会の公式マップリンク ---------- */
+// 各島の観光協会(または公式観光サイト)のマップ/パンフレットページ。
+// 掲載パンフ自体の転載は著作権があるため、公式ページへのリンクで案内する。
+const KANKO_LINKS = {
+  'izu-oshima':   { org:'大島観光協会',       url:'https://www.izu-oshima.or.jp/', mapUrl:'https://oshima-navi.com/pamphlet/index.html' },
+  'toshima':      { org:'利島村',             url:'https://www.toshimamura.org/tourism', mapUrl:'https://www.gotokyo.org/book/list/5156/' },
+  'niijima':      { org:'新島村観光案内所',   url:'https://niijima-info.jp/', mapUrl:'https://niijima-info.jp/map/' },
+  'shikinejima':  { org:'式根島観光協会',     url:'https://shikinejima.tokyo/', mapUrl:'https://shikinejima.tokyo/learn/pamphlet/' },
+  'kozushima':    { org:'神津島観光協会',     url:'https://kozushima.com/', mapUrl:'https://kozushima.com/map/' },
+  'miyakejima':   { org:'三宅島観光協会',     url:'https://www.miyakejima.gr.jp/', mapUrl:'https://www.miyakejima.gr.jp/map/' },
+  'mikurajima':   { org:'御蔵島観光協会',     url:'https://mikura-isle.com/', mapUrl:'https://mikura-isle.com/info-2/' },
+  'hachijojima':  { org:'八丈島観光協会',     url:'https://www.hachijo.gr.jp/', mapUrl:'https://www.hachijo.gr.jp/catalogs/' },
+  'aogashima':    { org:'青ヶ島村',           url:'https://www.vill.aogashima.tokyo.jp/tourism/', mapUrl:'https://www.vill.aogashima.tokyo.jp/tourism/map.html' },
+  'sado':         { org:'佐渡観光交流機構',   url:'https://sado-dmo.com/', mapUrl:'https://www.visitsado.com/pamphlet/' },
+  'yakushima':    { org:'屋久島観光協会',     url:'https://yakukan.jp/', mapUrl:'https://yakukan.jp/safe-travel/brochure-download.html' },
+  'tanegashima':  { org:'種子島観光協会',     url:'https://tanekan.jp/', mapUrl:'https://tanekan.jp/allmap/' },
+  'amami-oshima': { org:'あまみ大島観光物産連盟', url:'https://www.amami-tourism.org/', mapUrl:'https://www.amami-tourism.org/pamphlet/' },
+  'kikaijima':    { org:'喜界島観光物産協会', url:'https://kikaijimanavi.com/', mapUrl:'https://www.town.kikai.lg.jp/densan/kanko-iju/panfuretto/index.html' },
+  'tokunoshima':  { org:'徳之島観光連盟',     url:'http://www.tokunoshima-kanko.com/', mapUrl:'https://www.tokunoshima-town.org/omotenashikanko/kanko/pamphlet/index.html' },
+  'okinoerabu':   { org:'おきのえらぶ島観光協会', url:'https://okinoerabujima.info/', mapUrl:'https://okinoerabujima.info/pamphlet/tourism' },
+  'yoron':        { org:'ヨロン島観光協会',   url:'https://www.yorontou.info/', mapUrl:'https://www.yorontou.info/safe-travel/brochure-download.html' },
+  'okinawa-hontou':{ org:'おきなわ物語',      url:'https://www.okinawastory.jp/', mapUrl:'https://okimeguri.com/guidemap' },
+  'kumejima':     { org:'久米島町観光協会',   url:'https://www.kanko-kumejima.com/', mapUrl:'https://www.kanko-kumejima.com/tourist-brochures/' },
+  'miyako':       { org:'宮古島観光協会',     url:'https://miyako-guide.net/', mapUrl:'https://miyako-guide.net/profile/magazine/' },
+  'ishigaki':     { org:'石垣市観光交流協会', url:'https://yaeyama.or.jp/', mapUrl:'https://yaeyama.or.jp/our-information/document-request/' },
+  'iriomote':     { org:'竹富町観光協会',     url:'https://painusima.com/', mapUrl:'https://painusima.com/goods/' },
+  'yonaguni':     { org:'与那国町観光協会',   url:'https://welcome-yonaguni.jp/', mapUrl:'https://welcome-yonaguni.jp/news/3185/' },
+  'hateruma':     { org:'竹富町観光協会',     url:'https://painusima.com/', mapUrl:'https://painusima.com/goods/' },
+};
+window.KANKO_LINKS = KANKO_LINKS; // miyake.js からも参照
+
 /* ---------- ズーム状態（島ごとにリセット） ---------- */
 let VIEW = null;
 function resetViewFor(id){
@@ -94,6 +133,9 @@ function mapSVG(is){
   const pts = ring.map(([la,ln])=>proj(la,ln));
   const ptsStr = pts.map(p=>`${p.x},${p.y}`).join(' ');
   const iv = 1/VIEW.z; // マーカー・文字はズームしても画面上で同じ大きさに
+  const K = MSTYLE === 'kanko'; // 観光マップ風（パンフレット調）
+  const vb = viewBoxStr();
+  const [vx, vy] = vb.split(' ').map(Number);
   const poi = POI[is.id] || {};
   let cx = pts.reduce((s,p)=>s+p.x,0)/pts.length;
   let cy = pts.reduce((s,p)=>s+p.y,0)/pts.length;
@@ -114,15 +156,17 @@ function mapSVG(is){
     </g>`;
   }
   // 観光スポット（⚓港 ⛺キャンプ ✈空港 🏞名所 🍴食事）
-  const showAllLabels = VIEW.z >= 1.7;
+  // 観光マップ風では全ラベル常時表示＋種別色の大きめバッジ（パンフの見た目）
+  const showAllLabels = K || VIEW.z >= 1.7;
   const spotsM = spotsFor(is).map((s,i) => {
     const q = proj(s.lat, s.lng);
     if (q.x < 1 || q.x > 99 || q.y < 1 || q.y > 99) return '';
     const label = (showAllLabels || '⚓⛺✈'.includes(s.ic))
-      ? `<text y="${-3.1*iv}" text-anchor="middle" font-size="${2.9*iv}" font-weight="800" fill="#33534a" paint-order="stroke" stroke="#fff" stroke-width="${1*iv}">${esc(s.name)}</text>` : '';
+      ? `<text y="${-3.4*iv}" text-anchor="middle" font-size="${(K?2.7:2.9)*iv}" font-weight="800" fill="${K?'#174a5c':'#33534a'}" paint-order="stroke" stroke="#fff" stroke-width="${1*iv}">${esc(s.name)}</text>` : '';
+    const rc = K ? (CATC[s.ic] || '#109b90') : '#8aa86e';
     return `<g class="imap-spot" data-si="${i}" transform="translate(${q.x},${q.y})">
-      <circle r="${2.3*iv}" fill="#fff" stroke="#8aa86e" stroke-width="${0.35*iv}" opacity=".95"/>
-      <text y="${0.9*iv}" text-anchor="middle" font-size="${2.5*iv}">${s.ic}</text>${label}
+      <circle r="${(K?2.8:2.3)*iv}" fill="#fff" stroke="${rc}" stroke-width="${(K?0.7:0.35)*iv}" opacity=".97"/>
+      <text y="${0.9*iv}" text-anchor="middle" font-size="${(K?2.7:2.5)*iv}">${s.ic}</text>${label}
     </g>`;
   }).join('');
   // ユーザー登録スポットのピン（オレンジ縁＝自分の登録）
@@ -133,25 +177,49 @@ function mapSVG(is){
         paint-order="stroke" stroke="#fff" stroke-width="${1*iv}">${esc(p.name)}</text>
     </g>`).join('');
 
-  return `<svg id="imapSvg" viewBox="${viewBoxStr()}">
-    <defs>
-      <radialGradient id="imSea" cx="50%" cy="38%" r="75%">
+  // 海・陸の塗り（スタイル別）
+  const seaDef = K
+    ? `<linearGradient id="imSea" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#c3e9f5"/><stop offset="100%" stop-color="#9fd4e8"/>
+      </linearGradient>`
+    : `<radialGradient id="imSea" cx="50%" cy="38%" r="75%">
         <stop offset="0%" stop-color="#eaf7fa"/><stop offset="100%" stop-color="#c6e4ef"/>
-      </radialGradient>
-      <radialGradient id="imLand" cx="${cx}" cy="${cy}" r="52" gradientUnits="userSpaceOnUse">
+      </radialGradient>`;
+  const landDef = K
+    ? `<linearGradient id="imLand" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#d2ec9e"/><stop offset="100%" stop-color="#bfe28c"/>
+      </linearGradient>`
+    : `<radialGradient id="imLand" cx="${cx}" cy="${cy}" r="52" gradientUnits="userSpaceOnUse">
         ${hasPeak
           ? '<stop offset="0%" stop-color="#8fae6a"/><stop offset="55%" stop-color="#b5d48d"/><stop offset="100%" stop-color="#d9e9be"/>'
           : '<stop offset="0%" stop-color="#c2dc99"/><stop offset="100%" stop-color="#dcebc2"/>'}
-      </radialGradient>
-    </defs>
+      </radialGradient>`;
+  // 波の飾り（観光マップ風のみ）
+  const wave = (x,y) => `<path d="M ${x} ${y} q 1.6 -1.3 3.2 0 q 1.6 1.3 3.2 0" fill="none" stroke="#7db7cc" stroke-width="0.55" stroke-linecap="round" opacity=".7"/>`;
+  const waves = K ? [ [8,12],[86,9],[6,58],[90,64],[12,90],[80,92],[46,5] ].map(([x,y])=>wave(x,y)).join('') : '';
+  // タイトルリボン（観光マップ風のみ・画面左上に固定）
+  let ribbon = '';
+  if (K){
+    const label = `${is.name} 観光マップ`;
+    const w = label.length * 4.1 + 8;
+    ribbon = `<g pointer-events="none" transform="translate(${vx + 2.5} ${vy + 2.5}) scale(${iv})">
+      <rect x="0" y="0" width="${w}" height="8" rx="4" fill="#ff9f43" opacity="0.96"/>
+      <rect x="0.7" y="0.7" width="${w-1.4}" height="6.6" rx="3.3" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="0.5" stroke-dasharray="1.6 1.1"/>
+      <text x="${w/2}" y="5.6" text-anchor="middle" font-size="4" font-weight="900" fill="#fff">${esc(label)}</text>
+    </g>`;
+  }
+
+  return `<svg id="imapSvg" viewBox="${vb}">
+    <defs>${seaDef}${landDef}</defs>
     <rect x="-30" y="-30" width="160" height="160" fill="url(#imSea)"/>
-    <polygon points="${ptsStr}" fill="none" stroke="#ffffff" stroke-width="${3.2*iv}" stroke-linejoin="round" opacity="0.9"/>
-    <polygon points="${ptsStr}" fill="none" stroke="#ecd9a4" stroke-width="${1.5*iv}" stroke-linejoin="round"/>
-    <polygon points="${ptsStr}" fill="url(#imLand)" stroke="#8aa86e" stroke-width="${0.5*iv}" stroke-linejoin="round"/>
-    ${hasPeak ? `<polygon points="${contour(0.62)}" fill="none" stroke="#7d9a5e" stroke-width="${0.3*iv}" opacity="0.55" stroke-linejoin="round"/>
+    ${waves}
+    <polygon points="${ptsStr}" fill="none" stroke="#ffffff" stroke-width="${(K?4:3.2)*iv}" stroke-linejoin="round" opacity="0.9"/>
+    <polygon points="${ptsStr}" fill="none" stroke="${K?'#f2cf87':'#ecd9a4'}" stroke-width="${(K?2:1.5)*iv}" stroke-linejoin="round"/>
+    <polygon points="${ptsStr}" fill="url(#imLand)" stroke="${K?'#74a85c':'#8aa86e'}" stroke-width="${0.5*iv}" stroke-linejoin="round"/>
+    ${(!K && hasPeak) ? `<polygon points="${contour(0.62)}" fill="none" stroke="#7d9a5e" stroke-width="${0.3*iv}" opacity="0.55" stroke-linejoin="round"/>
     <polygon points="${contour(0.32)}" fill="none" stroke="#6a8850" stroke-width="${0.3*iv}" opacity="0.6" stroke-linejoin="round"/>` : ''}
-    ${peakM}${spotsM}${places}
-    <g pointer-events="none" opacity="0.75" transform="translate(${94 - (VIEW.z>1 ? 0 : 0)},0)">
+    ${peakM}${spotsM}${places}${ribbon}
+    <g pointer-events="none" opacity="0.75" transform="translate(94,0)">
       <text x="0" y="8.5" text-anchor="middle" font-size="4" font-weight="900" fill="#69868c">N</text>
       <path d="M 0 9.6 L 0 15 M -1.4 11.2 L 0 9.6 L 1.4 11.2" fill="none" stroke="#69868c" stroke-width="0.7"/>
     </g>
@@ -168,7 +236,18 @@ window.isleMapHTML = function(is){
     ? `<ul class="list" style="margin-top:12px">${is.places.map((p,i)=>
         `<li><span class="ic">${p.ic||'📍'}</span><span class="txt"><b>${esc(p.name)}</b>${p.note?`<span class="pnote">${esc(p.note)}</span>`:''}${p.by?`<span class="pby">👤 登録：${esc(p.by)}</span>`:''}</span><span class="x" data-del="places:${i}">✕</span></li>`).join('')}</ul>`
     : '';
+  const kanko = KANKO_LINKS[is.id];
+  const kankoUrl = kanko ? (kanko.mapUrl || kanko.url)
+    : ('https://www.google.com/search?q=' + encodeURIComponent(is.name + ' 観光協会 観光マップ'));
   return `<div class="sec" data-sec="islemap"><h3>🗺 島マップ</h3>
+    <div class="imap-cap" style="padding:0 0 8px">
+      <span class="mstyle-sw">
+        <button class="mssw${MSTYLE==='simple'?' on':''}" data-ms="simple">🗺 シンプル</button>
+        <button class="mssw${MSTYLE==='kanko'?' on':''}" data-ms="kanko">🎨 観光マップ風</button>
+      </span>
+      <a class="btn accent kanko-a" target="_blank" rel="noopener" href="${esc(kankoUrl)}"
+        title="公式の観光マップ（パンフレット）を開く">🌐 ${kanko ? esc(kanko.org) : '観光協会'}の地図</a>
+    </div>
     <div class="imap" id="imapBox">
       ${svgHTML}
       <div class="imap-tools">
@@ -185,6 +264,13 @@ window.isleMapHTML = function(is){
 window.wireIsleMap = function(is){
   const box = document.querySelector('#imapBox');
   if (!box) return;
+  // スタイル切替（シンプル / 観光マップ風）
+  document.querySelectorAll('#pBody .mssw').forEach(b => b.addEventListener('click', () => {
+    if (MSTYLE === b.dataset.ms) return;
+    MSTYLE = b.dataset.ms;
+    try { localStorage.setItem(STYLE_KEY, MSTYLE); } catch(e){}
+    openIsland(is.id);
+  }));
   const pop = () => box.querySelector('#imapPop');
   let dragged = false;
 

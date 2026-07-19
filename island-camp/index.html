@@ -42,6 +42,22 @@
   /* 全画面でも読みやすいよう中身は中央寄せ */
   .phead{width:100%; max-width:920px; margin:0 auto}
   .pbody{width:100%; max-width:920px; margin:0 auto}
+  /* パネル背後の薄暗幕（シート表示時に背後の島が見える） */
+  .pdim{position:fixed; inset:0; z-index:29; background:rgba(23,52,58,.35);
+    opacity:0; pointer-events:none; transition:opacity .3s}
+  .pdim.show{opacity:1; pointer-events:auto}
+  /* ===== iPhone縦: 島詳細は下から重なるシートに ===== */
+  @media (max-width:760px) and (orientation:portrait){
+    .panel{
+      top:7dvh; top:7vh; border-radius:26px 26px 0 0;
+      transform:translateY(112%); transition:transform .34s cubic-bezier(.32,.9,.35,1);
+    }
+    .panel.open{transform:translateY(0)}
+    .phead{padding-top:24px}
+    /* つまみ（ドラッグハンドル）: 下スワイプで閉じる */
+    .phead::before{content:''; position:absolute; top:9px; left:50%; transform:translateX(-50%);
+      width:44px; height:5px; border-radius:3px; background:#d3dfe3}
+  }
   /* 左ペイン：年次別インデックス */
   .idxpanel{
     width:300px; max-width:84vw; background:var(--panel);
@@ -195,7 +211,13 @@
   .imap{border-radius:18px; overflow:hidden; box-shadow:var(--shadow-md); background:#d9edf5; position:relative}
   .imap svg{width:100%; height:auto; display:block; cursor:crosshair; touch-action:none}
   .imap-cap{display:flex; justify-content:space-between; align-items:center; gap:8px;
-    font-size:.68rem; color:var(--sub); padding:7px 4px 0}
+    font-size:.68rem; color:var(--sub); padding:7px 4px 0; flex-wrap:wrap}
+  /* 地図スタイル切替＋観光協会リンク */
+  .mstyle-sw{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:2px}
+  .mssw{border:none; background:transparent; border-radius:999px; padding:6px 11px;
+    font-family:inherit; font-size:.72rem; font-weight:800; color:var(--sub); cursor:pointer; white-space:nowrap}
+  .mssw.on{background:var(--accent2); color:#fff}
+  .imap-cap a.kanko-a{font-size:.7rem; padding:7px 12px; text-decoration:none; white-space:nowrap}
   .imap-pin, .imap-spot{cursor:pointer}
   .imap-tools{position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:5px; z-index:4}
   .imap-tools button{width:31px; height:31px; border-radius:50%; border:none; background:rgba(255,255,255,.95);
@@ -327,6 +349,18 @@
   .alb-name{font-weight:800; font-size:.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .alb-meta{font-size:.68rem; color:var(--sub); margin-top:2px; font-weight:700}
   .alb-sec-h{font-size:.8rem; color:var(--accent2); font-weight:800; margin:22px 2px 10px}
+  /* 表示切替（アルバム / 年別） */
+  .vswitch{display:flex; background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:3px; flex:none}
+  .vswitch button{border:none; background:transparent; border-radius:999px; padding:6px 12px;
+    font-size:.74rem; font-weight:800; font-family:inherit; color:var(--sub); cursor:pointer; white-space:nowrap}
+  .vswitch button.on{background:var(--accent2); color:#fff}
+  /* 年別ビュー */
+  .yr-h{display:flex; align-items:center; gap:8px; margin:24px 2px 10px; flex-wrap:wrap}
+  .yr-h:first-child{margin-top:6px}
+  .yr-h .y{font-size:1.05rem; font-weight:900; color:var(--accent2)}
+  .yr-h .n{font-size:.7rem; color:var(--sub); font-weight:700}
+  .yr-h .ln{flex:1; height:2px; background:var(--line); border-radius:2px; min-width:20px}
+  .btn.mini{padding:5px 11px; font-size:.7rem}
   /* アルバム内グリッド */
   .album-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px}
   .album-ph{position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:#e6eef1;
@@ -469,7 +503,8 @@
     <button class="side-nav next" id="sideNext" title="南へ">›</button>
   </div>
 
-  <!-- 詳細パネル -->
+  <!-- 詳細パネル（携帯縦では下から重なるシート） -->
+  <div class="pdim" id="pDim"></div>
   <aside class="panel" id="panel">
     <div class="phead">
       <button class="btn ghost close" id="closePanel">✕</button>
@@ -505,12 +540,24 @@
 
 <!-- アルバム（LINE風：一覧 → 中身 → ビューア） -->
 <div class="album hidden" id="album">
-  <!-- ホーム：アルバム一覧 -->
+  <!-- ホーム：アルバム一覧 / 年別 -->
   <div class="album-view" id="albumHome">
     <div class="album-head">
       <h2>📸 アルバム</h2>
+      <div class="vswitch" id="albumViewSwitch">
+        <button data-v="albums">📁 アルバム</button>
+        <button data-v="years">📅 年別</button>
+      </div>
       <div class="spacer"></div>
+      <button class="btn hidden" id="homeSelBtn">選択</button>
       <button class="btn ghost" id="albumClose">✕</button>
+    </div>
+    <div class="album-selbar hidden" id="homeSelBar">
+      <button class="btn" id="hSelAll">全選択</button>
+      <span id="hSelCount">0件を選択中</span>
+      <div class="spacer"></div>
+      <button class="btn" id="hSelDl">⬇ DL</button>
+      <button class="btn" id="hSelDel" style="color:var(--pin)">🗑 削除</button>
     </div>
     <div class="album-body" id="albumHomeBody"></div>
   </div>
@@ -568,12 +615,12 @@
 <div class="toast" id="toast"></div>
 
 <!-- ?v= はSWキャッシュ版数と連動（更新時に必ず上げる：ブラウザキャッシュ対策） -->
-<script src="./geo.js?v=17"></script>
-<script src="./data.js?v=17"></script>
-<script src="./islemap.js?v=17"></script>
-<script src="./app.js?v=17"></script>
-<script src="./media.js?v=17"></script>
-<script src="./miyake.js?v=17"></script>
+<script src="./geo.js?v=18"></script>
+<script src="./data.js?v=18"></script>
+<script src="./islemap.js?v=18"></script>
+<script src="./app.js?v=18"></script>
+<script src="./media.js?v=18"></script>
+<script src="./miyake.js?v=18"></script>
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));

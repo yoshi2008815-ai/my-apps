@@ -69,8 +69,11 @@ async function videoThumb(blob, max = 480){
 
 /* ---------- 画面状態 ---------- */
 // view: 'home'（アルバム一覧） | 'detail'（アルバムの中身）
+// homeView: 'albums'（LINE風アルバム一覧） | 'years'（年別）
 // kind: 'album'（マイアルバム） | 'island'（島の写真）
-const UI = { view: 'home', kind: null, cur: null, sel: new Set(), selMode: false, urls: new Set() };
+const HOMEVIEW_KEY = 'island-camp/albumview';
+const UI = { view: 'home', homeView: localStorage.getItem(HOMEVIEW_KEY) || 'albums',
+  kind: null, cur: null, sel: new Set(), selMode: false, urls: new Set() };
 function objURL(blob){ const u = URL.createObjectURL(blob); UI.urls.add(u); return u; }
 function revokeAll(){ for (const u of UI.urls) URL.revokeObjectURL(u); UI.urls.clear(); }
 const curAlbum = () => albums.find(a => a.id === UI.cur);
@@ -91,6 +94,12 @@ async function renderHome(){
   revokeAll();
   $('#albumHome').classList.remove('hidden');
   $('#albumDetail').classList.add('hidden');
+  // 表示切替タブと選択ボタンの状態
+  document.querySelectorAll('#albumViewSwitch button').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === UI.homeView));
+  $('#homeSelBtn').classList.toggle('hidden', UI.homeView !== 'years');
+  updateHomeSelBar();
+  if (UI.homeView === 'years'){ await renderHomeYears(); return; }
   const body = $('#albumHomeBody');
   let html = `<div class="alb-grid">`;
   html += `<div class="alb-card new" id="albNew"><div class="alb-cover">＋</div>
@@ -144,6 +153,129 @@ function createAlbum(){
   });
 }
 
+/* ---------- サムネの遅延読み込み（グリッド共通） ---------- */
+async function fillThumb(ph){
+  const id = ph.dataset.id;
+  const thumb = await MediaDB.get(id + '_t');
+  const blob = thumb || (await MediaDB.get(id)) || (await PhotoDB.get(id));
+  if (!blob) return;
+  const el = document.createElement(blob.type && blob.type.startsWith('video/') ? 'video' : 'img');
+  if (el.tagName === 'VIDEO'){ el.muted = true; el.playsInline = true; el.preload = 'metadata'; }
+  else { el.alt = ''; el.loading = 'lazy'; }
+  el.src = objURL(blob);
+  ph.prepend(el);
+}
+
+/* ---------- 年別ビュー（アルバム＋島の写真を横断して年ごとに） ---------- */
+function tsFromId(pid){
+  const m = /^(?:ph|im|vd)_(\d{10,})/.exec(pid);
+  return m ? new Date(+m[1]).toISOString() : null;
+}
+function allMediaItems(){
+  const out = [];
+  for (const al of albums)
+    for (const it of al.items)
+      out.push({ id: it.id, type: it.type, name: it.name, date: it.added || tsFromId(it.id),
+        cap: `📁 ${al.name}`, src: 'album', albumId: al.id });
+  for (const is of STATE.islands)
+    for (const pid of (is.photos || []))
+      out.push({ id: pid, type: 'image', name: pid, date: tsFromId(pid),
+        cap: `🏝 ${is.name}`, src: 'island', islandId: is.id });
+  return out;
+}
+let YEAR_ITEMS = {}; // year -> items（描画中の年別リスト）
+async function renderHomeYears(){
+  const body = $('#albumHomeBody');
+  const items = allMediaItems();
+  if (!items.length){
+    body.innerHTML = `<div class="album-empty">まだ写真・動画がありません。<br>アルバムや島の写真に追加すると、ここに年ごとに並びます。</div>`;
+    return;
+  }
+  const byYear = new Map();
+  for (const it of items){
+    const y = it.date ? it.date.slice(0, 4) : '年不明';
+    if (!byYear.has(y)) byYear.set(y, []);
+    byYear.get(y).push(it);
+  }
+  const years = [...byYear.keys()].sort((a, b) => b.localeCompare(a)); // 新しい年から
+  YEAR_ITEMS = {};
+  let html = '';
+  for (const y of years){
+    const arr = byYear.get(y).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    YEAR_ITEMS[y] = arr;
+    const vids = arr.filter(i => i.type === 'video').length;
+    html += `<div class="yr-sec">
+      <div class="yr-h"><span class="y">${esc(y)}${/^\d+$/.test(y) ? '年' : ''}</span>
+        <span class="n">${arr.length}件${vids ? `・🎬${vids}` : ''}</span><span class="ln"></span>
+        <button class="btn mini" data-ysel="${esc(y)}">この年を選択</button>
+        <button class="btn mini" data-ydl="${esc(y)}">⬇ この年をDL</button></div>
+      <div class="album-grid">${arr.map(it =>
+        `<div class="album-ph" data-id="${it.id}" data-y="${esc(y)}" data-type="${it.type}">
+          <span class="ck">✓</span>${it.type === 'video' ? '<span class="vd">▶ 動画</span>' : ''}
+        </div>`).join('')}</div></div>`;
+  }
+  body.innerHTML = html;
+  // タップ: 選択モードならトグル / 通常はビューア
+  body.querySelectorAll('.album-ph').forEach(ph => {
+    ph.addEventListener('click', () => {
+      if (UI.selMode){ toggleHomeSel(ph); return; }
+      const y = ph.dataset.y, arr = YEAR_ITEMS[y];
+      openViewer(arr, arr.findIndex(x => x.id === ph.dataset.id), `📅 ${y}${/^\d+$/.test(y) ? '年' : ''}`);
+    });
+  });
+  // この年を選択 / この年をDL
+  body.querySelectorAll('[data-ysel]').forEach(b => b.addEventListener('click', () => {
+    UI.selMode = true;
+    for (const it of YEAR_ITEMS[b.dataset.ysel]) UI.sel.add(it.id);
+    body.querySelectorAll('.album-ph').forEach(p => p.classList.toggle('sel', UI.sel.has(p.dataset.id)));
+    updateHomeSelBar();
+  }));
+  body.querySelectorAll('[data-ydl]').forEach(b => b.addEventListener('click', () =>
+    dlItems(YEAR_ITEMS[b.dataset.ydl], `island-camp-${b.dataset.ydl}`)));
+  // サムネ読み込み
+  for (const ph of body.querySelectorAll('.album-ph')) await fillThumb(ph);
+}
+function toggleHomeSel(ph){
+  const id = ph.dataset.id;
+  UI.sel.has(id) ? UI.sel.delete(id) : UI.sel.add(id);
+  ph.classList.toggle('sel', UI.sel.has(id));
+  updateHomeSelBar();
+}
+function updateHomeSelBar(){
+  $('#albumHome').classList.toggle('selmode', UI.selMode && UI.homeView === 'years');
+  $('#homeSelBar').classList.toggle('hidden', !(UI.selMode && UI.homeView === 'years'));
+  $('#homeSelBtn').textContent = UI.selMode ? 'キャンセル' : '選択';
+  $('#hSelCount').textContent = `${UI.sel.size}件を選択中`;
+  const all = document.querySelectorAll('#albumHomeBody .album-ph');
+  $('#hSelAll').textContent = (UI.sel.size && UI.sel.size === all.length) ? '全解除' : '全選択';
+}
+function selectedYearItems(){
+  const out = [];
+  for (const arr of Object.values(YEAR_ITEMS))
+    for (const it of arr) if (UI.sel.has(it.id)) out.push(it);
+  return out;
+}
+async function delYearSelected(){
+  const items = selectedYearItems();
+  if (!items.length){ toast('削除するものを選択してください'); return; }
+  if (!confirm(`選択した${items.length}件を削除します。アルバム・島の写真からも消えます。よろしいですか？`)) return;
+  for (const it of items){
+    if (it.src === 'album'){
+      const al = albums.find(a => a.id === it.albumId);
+      if (al){ al.items = al.items.filter(x => x.id !== it.id); al.updated = new Date().toISOString(); }
+      MediaDB.del(it.id); MediaDB.del(it.id + '_t');
+    } else {
+      const is = islandById(it.islandId);
+      if (is) is.photos = is.photos.filter(p => p !== it.id);
+      PhotoDB.del(it.id);
+    }
+  }
+  saveAlbums(); saveIslands();
+  UI.sel.clear(); UI.selMode = false;
+  toast('削除しました');
+  await renderHome();
+}
+
 /* ---------- アルバム詳細（写真・動画グリッド） ---------- */
 async function openDetail(kind, id){
   UI.view = 'detail'; UI.kind = kind; UI.cur = id; UI.sel.clear(); UI.selMode = false;
@@ -188,17 +320,7 @@ async function renderDetail(){
     });
   });
   // サムネの遅延読み込み
-  for (const ph of body.querySelectorAll('.album-ph')){
-    const id = ph.dataset.id;
-    const thumb = await MediaDB.get(id + '_t');
-    const blob = thumb || (await MediaDB.get(id)) || (await PhotoDB.get(id));
-    if (!blob) continue;
-    const el = document.createElement(blob.type && blob.type.startsWith('video/') ? 'video' : 'img');
-    if (el.tagName === 'VIDEO'){ el.muted = true; el.playsInline = true; el.preload = 'metadata'; }
-    else { el.alt = ''; el.loading = 'lazy'; }
-    el.src = objURL(blob);
-    ph.prepend(el);
-  }
+  for (const ph of body.querySelectorAll('.album-ph')) await fillThumb(ph);
 }
 
 /* ---------- 追加（複数選択・ドラッグ&ドロップ共通） ---------- */
@@ -254,19 +376,21 @@ function toggleSel(ph){
   ph.classList.toggle('sel', UI.sel.has(id));
   updateSelBar();
 }
-async function dlSelected(){
-  const items = detailItems().filter(it => !UI.sel.size || UI.sel.has(it.id));
-  if (!items.length){ toast('ダウンロードするものがありません'); return; }
+// 任意のアイテム集合をZIPでDL（アルバム内・年別・選択のすべてで共用）
+async function dlItems(items, base){
+  if (!items || !items.length){ toast('ダウンロードするものがありません'); return; }
   toast('ZIPを作成中…');
   const files = [];
-  let i = 0;
-  const base = (detailTitle().replace(/[🏝\s]/g, '') || 'album');
+  const counters = {};
   for (const it of items){
     const blob = (await MediaDB.get(it.id)) || (await PhotoDB.get(it.id));
     if (!blob) continue;
-    i++;
-    const name = it.name && it.name.includes('.') ? it.name : `${base}_${String(i).padStart(3, '0')}${extOf(blob.type) || '.jpg'}`;
-    files.push({ name, blob });
+    // フォルダ分け: 年別DLでは「出どころ（アルバム名/島名）」ごとにまとめる
+    const folder = it.cap ? it.cap.replace(/^[📁🏝]\s*/, '').replace(/[\\/:*?"<>|]/g, '') : '';
+    counters[folder] = (counters[folder] || 0) + 1;
+    const nm = it.name && it.name.includes('.') ? it.name
+      : `${String(counters[folder]).padStart(3, '0')}${extOf(blob.type) || '.jpg'}`;
+    files.push({ name: folder ? `${folder}/${nm}` : nm, blob });
   }
   if (!files.length){ toast('ダウンロードできるファイルがありません'); return; }
   const zip = await makeZip(files);
@@ -276,6 +400,12 @@ async function dlSelected(){
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
   toast(`${files.length}件をZIPでダウンロードしました`);
+}
+async function dlSelected(){
+  const base = (detailTitle().replace(/[🏝\s]/g, '') || 'album');
+  const items = detailItems().filter(it => !UI.sel.size || UI.sel.has(it.id))
+    .map(it => ({ ...it, cap: '' }));
+  await dlItems(items, base);
 }
 async function delSelected(){
   if (!UI.sel.size){ toast('削除するものを選択してください'); return; }
@@ -362,7 +492,7 @@ async function showViewer(){
   } else {
     stage.innerHTML = `<img src="${VIEWER.src}" alt="">`;
   }
-  $('#lbCap').textContent = `${VIEWER.cap}（${VIEWER.idx + 1}/${VIEWER.list.length}）`;
+  $('#lbCap').textContent = `${it.cap || VIEWER.cap}（${VIEWER.idx + 1}/${VIEWER.list.length}）`;
   const dl = $('#lbDl');
   dl.href = VIEWER.src;
   dl.download = it.name && it.name.includes('.') ? it.name : (it.name || 'media') + (extOf(blob.type) || '.jpg');
@@ -529,6 +659,34 @@ $('#albumMenuBtn').onclick = showSheet;
 $('#sheetRename').onclick = renameAlbum;
 $('#sheetDelete').onclick = deleteAlbum;
 $('#sheetDlAll').onclick = () => { hideSheet(); UI.sel.clear(); dlSelected(); };
+
+// 表示切替（アルバム / 年別）と年別ビューの選択・DL・削除
+document.querySelectorAll('#albumViewSwitch button').forEach(b => b.addEventListener('click', () => {
+  if (UI.homeView === b.dataset.v) return;
+  UI.homeView = b.dataset.v;
+  try { localStorage.setItem(HOMEVIEW_KEY, UI.homeView); } catch(e){}
+  UI.sel.clear(); UI.selMode = false;
+  renderHome();
+}));
+$('#homeSelBtn').onclick = () => {
+  UI.selMode = !UI.selMode;
+  if (!UI.selMode){
+    UI.sel.clear();
+    document.querySelectorAll('#albumHomeBody .album-ph.sel').forEach(p => p.classList.remove('sel'));
+  }
+  updateHomeSelBar();
+};
+$('#hSelAll').onclick = () => {
+  const all = [...document.querySelectorAll('#albumHomeBody .album-ph')];
+  if (UI.sel.size === all.length){ UI.sel.clear(); all.forEach(p => p.classList.remove('sel')); }
+  else { all.forEach(p => { UI.sel.add(p.dataset.id); p.classList.add('sel'); }); }
+  updateHomeSelBar();
+};
+$('#hSelDl').onclick = () => {
+  const items = selectedYearItems();
+  dlItems(items.length ? items : Object.values(YEAR_ITEMS).flat(), 'island-camp-photos');
+};
+$('#hSelDel').onclick = delYearSelected;
 
 $('#docsBtn').onclick = openDocs;
 $('#docsClose').onclick = () => $('#docs').classList.add('hidden');

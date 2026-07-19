@@ -203,8 +203,15 @@ function mapHTML(is){
     .map(s => `<li><span class="ic">${s.ic}</span><span class="txt">${esc(s.name)}</span><span class="x" data-unvisit="${s.id}">✕</span></li>`).join('')
     + is.miyakePlaces.map((p,i) => `<li><span class="ic">📍</span><span class="txt">${esc(p.name)}</span><span class="x" data-delplace="${i}">✕</span></li>`).join('');
 
+  const kk = (window.KANKO_LINKS || {}).miyakejima;
+  const kkUrl = kk ? (kk.mapUrl || kk.url)
+    : 'https://www.google.com/search?q=' + encodeURIComponent('三宅島 観光協会 観光マップ');
   return `
     <p class="myk-help">スポットをタップで「行った！」記録。地図の海をタップすると自由な場所を追加できます。</p>
+    <div class="imap-cap" style="padding:0 0 10px;justify-content:flex-end">
+      <a class="btn accent kanko-a" target="_blank" rel="noopener" href="${esc(kkUrl)}"
+        title="公式の観光マップ（パンフレット）を開く">🌐 ${kk ? esc(kk.org) : '観光協会'}の地図</a>
+    </div>
     <div class="myk-map">
       <svg id="mykMap" viewBox="0 0 100 100">
         <defs>

@@ -437,7 +437,14 @@ async function openIsland(id){
     await renderBody(is);
   }
   $('#panel').classList.add('open');
+  $('#pDim').classList.add('show');
   focusIsland(is);
+}
+function closePanel(){
+  $('#panel').classList.remove('open');
+  $('#pDim').classList.remove('show');
+  STATE.activeId = null;
+  renderMap();
 }
 
 async function renderBody(is){
@@ -825,7 +832,23 @@ function blobToDataURL(blob){ return new Promise(res=>{const r=new FileReader();
 function dataURLtoBlob(durl){ const [h,b]=durl.split(','); const mime=h.match(/:(.*?);/)[1]; const bin=atob(b); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i); return new Blob([u],{type:mime}); }
 
 /* ---------- UI 配線 ---------- */
-$('#closePanel').onclick = () => { $('#panel').classList.remove('open'); STATE.activeId=null; renderMap(); };
+$('#closePanel').onclick = closePanel;
+$('#pDim').onclick = closePanel;
+// シートのつまみを下にスワイプで閉じる（携帯縦）
+(() => {
+  const head = document.querySelector('#panel .phead');
+  let sy = null;
+  head.addEventListener('touchstart', e => {
+    // ボタン類の操作は除外
+    if (e.target.closest('button,.fav-toggle')) return;
+    sy = e.touches[0].clientY;
+  }, {passive:true});
+  head.addEventListener('touchmove', e => {
+    if (sy == null) return;
+    if (e.touches[0].clientY - sy > 70){ sy = null; closePanel(); }
+  }, {passive:true});
+  head.addEventListener('touchend', () => { sy = null; });
+})();
 $('#zin').onclick = () => zoomBy(1.3);
 $('#zout').onclick = () => zoomBy(0.77);
 $('#zreset').onclick = resetView;
