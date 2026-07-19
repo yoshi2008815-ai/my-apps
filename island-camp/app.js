@@ -2,7 +2,7 @@
 'use strict';
 
 // リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.4.0';
 
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
 // 日本の島々が収まる範囲

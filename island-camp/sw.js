@@ -1,5 +1,5 @@
 // 島キャンプ思い出マップ Service Worker
-const CACHE = 'island-camp-v230';
+const CACHE = 'island-camp-v240';
 const ASSETS = [
   './',
   './index.html',

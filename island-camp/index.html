@@ -131,7 +131,11 @@
   .dmapwrap.picking .dmap-hint{display:block}
   .dmap-off{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:#7a8f97; font-size:.82rem}
-  @media (max-width:760px){ .dmapwrap{height:32vh} }
+  @media (max-width:760px){
+    .dmapwrap{height:32vh}
+    /* 狭い画面ではパネル見出しが島名を出すので、SVG内タイトルは隠して地図を広く使う */
+    #kmap .ktitle{display:none}
+  }
   /* スポットマーカー（divIcon） */
   .spot-ico span{display:flex; width:26px; height:26px; border-radius:50%;
     align-items:center; justify-content:center; font-size:14px;
