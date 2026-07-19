@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>ピアノれんしゅう — アラベスク</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", sans-serif;
+      background: #0f1526;
+      color: #e8ecf5;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      inset: 0;
+      touch-action: manipulation;
+    }
+
+    /* ---- header ---- */
+    header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 12px;
+      padding-top: max(8px, env(safe-area-inset-top));
+      background: #171f36;
+      border-bottom: 1px solid #2b3556;
+    }
+    .title { display: flex; flex-direction: column; margin-right: 6px; }
+    .title b { font-size: 15px; letter-spacing: .02em; }
+    .title span { font-size: 10.5px; color: #93a0c2; }
+    button, select {
+      font: inherit;
+      color: #e8ecf5;
+      background: #232d4d;
+      border: 1px solid #38446e;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 14px;
+      min-height: 40px;
+      cursor: pointer;
+    }
+    select { max-width: 190px; }
+    button.primary { background: #ff8a3d; border-color: #ff8a3d; color: #1b1006; font-weight: 700; min-width: 86px; }
+    button.toggled { background: #3a6df0; border-color: #5b86f5; }
+    .seg { display: flex; border: 1px solid #38446e; border-radius: 10px; overflow: hidden; }
+    .seg button { border: none; border-radius: 0; min-width: 52px; }
+    .seg button.on { background: #3a6df0; font-weight: 700; }
+    .tempo { display: flex; align-items: center; gap: 6px; background: #232d4d; border: 1px solid #38446e; border-radius: 10px; padding: 4px 10px; min-height: 40px; }
+    .tempo label { font-size: 13px; color: #b7c2de; white-space: nowrap; }
+    .tempo b { font-size: 14px; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+    input[type=range] { width: 130px; accent-color: #ff8a3d; }
+    .barinfo { margin-left: auto; font-size: 13px; color: #b7c2de; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .legend { display: flex; gap: 8px; font-size: 11.5px; color: #b7c2de; align-items: center; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 3px; }
+
+    /* ---- progress ---- */
+    #progress {
+      position: relative;
+      height: 22px;
+      background: #131a2f;
+      border-bottom: 1px solid #2b3556;
+      cursor: pointer;
+      touch-action: none;
+    }
+    #progFill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #3a6df0aa, #ff8a3daa); width: 0; pointer-events: none; }
+    #progMarks { position: absolute; inset: 0; pointer-events: none; }
+    #progMarks i { position: absolute; top: 0; bottom: 0; width: 1.5px; background: #4a578255; }
+    #progMarks i.sec { background: #93a0c2; width: 2px; }
+
+    /* ---- canvas ---- */
+    #wrap { flex: 1; position: relative; min-height: 0; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+
+    /* ---- rotate hint ---- */
+    #rotate {
+      position: fixed; inset: 0; z-index: 50;
+      background: #0f1526f2;
+      display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; font-size: 18px; text-align: center; padding: 24px;
+    }
+    #rotate .ico { font-size: 56px; animation: sway 1.6s ease-in-out infinite; }
+    @keyframes sway { 0%,100% { transform: rotate(0); } 50% { transform: rotate(90deg); } }
+    body.portrait #rotate { display: flex; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <b>🎹 アラベスク</b>
+      <span>ブルグミュラー Op.100-2</span>
+    </div>
+    <button id="btnPlay" class="primary">▶ 再生</button>
+    <button id="btnRew" title="はじめに戻る">⏮</button>
+    <select id="selSection"></select>
+    <button id="btnLoop">🔁 ループ</button>
+    <div class="seg" id="segHand">
+      <button data-hand="L">左手</button>
+      <button data-hand="both" class="on">両手</button>
+      <button data-hand="R">右手</button>
+    </div>
+    <div class="tempo">
+      <label>テンポ ♩=</label>
+      <input type="range" id="rngTempo" min="40" max="160" step="2" value="80" />
+      <b id="tempoVal">80</b>
+    </div>
+    <button id="btnMetro">メトロノーム</button>
+    <button id="btnCount" class="toggled">カウント</button>
+    <button id="btnDoremi" class="toggled">ドレミ</button>
+    <div class="barinfo">
+      <span class="legend"><span><i style="background:#38bdf8"></i>左手</span><span><i style="background:#ff8a3d"></i>右手</span></span>
+      <span id="barNow">小節 1 / 55</span>
+    </div>
+  </header>
+
+  <div id="progress">
+    <div id="progFill"></div>
+    <div id="progMarks"></div>
+  </div>
+
+  <div id="wrap"><canvas id="cv"></canvas></div>
+
+  <div id="rotate">
+    <div class="ico">📱</div>
+    <div><b>iPadを横向きにしてください</b><br /><span style="font-size:14px;color:#93a0c2">このアプリは横画面専用です</span></div>
+  </div>
+
+  <script src="./songs.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
