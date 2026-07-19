@@ -4,7 +4,7 @@
 |---|---|
 | 文書バージョン | 1.2 |
 | 最終更新 | 2026-07-20 |
-| 対応アプリバージョン | v2.5.0 |
+| 対応アプリバージョン | v2.6.0 |
 | 公開URL | https://yoshi2008815-ai.github.io/my-apps/island-camp/ |
 | リポジトリ | https://github.com/yoshi2008815-ai/my-apps （`island-camp/`） |
 
@@ -41,7 +41,7 @@ island-camp/
 ├── kanko-geo.js    OSM実データ（道路・集落）※tools/gen-kanko-geo.js で自動生成
 ├── media.js        アルバム・ドキュメント（IndexedDB）
 ├── sync.js         Gist同期モジュール（pull/push/共有グループ作成/設定保存）
-├── data.js         シードデータ（9島＋178スポット）※自動生成、手編集も可
+├── data.js         シードデータ（11島＋212スポット）※手編集可
 ├── tools/gen-kanko-geo.js  Overpass APIから kanko-geo.js を再生成するスクリプト
 ├── sw.js           Service Worker
 ├── manifest.json   PWAマニフェスト
@@ -160,7 +160,7 @@ pull(Gist GET) → remote正規化(migrateIsland)
 
 ## 8. スポットシードデータ
 
-- 9島 × 17〜22件 = **178スポット**（2026-07 Web調査）
+- 11島 × 12〜22件 = **212スポット**（2026-07 Web調査。三宅島・御蔵島は 2026-07-20 追加）
 - 収集方針: キャンプ場を最優先で全網羅 → ビーチ/温泉/山・自然/観光/食事/港
 - 検証: 全座標を OpenStreetMap(Nominatim)・Wikipedia・NAVITIME 等と照合、
   URLは公式・自治体・観光協会ドメインを実在確認（怪しいものは空欄）
