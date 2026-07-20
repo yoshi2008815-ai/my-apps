@@ -2,19 +2,20 @@
 'use strict';
 
 // リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.10.0';
 
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
-// 日本の島々が収まる範囲。沖縄方面は左上のインセット枠に再投影する
-// （観光イラストマップの定番の置き方。本土と伊豆・鹿児島の島が大きく見える）
-const BOUNDS = { latN: 46, latS: 26.2, lngW: 125.5, lngE: 146 };
+// 本図は本土＋佐渡・対馬・小笠原のみ。南の島々は3つの枠（沖縄・鹿児島・伊豆七島）に配置
+// （観光イラストマップの構成。伊豆七島の枠が主役）
+const BOUNDS = { latN: 46, latS: 30.5, lngW: 128.5, lngE: 146 };
 const VW = 800, VH = 1000;
+// 本土の描画先矩形（canvas全面ではなく中央上寄せ。まわりに枠のスペースを空ける）
+const MAIN_RECT = { x: 120, y: 34, w: 560, h: 630 };
 const INSET = { x: 12, y: 70, w: 318, h: 195, latN: 27.2, latS: 23.7, lngW: 122.5, lngE: 128.7 };
-// 緯度27度未満かつ経度128.7度未満 = 沖縄の島々（与論・沖永良部は27度以上で本図側）
 function inInset(lat, lng){ return lat < 27.0 && lng < 128.7; }
 function projectMain(lat, lng){
-  const x = (lng - BOUNDS.lngW) / (BOUNDS.lngE - BOUNDS.lngW) * VW;
-  const y = (BOUNDS.latN - lat) / (BOUNDS.latN - BOUNDS.latS) * VH;
+  const x = MAIN_RECT.x + (lng - BOUNDS.lngW) / (BOUNDS.lngE - BOUNDS.lngW) * MAIN_RECT.w;
+  const y = MAIN_RECT.y + (BOUNDS.latN - lat) / (BOUNDS.latN - BOUNDS.latS) * MAIN_RECT.h;
   return { x, y };
 }
 function project(lat, lng){
@@ -27,22 +28,65 @@ function project(lat, lng){
   return projectMain(lat, lng);
 }
 
-// 伊豆諸島は右下の枠内に「北斗七星ならび」で配置（柄=大島→新島、枡=神津・三宅・御蔵・八丈）。
-// 式根島は新島の隣の小さな伴星（ミザールとアルコルのように）、青ヶ島は枡の下。
-const IZU_BOX = { x: 600, y: 555, w: 198, h: 333 };
+// ===== 伊豆七島の枠（主役・北斗七星ならび） =====
+// 柄=大島→利島→新島→神津島、枡=神津・三宅・御蔵・八丈。
+// 式根島は新島の隣の伴星（ミザールとアルコル）、青ヶ島は枡の下。
+// 各島は geo.js の実海岸線シルエットをポップ配色で大きめに描く（Tシャツ映え優先）。
+const IZU_BOX = { x: 560, y: 500, w: 235, h: 475 };
 const IZU_DIPPER = {
-  'izu-oshima':  [678, 592],
-  'toshima':     [662, 650],
-  'niijima':     [674, 706],
-  'shikinejima': [652, 722],
-  'kozushima':   [628, 762],
-  'miyakejima':  [710, 750],
-  'mikurajima':  [722, 812],
-  'hachijojima': [644, 822],
-  'aogashima':   [674, 868],
+  'izu-oshima':  [700, 565],
+  'toshima':     [665, 642],
+  'niijima':     [688, 716],
+  'shikinejima': [646, 738],
+  'kozushima':   [620, 800],
+  'miyakejima':  [734, 786],
+  'mikurajima':  [748, 872],
+  'hachijojima': [644, 890],
+  'aogashima':   [700, 940],
+};
+// シルエットの最大辺（px）と島ごとのポップカラー
+const IZU_SIZE = {
+  'izu-oshima': 46, 'toshima': 22, 'niijima': 34, 'shikinejima': 17, 'kozushima': 30,
+  'miyakejima': 38, 'mikurajima': 26, 'hachijojima': 42, 'aogashima': 19,
+};
+const IZU_COLORS = {
+  'izu-oshima': '#ff8a6b', 'toshima': '#ffb74d', 'niijima': '#ffe082',
+  'shikinejima': '#dce775', 'kozushima': '#aed581', 'miyakejima': '#3ecfb2',
+  'mikurajima': '#4fc3f7', 'hachijojima': '#b39ddb', 'aogashima': '#f48fb1',
+};
+// geo.js の海岸線リングを正規化して (0,0) 中心のシルエット点列にする
+function izuShapePoints(id, size){
+  const G = window.GEO || {};
+  const ring = G.islands && G.islands[id];
+  if (!ring || ring.length < 8) return null;
+  const step = Math.max(1, Math.floor(ring.length / 44));
+  const pts = [];
+  for (let i = 0; i < ring.length; i += step) pts.push(ring[i]);
+  let mnLa = 90, mxLa = -90, mnLn = 200, mxLn = 0;
+  for (const [la, ln] of pts){
+    if (la < mnLa) mnLa = la; if (la > mxLa) mxLa = la;
+    if (ln < mnLn) mnLn = ln; if (ln > mxLn) mxLn = ln;
+  }
+  const kx = Math.cos((mnLa + mxLa) / 2 * Math.PI / 180);
+  const w = (mxLn - mnLn) * kx, h = mxLa - mnLa;
+  const s = size / (Math.max(w, h) || 1e-9);
+  const cLa = (mnLa + mxLa) / 2, cLn = (mnLn + mxLn) / 2;
+  return pts.map(([la, ln]) => `${((ln - cLn) * kx * s).toFixed(1)},${((cLa - la) * s).toFixed(1)}`).join(' ');
+}
+
+// ===== 鹿児島・奄美の枠（左中段・実位置なりの斜めチェーン） =====
+const KAGO_BOX = { x: 12, y: 320, w: 132, h: 340 };
+const KAGO_POS = {
+  'tanegashima':  [118, 366],
+  'yakushima':    [96, 390],
+  'amami-oshima': [66, 540],
+  'kikaijima':    [100, 528],
+  'tokunoshima':  [46, 584],
+  'okinoerabu':   [32, 617],
+  'yoron':        [28, 645],
 };
 function islandPoint(is){
-  const d = IZU_DIPPER[is.id];
+  const d = IZU_DIPPER[is.id] || KAGO_POS[is.id];
   return d ? { x: d[0], y: d[1] } : project(is.lat, is.lng);
 }
 
@@ -395,9 +439,9 @@ function landRings(){
 
 // 北方領土（右上の枠内・参考表示）
 const HOPPO = {
-  box: { x: 656, y: 235, w: 140, h: 120 },
+  box: { x: 684, y: 36, w: 112, h: 154 },
   proj(lat, lng){
-    return { x: 660 + (lng - 145.35) / 3.65 * 132, y: 239 + (45.75 - lat) / 2.55 * 108 };
+    return { x: 688 + (lng - 145.35) / 3.65 * 104, y: 48 + (45.75 - lat) / 2.6 * 130 };
   },
   shapes: [
     { name: '国後島', label: [44.0, 145.62],
@@ -410,23 +454,23 @@ const HOPPO = {
   dots: [[43.45,145.8],[43.52,146.0],[43.6,146.18]], // 歯舞群島
 };
 
-// トカラ列島・小笠原諸島（参考の小島）
+// トカラ列島（鹿児島枠内の小島・固定座標）・小笠原諸島（右下の参考・固定座標）
 const TOKARA = [
-  { name:'口之島', lat:29.97, lng:129.93 }, { name:'中之島', lat:29.84, lng:129.85 },
-  { name:'諏訪之瀬島', lat:29.64, lng:129.71 }, { name:'悪石島', lat:29.46, lng:129.60 },
-  { name:'宝島', lat:29.14, lng:129.20 },
+  { name:'口之島', x:88, y:416 }, { name:'中之島', x:82, y:428 },
+  { name:'諏訪之瀬島', x:74, y:444 }, { name:'悪石島', x:66, y:460 },
+  { name:'宝島', x:56, y:484 },
 ];
 const OGASAWARA = [
-  { name:'聟島列島', lat:27.68, lng:142.1 }, { name:'父島', lat:27.07, lng:142.2 }, { name:'母島', lat:26.63, lng:142.16 },
+  { name:'聟島列島', x:500, y:905 }, { name:'父島', x:506, y:928 }, { name:'母島', x:500, y:950 },
 ];
 
 function drawBase(){
-  // 観光イラストマップ調: ターコイズの海×緑の島、白フチの海岸線、波と生きもの
-  let g = `<rect x="-200" y="-200" width="${VW+400}" height="${VH+400}" fill="#3fb5ac"/>`;
-  for(let lat=28;lat<=46;lat+=2){const y=projectMain(lat,0).y; g+=`<line stroke="rgba(255,255,255,.22)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}"/>`;}
-  for(let lng=128;lng<=144;lng+=4){const x=projectMain(0,lng).x; g+=`<line stroke="rgba(255,255,255,.22)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}"/>`;}
-  // 枠（沖縄・北方領土・伊豆七島）はグリッドの上・島群の下に敷く
-  const panel = (x,y,w,h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="#4cc0b6" stroke="#ffffff" stroke-width="2.2"/>`;
+  // 観光イラストマップ調: ポップな青の海×緑の島、白フチの海岸線、波と生きもの
+  let g = `<rect x="-200" y="-200" width="${VW+400}" height="${VH+400}" fill="#2d9cdb"/>`;
+  for(let lat=32;lat<=46;lat+=2){const y=projectMain(lat,0).y; g+=`<line stroke="rgba(255,255,255,.2)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}"/>`;}
+  for(let lng=130;lng<=144;lng+=4){const x=projectMain(0,lng).x; g+=`<line stroke="rgba(255,255,255,.2)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}"/>`;}
+  // 枠（沖縄・北方領土・鹿児島・伊豆七島）はグリッドの上・島群の下に敷く
+  const panel = (x,y,w,h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="#43ade9" stroke="#ffffff" stroke-width="2.2"/>`;
   g += `<g>
     ${panel(INSET.x-6, INSET.y-24, INSET.w+12, INSET.h+34)}
     <text x="${INSET.x+8}" y="${INSET.y-6}" fill="#ffffff" font-size="13" font-weight="900" letter-spacing="2">沖縄の島々</text>
@@ -445,39 +489,42 @@ function drawBase(){
     g += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.1" fill="#7cc884" stroke="#ffffff" stroke-width="1"/>`; }
   { const p=HOPPO.proj(43.38,146.02);
     g += `<text x="${p.x.toFixed(1)}" y="${(p.y+9).toFixed(1)}" text-anchor="middle" fill="#eafff0" font-size="8" font-weight="800">歯舞群島</text></g>`; }
-  // 伊豆七島の枠（北斗七星ならび）
-  g += `<g>${panel(IZU_BOX.x, IZU_BOX.y, IZU_BOX.w, IZU_BOX.h)}
-    <text x="${IZU_BOX.x+IZU_BOX.w-10}" y="${IZU_BOX.y+21}" text-anchor="end" fill="#ffffff" font-size="13" font-weight="900" letter-spacing="2">伊豆七島</text>
-    <text x="${IZU_BOX.x+IZU_BOX.w-10}" y="${IZU_BOX.y+IZU_BOX.h-8}" text-anchor="end" fill="rgba(255,255,255,.8)" font-size="8.5" font-weight="700">北斗七星ならび・実際は南北に一列</text>`;
+  // 伊豆七島の枠（主役: 実シルエット×ポップカラーの北斗七星）
+  g += `<g><rect x="${IZU_BOX.x}" y="${IZU_BOX.y}" width="${IZU_BOX.w}" height="${IZU_BOX.h}" rx="18"
+      fill="#1f7fc4" stroke="#ffffff" stroke-width="3"/>
+    <text x="${IZU_BOX.x+14}" y="${IZU_BOX.y+30}" fill="#ffffff" font-size="19" font-weight="900" letter-spacing="4">伊豆七島</text>
+    <text x="${IZU_BOX.x+14}" y="${IZU_BOX.y+46}" fill="rgba(255,255,255,.85)" font-size="9" font-weight="700" letter-spacing="2">ISLAND BIG DIPPER ★ 北斗七星ならび</text>`;
   { // 星座線: 柄（大島→利島→新島→神津島）と枡（神津島→三宅島→御蔵島→八丈島→神津島）
     const D = IZU_DIPPER;
     const chain = ids => ids.map((id,i) => `${i?'L':'M'} ${D[id][0]} ${D[id][1]}`).join(' ');
     const lines = chain(['izu-oshima','toshima','niijima','kozushima'])
       + ' ' + chain(['kozushima','miyakejima','mikurajima','hachijojima']) + ` L ${D['kozushima'][0]} ${D['kozushima'][1]}`;
-    g += `<path d="${lines}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.4" stroke-dasharray="4 4" stroke-linejoin="round"/>`;
-    for(const [x,y] of [[IZU_BOX.x+16,IZU_BOX.y+34],[IZU_BOX.x+24,IZU_BOX.y+296],[IZU_BOX.x+176,IZU_BOX.y+120]])
-      g += `<text x="${x}" y="${y}" font-size="10" opacity=".8">✨</text>`;
+    g += `<path d="${lines}" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round" stroke-linejoin="round"/>`;
+    for(const [x,y,fs] of [[IZU_BOX.x+18,IZU_BOX.y+70,12],[IZU_BOX.x+200,IZU_BOX.y+36,14],
+        [IZU_BOX.x+206,IZU_BOX.y+240,10],[IZU_BOX.x+22,IZU_BOX.y+330,11],[IZU_BOX.x+120,IZU_BOX.y+455,10]])
+      g += `<text x="${x}" y="${y}" font-size="${fs}" opacity=".85">✨</text>`;
   }
   g += `</g>`;
-  // 参考地形（薄緑）
+  // 鹿児島・奄美の枠（左中段: 種子島〜与論の斜めチェーン。トカラ列島も枠内）
+  g += `<g>${panel(KAGO_BOX.x, KAGO_BOX.y, KAGO_BOX.w, KAGO_BOX.h)}
+    <text x="${KAGO_BOX.x+8}" y="${KAGO_BOX.y+18}" fill="#ffffff" font-size="11.5" font-weight="900" letter-spacing="1">鹿児島の島々</text>`;
+  for(const t of TOKARA){
+    g+=`<circle cx="${t.x}" cy="${t.y}" r="2.6" fill="#7cc884" stroke="#ffffff" stroke-width="1.2"/>`; }
+  g += `<text x="96" y="446" fill="rgba(255,255,255,.9)" font-size="8.5" font-weight="800">トカラ列島</text>
+    <text x="66" y="488" fill="rgba(255,255,255,.85)" font-size="8" font-weight="700">宝島</text></g>`;
+  // 参考地形（薄緑）※種子島は鹿児島枠にピンで入ったため描かない
   for(const ri of REF_ISLANDS){
+    if (ri.name === '種子島') continue;
     g+=`<polygon points="${polyPoints(ri.coords)}" fill="#7cc884" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
         <polygon points="${polyPoints(ri.coords)}" fill="none" stroke="#4da35c" stroke-width=".9" stroke-linejoin="round"/>
         <text x="${centroid(ri.coords).x.toFixed(1)}" y="${centroid(ri.coords).y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
           fill="#2c6b3a" font-size="10" font-weight="700" paint-order="stroke" stroke="#bfe6c2" stroke-width="3px">${esc(ri.name)}</text>`;
   }
-  // トカラ列島・小笠原諸島（参考の小島）
-  for(const t of TOKARA){ const p=projectMain(t.lat,t.lng);
-    g+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.6" fill="#7cc884" stroke="#ffffff" stroke-width="1.2"/>`; }
-  { const p=projectMain(29.5,129.0);
-    g+=`<text x="${(p.x-8).toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.85)" font-size="9" font-weight="800">トカラ列島</text>`;
-    const q=projectMain(29.14,129.20);
-    g+=`<text x="${(q.x-5).toFixed(1)}" y="${(q.y+3).toFixed(1)}" text-anchor="end" fill="rgba(255,255,255,.8)" font-size="8" font-weight="700">宝島</text>`; }
-  for(const o of OGASAWARA){ const p=projectMain(o.lat,o.lng);
-    g+=`<ellipse cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" rx="3.4" ry="4.6" fill="#7cc884" stroke="#ffffff" stroke-width="1.2"/>
-        <text x="${(p.x+7).toFixed(1)}" y="${(p.y+3).toFixed(1)}" fill="rgba(255,255,255,.85)" font-size="8" font-weight="700">${esc(o.name)}</text>`; }
-  { const p=projectMain(28.2,142.15);
-    g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="9.5" font-weight="800">小笠原諸島</text>`; }
+  // 小笠原諸島（右下・参考の小島）
+  for(const o of OGASAWARA){
+    g+=`<ellipse cx="${o.x}" cy="${o.y}" rx="3.4" ry="4.6" fill="#7cc884" stroke="#ffffff" stroke-width="1.2"/>
+        <text x="${o.x-7}" y="${o.y+3}" text-anchor="end" fill="rgba(255,255,255,.85)" font-size="8" font-weight="700">${esc(o.name)}</text>`; }
+  g+=`<text x="503" y="972" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="9.5" font-weight="800">小笠原諸島</text>`;
   // 本土（白フチ＋緑・実海岸線）
   for(const m of landRings()){
     const d = smoothPath(m);
@@ -487,13 +534,13 @@ function drawBase(){
   const labels=[['本州',36.5,138.5],['九州',32.3,130.8],['北海道',43.4,142.6]];
   for(const[t,la,ln] of labels){const p=projectMain(la,ln);
     g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.9)" font-size="13" font-weight="800" letter-spacing="3">${t}</text>`;}
-  const seaLabels=[['日本海',39.5,134.8],['太平洋',31.8,135.2],['東シナ海',28.6,127.7]];
+  const seaLabels=[['日本海',39.0,135.5],['太平洋',31.6,136.2]];
   for(const[t,la,ln] of seaLabels){const p=projectMain(la,ln);
     g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="12" font-weight="700" letter-spacing="3">${t}</text>`;}
   // 波と海の生きもの（飾り）
   const wave=(x,y,s)=>`<path d="M ${x} ${y} q ${5*s} -4 ${10*s} 0 q ${5*s} 4 ${10*s} 0" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="${1.6*s}" stroke-linecap="round"/>`;
-  for(const [x,y,s] of [[170,430,1],[430,180,.9],[500,600,.9],[250,700,.9],[480,880,1],[90,560,.8],[500,320,.8],[380,950,.9],[600,120,.8]]) g+=wave(x,y,s);
-  for(const [e,x,y,fs] of [['🐋',430,930,20],['⛵',390,530,18],['🐬',150,320,15],['☁️',470,55,18],['☁️',110,470,15],['🐢',540,700,15]])
+  for(const [x,y,s] of [[250,360,.9],[420,230,.9],[300,720,1],[220,880,.9],[420,860,1],[560,320,.8],[350,560,.9],[600,180,.8],[170,720,.8],[380,950,.9]]) g+=wave(x,y,s);
+  for(const [e,x,y,fs] of [['🐋',300,860,20],['⛵',420,520,18],['🐬',200,770,15],['☁️',470,60,18],['☁️',420,120,15],['🐢',500,660,15]])
     g+=`<text x="${x}" y="${y}" font-size="${fs}" opacity=".9" pointer-events="none">${e}</text>`;
   return g;
 }
@@ -563,7 +610,7 @@ function drawIslandShapes(){
   const useShapes = STATE.view.scale >= 2;
   return STATE.islands.map(is => {
     const coords = ISLAND_SHAPE_DATA[is.id];
-    if (!coords || !useShapes || IZU_DIPPER[is.id]) return ''; // 伊豆諸島は七星枠内で常にピン表示
+    if (!coords || !useShapes || IZU_DIPPER[is.id] || KAGO_POS[is.id]) return ''; // 枠内の島は常にピン/シルエット表示
     const active = is.id === STATE.activeId;
     const fill   = active ? '#9ec4e0' : is.fav ? '#e0d07a' : '#bdd4a6';
     const stroke = active ? '#1e6eb8' : is.fav ? '#a09640' : '#7a9e70';
@@ -585,9 +632,28 @@ function drawIslandShapes(){
 function drawDotPins(){
   return STATE.islands.map(is => {
     const hasShape = !!ISLAND_SHAPE_DATA[is.id];
-    if (hasShape && STATE.view.scale >= 2 && !IZU_DIPPER[is.id]) return '';
+    const boxed = IZU_DIPPER[is.id] || KAGO_POS[is.id];
+    if (hasShape && STATE.view.scale >= 2 && !boxed) return '';
     const p = islandPoint(is);
     const active = is.id === STATE.activeId;
+    // 伊豆七島（主役枠）: 実海岸線シルエット×ポップカラーの「島の星」
+    if (IZU_DIPPER[is.id]){
+      const size = IZU_SIZE[is.id] || 26;
+      const col = IZU_COLORS[is.id] || '#ffe082';
+      const shp = izuShapePoints(is.id, size);
+      return `<g class="pin${is.fav?' fav':''}${active?' active':''}" data-id="${is.id}" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})">
+        ${active ? `<circle class="ring" r="${(size*0.72+7).toFixed(0)}" fill="none" stroke="#ffffff" stroke-width="2.5" opacity=".95"/>` : ''}
+        <circle r="${(size*0.62).toFixed(0)}" fill="rgba(255,255,255,.15)"/>
+        ${shp
+          ? `<polygon class="dot" points="${shp}" fill="${col}" stroke="#ffffff" stroke-width="2.6" stroke-linejoin="round"/>`
+          : `<circle class="dot" r="${(size/2).toFixed(0)}" fill="${col}" stroke="#ffffff" stroke-width="2.6"/>`}
+        ${is.visits ? `<g pointer-events="none" transform="translate(${(size*0.55).toFixed(0)},${(-size*0.55).toFixed(0)})">
+          <circle r="8" fill="#ffffff"/><text y="3" text-anchor="middle" fill="#1d6fa5" font-size="9" font-weight="900">${is.visits}</text></g>` : ''}
+        ${is.fav ? `<text x="${(-size*0.62).toFixed(0)}" y="${(-size*0.45).toFixed(0)}" font-size="12" pointer-events="none">⭐</text>` : ''}
+        <text y="${(size*0.62+13).toFixed(0)}" text-anchor="middle" fill="#ffffff" font-size="11.5" font-weight="900"
+          paint-order="stroke" stroke="#1d6fa5" stroke-width="3px" pointer-events="none">${esc(is.name)}</text>
+      </g>`;
+    }
     const fill   = is.fav ? '#d8c870' : '#e06040';
     return `<g class="pin${is.fav?' fav':''}${active?' active':''}" data-id="${is.id}" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})">
       ${active ? `<circle class="ring" r="16" fill="none" stroke="#2a7ec8" stroke-width="2" opacity=".8"/>` : ''}
