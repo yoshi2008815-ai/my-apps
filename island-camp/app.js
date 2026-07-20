@@ -2,16 +2,29 @@
 'use strict';
 
 // リリース時は CHANGELOG.md に変更点を追記してからここを更新する（docs/DESIGN.md §12）
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.8.0';
 
 /* ---------- 投影（緯度経度 → SVG座標） ---------- */
-// 日本の島々が収まる範囲
-const BOUNDS = { latN: 46, latS: 23.5, lngW: 122, lngE: 146 };
+// 日本の島々が収まる範囲。沖縄方面は左上のインセット枠に再投影する
+// （観光イラストマップの定番の置き方。本土と伊豆・鹿児島の島が大きく見える）
+const BOUNDS = { latN: 46, latS: 26.2, lngW: 125.5, lngE: 146 };
 const VW = 800, VH = 1000;
-function project(lat, lng){
+const INSET = { x: 12, y: 70, w: 318, h: 195, latN: 27.2, latS: 23.7, lngW: 122.5, lngE: 128.7 };
+// 緯度27度未満かつ経度128.7度未満 = 沖縄の島々（与論・沖永良部は27度以上で本図側）
+function inInset(lat, lng){ return lat < 27.0 && lng < 128.7; }
+function projectMain(lat, lng){
   const x = (lng - BOUNDS.lngW) / (BOUNDS.lngE - BOUNDS.lngW) * VW;
   const y = (BOUNDS.latN - lat) / (BOUNDS.latN - BOUNDS.latS) * VH;
   return { x, y };
+}
+function project(lat, lng){
+  if (inInset(lat, lng)){
+    return {
+      x: INSET.x + (lng - INSET.lngW) / (INSET.lngE - INSET.lngW) * INSET.w,
+      y: INSET.y + (INSET.latN - lat) / (INSET.latN - INSET.latS) * INSET.h,
+    };
+  }
+  return projectMain(lat, lng);
 }
 
 /* ---------- ID・時刻ユーティリティ ---------- */
@@ -353,19 +366,41 @@ function centroid(coords){
 
 /* ---------- 全国地図描画 ---------- */
 function drawBase(){
-  let g = `<rect width="${VW}" height="${VH}" fill="#c0d8e8"/>`;
-  for(let lat=24;lat<=46;lat+=2){const y=project(lat,0).y; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}">`+'</line>';}
-  for(let lng=124;lng<=144;lng+=4){const x=project(0,lng).x; g+=`<line stroke="rgba(255,255,255,.45)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}">`+'</line>';}
+  // 観光イラストマップ調: ターコイズの海×緑の島、白フチの海岸線、波と生きもの
+  let g = `<rect x="-200" y="-200" width="${VW+400}" height="${VH+400}" fill="#3fb5ac"/>`;
+  for(let lat=28;lat<=46;lat+=2){const y=projectMain(lat,0).y; g+=`<line stroke="rgba(255,255,255,.22)" stroke-width=".6" x1="0" y1="${y.toFixed(1)}" x2="${VW}" y2="${y.toFixed(1)}"/>`;}
+  for(let lng=128;lng<=144;lng+=4){const x=projectMain(0,lng).x; g+=`<line stroke="rgba(255,255,255,.22)" stroke-width=".6" x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${VH}"/>`;}
+  // 沖縄インセット枠（グリッドの上・島群の下）
+  g += `<g>
+    <rect x="${INSET.x-6}" y="${INSET.y-24}" width="${INSET.w+12}" height="${INSET.h+34}" rx="14"
+      fill="#4cc0b6" stroke="#ffffff" stroke-width="2.2"/>
+    <text x="${INSET.x+8}" y="${INSET.y-6}" fill="#ffffff" font-size="13" font-weight="900" letter-spacing="2">沖縄の島々</text>
+    <text x="${INSET.x+INSET.w-4}" y="${INSET.y+INSET.h+4}" text-anchor="end" fill="rgba(255,255,255,.8)" font-size="8.5" font-weight="700">実際は本土のはるか南西</text>
+  </g>`;
+  // 参考地形（薄緑）
   for(const ri of REF_ISLANDS){
-    g+=`<polygon points="${polyPoints(ri.coords)}" fill="#e4e0d4" stroke="#c0bab0" stroke-width="1" stroke-linejoin="round"/>
+    g+=`<polygon points="${polyPoints(ri.coords)}" fill="#7cc884" stroke="#ffffff" stroke-width="2.4" stroke-linejoin="round"/>
+        <polygon points="${polyPoints(ri.coords)}" fill="none" stroke="#4da35c" stroke-width=".9" stroke-linejoin="round"/>
         <text x="${centroid(ri.coords).x.toFixed(1)}" y="${centroid(ri.coords).y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
-          fill="#a09890" font-size="10" font-weight="600" paint-order="stroke" stroke="#e8e4d8" stroke-width="3px">${esc(ri.name)}</text>`;
+          fill="#2c6b3a" font-size="10" font-weight="700" paint-order="stroke" stroke="#bfe6c2" stroke-width="3px">${esc(ri.name)}</text>`;
   }
-  for(const m of LANDMASSES){ g+=`<path fill="#e4e0d4" stroke="#b8b2a6" stroke-width="1.2" stroke-linejoin="round" d="${smoothPath(m)}"/>`; }
-  const labels=[['本州',36.5,137.0],['九州',32.0,130.3],['北海道',43.6,142.5],
-    ['日本海',39.5,134.5],['太平洋',33.0,135.5],['東シナ海',28.0,125.5]];
-  for(const[t,la,ln] of labels){const p=project(la,ln);
-    g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="#92b0bc" font-size="13" font-weight="700" letter-spacing="2" opacity=".9">${t}</text>`;}
+  // 本土（白フチ＋緑）
+  for(const m of LANDMASSES){
+    const d = smoothPath(m);
+    g+=`<path fill="#63bd6d" stroke="#ffffff" stroke-width="5" stroke-linejoin="round" d="${d}"/>
+        <path fill="none" stroke="#3f9a52" stroke-width="1.4" stroke-linejoin="round" d="${d}"/>`;
+  }
+  const labels=[['本州',36.5,137.0],['九州',32.0,130.3],['北海道',43.6,142.5]];
+  for(const[t,la,ln] of labels){const p=projectMain(la,ln);
+    g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.9)" font-size="13" font-weight="800" letter-spacing="3">${t}</text>`;}
+  const seaLabels=[['日本海',39.5,134.8],['太平洋',33.0,136.5],['東シナ海',28.6,127.7]];
+  for(const[t,la,ln] of seaLabels){const p=projectMain(la,ln);
+    g+=`<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="12" font-weight="700" letter-spacing="3">${t}</text>`;}
+  // 波と海の生きもの（飾り）
+  const wave=(x,y,s)=>`<path d="M ${x} ${y} q ${5*s} -4 ${10*s} 0 q ${5*s} 4 ${10*s} 0" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="${1.6*s}" stroke-linecap="round"/>`;
+  for(const [x,y,s] of [[170,430,1],[430,180,.9],[620,560,1],[250,700,.9],[520,860,1],[90,560,.8],[680,300,.8],[380,950,.9],[600,80,.8]]) g+=wave(x,y,s);
+  for(const [e,x,y,fs] of [['🐋',495,915,20],['⛵',390,530,18],['🐬',150,320,15],['☁️',470,55,18],['☁️',110,470,15],['🐢',700,650,15]])
+    g+=`<text x="${x}" y="${y}" font-size="${fs}" opacity=".9" pointer-events="none">${e}</text>`;
   return g;
 }
 
