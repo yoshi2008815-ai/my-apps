@@ -1,5 +1,5 @@
 // 島キャンプ思い出マップ Service Worker
-const CACHE = 'island-camp-v250';
+const CACHE = 'island-camp-v260';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   './kankomap.js',
   './media.js',
   './manifest.json',
+  './logo.svg',
   './icon.svg',
   './icon-maskable.svg'
 ];

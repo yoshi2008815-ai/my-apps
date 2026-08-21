@@ -47,7 +47,10 @@
     background:rgba(13,31,36,.88); backdrop-filter:blur(8px);
     border-bottom:1px solid rgba(255,255,255,.08);
   }
-  .title{pointer-events:auto}
+  .title{pointer-events:auto; display:flex; align-items:center; gap:10px; min-width:0}
+  /* アプリロゴ（東島 ひがしまんちゅ）。暗いトップバー上で白地バッジとして見せる */
+  .logo{width:38px; height:38px; flex:none; border-radius:10px; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .titletext{min-width:0}
   .title h1{margin:0; font-size:1.05rem; letter-spacing:.04em}
   .title p{margin:2px 0 0; font-size:.72rem; color:var(--sub)}
   .spacer{flex:1}
@@ -400,8 +403,11 @@
   <div class="mapwrap">
     <div class="topbar">
       <div class="title">
-        <h1>🏝 島キャンプ思い出マップ</h1>
-        <p>20年分の島旅を地図でふりかえる</p>
+        <img class="logo" src="./logo.svg" alt="東島 ひがしまんちゅ" width="38" height="38" decoding="async" />
+        <div class="titletext">
+          <h1>島キャンプ思い出マップ</h1>
+          <p>20年分の島旅を地図でふりかえる</p>
+        </div>
       </div>
       <div class="spacer"></div>
       <button class="btn ghost" id="albumBtn" title="アルバム（写真・動画）">📸</button>

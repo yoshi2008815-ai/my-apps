@@ -1,9 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#06222b"/>
-  <circle cx="256" cy="256" r="170" fill="#0d3340"/>
-  <path d="M120 330 q60 -40 130 -28 q70 12 140 -22 v90 q-70 30 -140 18 q-70 -12 -130 26 z" fill="#11414f"/>
-  <path d="M256 120 c44 0 80 36 80 80 c0 60 -80 132 -80 132 s-80 -72 -80 -132 c0 -44 36 -80 80 -80 z" fill="#ff7a59"/>
-  <circle cx="256" cy="198" r="30" fill="#06222b"/>
-  <path d="M150 250 l14 -30 l14 30 z" fill="#4fd1c5"/>
-  <path d="M348 270 l12 -26 l12 26 z" fill="#ffcc4d"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="東島 ひがしまんちゅ">
+  <rect width="512" height="512" rx="96" fill="#ffffff"/>
+  <g fill="none" stroke="#17395f" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 釣り糸と魚（右・円の外側にはみ出す） -->
+    <path d="M 396 118 Q 432 190 436 278" stroke-width="3.5"/>
+    <g stroke-width="0">
+      <path d="M 436 280 l -11 -12 l 22 0 z" fill="#17395f"/>
+      <ellipse cx="436" cy="308" rx="14" ry="22" fill="#17395f"/>
+      <circle cx="436" cy="296" r="3.2" fill="#ffffff"/>
+    </g>
+
+    <!-- バッジの二重円 -->
+    <circle cx="250" cy="232" r="178" stroke-width="11"/>
+    <circle cx="250" cy="232" r="161" stroke-width="2.5" opacity="0.85"/>
+
+    <!-- シュノーケル -->
+    <path d="M 160 132 L 160 236 Q 160 260 186 264" stroke-width="12"/>
+
+    <!-- マスク（二眼・鼻のくぼみ） -->
+    <path d="M 180 214 Q 180 196 200 196 L 306 196 Q 326 196 326 214
+             L 326 244 Q 326 268 300 270 Q 276 271 266 254 Q 258 244 250 244
+             Q 242 244 234 254 Q 224 271 200 270 Q 180 268 180 244 Z"
+          stroke-width="11" fill="#ffffff"/>
+    <!-- ストラップ -->
+    <path d="M 326 226 L 356 226" stroke-width="11"/>
+
+    <!-- 島 -->
+    <path d="M 186 346 Q 214 296 250 296 Q 286 296 314 346 Z" stroke-width="9" fill="#ffffff"/>
+    <path d="M 226 344 L 232 312 M 250 346 L 250 306 M 274 344 L 268 312" stroke-width="3.5" opacity="0.7"/>
+
+    <!-- 波 -->
+    <path d="M 176 366 q 14 -11 28 0 t 28 0 t 28 0 t 28 0 t 28 0" stroke="#2a6fd1" stroke-width="6"/>
+    <path d="M 198 388 q 13 -10 26 0 t 26 0 t 26 0" stroke="#2a6fd1" stroke-width="5" opacity="0.8"/>
+  </g>
+
+  <!-- 東・島 -->
+  <g fill="#17395f" font-family="'Zen Maru Gothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif" font-weight="700" text-anchor="middle">
+    <text x="128" y="250" font-size="46">東</text>
+    <text x="372" y="250" font-size="46">島</text>
+    <text x="250" y="476" font-size="40" letter-spacing="2">ひがしまんちゅ</text>
+  </g>
 </svg>

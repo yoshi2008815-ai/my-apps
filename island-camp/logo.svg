@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="東島 ひがしまんちゅ">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="東島 ひがしまんちゅ">
+  <title>東島 ひがしまんちゅ</title>
   <rect width="512" height="512" fill="#ffffff"/>
-  <g transform="translate(256,256) scale(0.76) translate(-250,-262)">
+  <!-- MARK-START -->
   <g fill="none" stroke="#17395f" stroke-linecap="round" stroke-linejoin="round">
     <!-- 釣り糸と魚（右・円の外側にはみ出す） -->
     <path d="M 396 118 Q 432 190 436 278" stroke-width="3.5"/>
@@ -40,5 +41,5 @@
     <text x="372" y="250" font-size="46">島</text>
     <text x="250" y="476" font-size="40" letter-spacing="2">ひがしまんちゅ</text>
   </g>
-  </g>
+  <!-- MARK-END -->
 </svg>
